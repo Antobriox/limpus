@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: 'media', // Usa el modo oscuro según el sistema
+  darkMode: 'class', // Usa el modo oscuro según la clase 'dark' en el elemento html
   content: [
     './src/**/*.{js,ts,jsx,tsx}',
     './components/**/*.{js,ts,jsx,tsx}',

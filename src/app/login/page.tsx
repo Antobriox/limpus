@@ -82,19 +82,19 @@ export default function LoginPage() {
           <form onSubmit={login} className="space-y-6">
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
                 Correo Electrónico
               </label>
-              <div className="flex rounded-lg border overflow-hidden focus-within:border-blue-600">
+              <div className="flex rounded-lg border border-gray-300 dark:border-neutral-700 overflow-hidden focus-within:border-blue-600 dark:focus-within:border-blue-500">
                 <input
                   type="email"
                   required
                   placeholder="correo@universidad.edu"
-                  className="flex-1 px-4 py-3 outline-none bg-transparent"
+                  className="flex-1 px-4 py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
-                <div className="flex items-center px-4 text-gray-400">
+                <div className="flex items-center px-4 text-gray-400 dark:text-gray-500">
                   <Mail className="w-5 h-5" />
                 </div>
               </div>
@@ -102,22 +102,22 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
                 Contraseña
               </label>
-              <div className="flex rounded-lg border overflow-hidden focus-within:border-blue-600">
+              <div className="flex rounded-lg border border-gray-300 dark:border-neutral-700 overflow-hidden focus-within:border-blue-600 dark:focus-within:border-blue-500">
                 <input
                   type={showPassword ? "text" : "password"}
                   required
                   placeholder="Ingresa tu contraseña"
-                  className="flex-1 px-4 py-3 outline-none bg-transparent"
+                  className="flex-1 px-4 py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="px-4 text-gray-400"
+                  className="px-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   {showPassword ? <EyeOff /> : <Eye />}
                 </button>
@@ -126,17 +126,17 @@ export default function LoginPage() {
 
             {/* Remember + Forgot */}
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex items-center gap-2 text-sm text-gray-900 dark:text-white">
                 <input
                   type="checkbox"
-                  className="rounded border-gray-300 text-blue-600"
+                  className="rounded border-gray-300 dark:border-neutral-700 text-blue-600 dark:text-blue-500"
                 />
                 Recordarme
               </label>
 
               <a
                 href="#"
-                className="text-sm text-blue-600 hover:underline"
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
               >
                 ¿Olvidaste tu contraseña?
               </a>
@@ -158,14 +158,14 @@ export default function LoginPage() {
           </form>
 
           {/* Footer */}
-          <div className="text-center text-sm text-gray-500">
+          <div className="text-center text-sm text-gray-500 dark:text-gray-400">
             ¿No tienes una cuenta?{" "}
-            <a href="#" className="text-blue-600 font-medium hover:underline">
+            <a href="#" className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
               Regístrate aquí
             </a>
           </div>
 
-          <footer className="pt-6 text-center text-xs text-gray-400">
+          <footer className="pt-6 text-center text-xs text-gray-400 dark:text-gray-500">
             © 2025 Limpus
             <div className="mt-2 flex justify-center gap-4">
               <a href="#" className="hover:underline">

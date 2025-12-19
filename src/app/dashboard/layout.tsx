@@ -23,18 +23,18 @@ export default function DashboardLayout({
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center bg-white dark:bg-neutral-900 text-gray-900 dark:text-white">
         Cargando dashboard...
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 dark:bg-neutral-950">
       <Sidebar />
       <div className="flex flex-col flex-1">
         <Topbar />
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-8 bg-gray-50 dark:bg-neutral-950">
           {children}
         </main>
       </div>
