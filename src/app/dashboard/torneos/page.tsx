@@ -1,0 +1,605 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "../../../lib/supabaseClient";
+import AdvancedStatCard from "../../../components/AdvancedStatCard";
+import ActionCard from "../../../components/ActionCard";
+import {
+  Users,
+  Settings,
+  Square,
+  TrendingUp,
+  Network,
+  Calendar,
+  Upload,
+  Edit,
+  Plus,
+  Calendar as CalendarIcon,
+  MapPin,
+  MoreVertical,
+} from "lucide-react";
+
+type Tournament = {
+  id: number;
+  name: string;
+  start_date: string;
+  end_date: string;
+  location?: string;
+  status?: string;
+};
+
+type Team = {
+  id: number;
+  name: string;
+  faculty?: string;
+  captain?: string;
+  status?: string;
+};
+
+type RecentResult = {
+  id: number;
+  sport: string;
+  category: string;
+  team1: string;
+  team2: string;
+  score1: number;
+  score2: number;
+  date: string;
+  time: string;
+};
+
+export default function TorneosPage() {
+  const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [stats, setStats] = useState({
+    equiposInscritos: 0,
+    equiposNuevos: 0,
+    disciplinasActivas: 0,
+    partidosJugados: 0,
+    partidosTotales: 0,
+    progresoGeneral: 0,
+  });
+  const [recentTeams, setRecentTeams] = useState<Team[]>([]);
+  const [recentResults, setRecentResults] = useState<RecentResult[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      // Cargar torneo activo (por ahora usamos datos de ejemplo o el primero)
+      const { data: tournaments } = await supabase
+        .from("registration_forms")
+        .select("*")
+        .order("id", { ascending: false })
+        .limit(1);
+
+      if (tournaments && tournaments.length > 0) {
+        const t = tournaments[0];
+        setTournament({
+          id: t.id,
+          name: t.name || "Olimpiadas Universitarias 2024",
+          start_date: t.start_date,
+          end_date: t.end_date,
+          location: "Campus Central",
+          status: t.is_locked ? "FINALIZADO" : "EN CURSO",
+        });
+      } else {
+        // Datos por defecto si no hay torneo
+        setTournament({
+          id: 1,
+          name: "Olimpiadas Universitarias 2024",
+          start_date: "2024-10-15",
+          end_date: "2024-11-20",
+          location: "Campus Central",
+          status: "EN CURSO",
+        });
+      }
+
+      // Contar equipos inscritos
+      const { count: equiposCount } = await supabase
+        .from("teams")
+        .select("*", { count: "exact", head: true });
+
+      // Contar equipos nuevos (últimos 7 días)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const { count: equiposNuevosCount } = await supabase
+        .from("teams")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", sevenDaysAgo.toISOString());
+
+      // Contar disciplinas activas
+      const { count: disciplinasCount } = await supabase
+        .from("sports")
+        .select("*", { count: "exact", head: true });
+
+      // Intentar contar partidos reales de la tabla 'matches' si existe
+      let partidosJugadosCount = 0;
+      let partidosTotales = 0;
+
+      const { count: matchesCount, data: matchesData } = await supabase
+        .from("matches")
+        .select("*", { count: "exact" })
+        .not("score1", "is", null)
+        .not("score2", "is", null);
+
+      if (matchesCount !== null) {
+        partidosJugadosCount = matchesCount;
+        // Contar total de partidos programados
+        const { count: totalMatchesCount } = await supabase
+          .from("matches")
+          .select("*", { count: "exact", head: true });
+        partidosTotales = totalMatchesCount || 0;
+      } else {
+        // Fallback: usar inscripciones como proxy
+        const { count: partidosJugadosCountFallback } = await supabase
+          .from("registration_forms")
+          .select("*", { count: "exact", head: true })
+          .eq("is_locked", true);
+        partidosJugadosCount = partidosJugadosCountFallback || 0;
+        partidosTotales = (equiposCount || 0) * 2; // Estimación
+      }
+
+      // Calcular progreso general
+      const progreso = partidosTotales > 0 
+        ? Math.round((partidosJugadosCount / partidosTotales) * 100)
+        : 0;
+
+      setStats({
+        equiposInscritos: equiposCount || 0,
+        equiposNuevos: equiposNuevosCount || 0,
+        disciplinasActivas: disciplinasCount || 0,
+        partidosJugados: partidosJugadosCount || 0,
+        partidosTotales: partidosTotales,
+        progresoGeneral: progreso,
+      });
+
+      // Cargar equipos recientes con sus carreras y capitanes
+      const { data: teamsData } = await supabase
+        .from("teams")
+        .select(`
+          id,
+          name,
+          created_at,
+          careers (
+            id,
+            name
+          )
+        `)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (teamsData && teamsData.length > 0) {
+        // Obtener todos los career_ids únicos
+        const careerIds = teamsData
+          .flatMap((team: any) => team.careers || [])
+          .map((career: any) => career.id)
+          .filter((id: number) => id);
+
+        // Obtener todos los capitanes de una vez
+        const { data: captainsData } = await supabase
+          .from("players")
+          .select("career_id, full_name")
+          .in("career_id", careerIds)
+          .eq("is_captain", true);
+
+        // Crear un mapa de career_id -> captain name
+        const captainsMap = new Map(
+          captainsData?.map((c: any) => [c.career_id, c.full_name]) || []
+        );
+
+        // Mapear equipos con sus detalles
+        const teamsWithDetails = teamsData.map((team: any) => {
+          const faculty = team.careers && team.careers.length > 0 
+            ? team.careers[0].name 
+            : "Sin facultad";
+
+          const careerId = team.careers && team.careers.length > 0 
+            ? team.careers[0].id 
+            : null;
+
+          const captain = careerId && captainsMap.has(careerId)
+            ? captainsMap.get(careerId)!
+            : "Sin capitán";
+
+          return {
+            id: team.id,
+            name: team.name,
+            faculty: faculty,
+            captain: captain,
+            status: "Verificado",
+          };
+        });
+
+        setRecentTeams(teamsWithDetails);
+      } else {
+        setRecentTeams([]);
+      }
+
+      // Intentar cargar resultados reales de partidos
+      // Buscar en diferentes posibles tablas
+      let results: RecentResult[] = [];
+
+      // Intentar buscar en tabla 'matches' si existe
+      const { data: matchesResultsData } = await supabase
+        .from("matches")
+        .select(`
+          id,
+          team1_id,
+          team2_id,
+          score1,
+          score2,
+          match_date,
+          match_time,
+          sports(name),
+          category
+        `)
+        .order("match_date", { ascending: false })
+        .limit(3);
+
+      if (matchesResultsData && matchesResultsData.length > 0) {
+        // Obtener nombres de equipos
+        const teamIds = [
+          ...new Set([
+            ...matchesResultsData.map((m: any) => m.team1_id),
+            ...matchesResultsData.map((m: any) => m.team2_id),
+          ]),
+        ];
+
+        const { data: teamsForResults } = await supabase
+          .from("teams")
+          .select("id, name")
+          .in("id", teamIds);
+
+        const teamsMap = new Map(
+          teamsForResults?.map((t: any) => [t.id, t.name]) || []
+        );
+
+        results = matchesResultsData.map((match: any) => {
+          const matchDate = new Date(match.match_date);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+
+          let dateLabel = "";
+          if (matchDate.toDateString() === today.toDateString()) {
+            dateLabel = "Hoy";
+          } else if (matchDate.toDateString() === yesterday.toDateString()) {
+            dateLabel = "Ayer";
+          } else {
+            dateLabel = matchDate.toLocaleDateString("es-ES", {
+              day: "numeric",
+              month: "short",
+            });
+          }
+
+          const time = match.match_time
+            ? new Date(`2000-01-01T${match.match_time}`).toLocaleTimeString(
+                "es-ES",
+                { hour: "2-digit", minute: "2-digit" }
+              )
+            : "";
+
+          return {
+            id: match.id,
+            sport: match.sports?.name || "Deporte",
+            category: match.category || "General",
+            team1: teamsMap.get(match.team1_id) || "Equipo 1",
+            team2: teamsMap.get(match.team2_id) || "Equipo 2",
+            score1: match.score1 || 0,
+            score2: match.score2 || 0,
+            date: dateLabel,
+            time: time,
+          };
+        });
+      }
+
+      // Si no hay resultados reales, mostrar mensaje vacío o datos de ejemplo
+      if (results.length === 0) {
+        // Intentar buscar en otras posibles tablas o dejar vacío
+        results = [];
+      }
+
+      setRecentResults(results);
+    } catch (error) {
+      console.error("Error cargando datos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const months = [
+      "Enero",
+      "Febrero",
+      "Marzo",
+      "Abril",
+      "Mayo",
+      "Junio",
+      "Julio",
+      "Agosto",
+      "Septiembre",
+      "Octubre",
+      "Noviembre",
+      "Diciembre",
+    ];
+    return `${date.getDate()} de ${months[date.getMonth()]}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64 text-gray-400 dark:text-gray-500">
+        Cargando torneo...
+      </div>
+    );
+  }
+
+  if (!tournament) {
+    return (
+      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+        No hay torneo activo
+      </div>
+    );
+  }
+
+  const progressPartidos = stats.partidosTotales > 0
+    ? Math.round((stats.partidosJugados / stats.partidosTotales) * 100)
+    : 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                {tournament.name}
+              </h1>
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  tournament.status === "EN CURSO"
+                    ? "bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400"
+                    : "bg-gray-100 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400"
+                }`}
+              >
+                {tournament.status}
+              </span>
+            </div>
+            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4" />
+                <span>
+                  {formatDate(tournament.start_date)} -{" "}
+                  {formatDate(tournament.end_date)}
+                </span>
+              </div>
+              <span>•</span>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                <span>{tournament.location}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition">
+              <Edit className="w-4 h-4" />
+              Editar
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+              <Plus className="w-4 h-4" />
+              Nueva Disciplina
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <AdvancedStatCard
+          icon={<Users className="w-5 h-5 text-gray-700 dark:text-gray-300" />}
+          value={stats.equiposInscritos.toString()}
+          label="Equipos Inscritos"
+          subtitle={stats.equiposNuevos > 0 ? `+${stats.equiposNuevos} nuevos` : undefined}
+        />
+        <AdvancedStatCard
+          icon={<Settings className="w-5 h-5 text-gray-700 dark:text-gray-300" />}
+          value={`${stats.disciplinasActivas} categorías`}
+          label="Disciplinas Activas"
+        />
+        <AdvancedStatCard
+          icon={<Square className="w-5 h-5 text-gray-700 dark:text-gray-300" />}
+          value={`${stats.partidosJugados} / ${stats.partidosTotales}`}
+          label="Partidos Jugados"
+          progress={progressPartidos}
+          progressColor="orange"
+        />
+        <AdvancedStatCard
+          icon={<TrendingUp className="w-5 h-5 text-gray-700 dark:text-gray-300" />}
+          value={`${stats.progresoGeneral}%`}
+          label="Progreso General"
+          progress={stats.progresoGeneral}
+          progressColor="green"
+        />
+      </div>
+
+      {/* Action Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <ActionCard
+          icon={<Network className="w-6 h-6 text-blue-600 dark:text-blue-400" />}
+          title="Generar Brackets"
+          description="Crear llaves de eliminación automática"
+          variant="blue"
+        />
+        <ActionCard
+          icon={<Calendar className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+          title="Programar Partidos"
+          description="Asignar fechas y canchas pendientes"
+        />
+        <ActionCard
+          icon={<Upload className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+          title="Publicar Resultados"
+          description="Actualizar marcadores de la jornada"
+        />
+      </div>
+
+      {/* Bottom Sections */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Equipos Recientes */}
+        <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg overflow-hidden">
+          <div className="p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              Equipos Recientes
+            </h3>
+            <a
+              href="#"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Ver todos
+            </a>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-neutral-800">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    EQUIPO
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    FACULTAD
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    CAPITÁN
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    ESTADO
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    ACCIÓN
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-neutral-800">
+                {recentTeams.length > 0 ? (
+                  recentTeams.map((team) => (
+                    <tr
+                      key={team.id}
+                      className="hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white font-semibold text-sm">
+                            {team.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-medium text-gray-900 dark:text-white">
+                            {team.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {team.faculty}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {team.captain}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-500/10 dark:text-green-400">
+                          {team.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                          <MoreVertical className="w-5 h-5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400 text-sm">
+                      No hay equipos registrados
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Resultados Recientes y Documentos */}
+        <div className="space-y-6">
+          {/* Resultados Recientes */}
+          <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900 dark:text-white">
+                Resultados Recientes
+              </h3>
+              <a
+                href="#"
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Ver todo
+              </a>
+            </div>
+            <div className="p-6 space-y-4">
+              {recentResults.length > 0 ? (
+                recentResults.map((result) => (
+                  <div
+                    key={result.id}
+                    className="pb-4 border-b border-gray-200 dark:border-neutral-800 last:border-0 last:pb-0"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        {result.sport} - {result.category}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {result.date} {result.time && `, ${result.time}`}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">{result.team1}</span>{" "}
+                      <span className="font-bold">{result.score1}</span> -{" "}
+                      <span className="font-bold">{result.score2}</span>{" "}
+                      <span className="font-medium">{result.team2}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
+                  No hay resultados recientes disponibles
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Documentos */}
+          <ActionCard
+            icon={
+              <div className="w-6 h-6 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-gray-700 dark:text-gray-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                  />
+                </svg>
+              </div>
+            }
+            title="Documentos"
+            description="Descarga el reporte completo del torneo"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
