@@ -3,11 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Trophy } from "lucide-react";
+import { Trophy, X } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useUser } from "../hooks/useUser";
 
-export default function Sidebar() {
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+export default function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useUser();
@@ -55,28 +59,48 @@ export default function Sidebar() {
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "Usuario";
   const initials = profile?.full_name ? getInitials(profile.full_name) : (user?.email?.[0]?.toUpperCase() || "U");
 
+  const handleLinkClick = () => {
+    if (onClose) {
+      onClose();
+    }
+  };
+
   return (
-    <aside className="w-64 bg-white dark:bg-neutral-900 border-r border-gray-200 dark:border-gray-700 h-screen p-4 flex flex-col">
-      <div className="mb-6 flex items-center gap-2 font-bold text-lg text-gray-900 dark:text-white">
-        <Trophy className="w-6 h-6" /> Olimpiadas U
+    <aside className="w-64 sm:w-64 bg-white dark:bg-neutral-900 border-r border-gray-200 dark:border-gray-700 h-screen p-4 flex flex-col">
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-2 font-bold text-lg text-gray-900 dark:text-white">
+          <Trophy className="w-6 h-6" /> Olimpiadas U
+        </div>
+        <button
+          onClick={onClose}
+          className="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-gray-400"
+          aria-label="Cerrar menú"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       <nav className="space-y-1 flex-1">
-        <Link href="/dashboard" className={itemClass("/dashboard")}>
+        <Link href="/dashboard" className={itemClass("/dashboard")} onClick={handleLinkClick}>
           Dashboard
         </Link>
 
-        <Link href="/dashboard/usuarios" className={itemClass("/dashboard/usuarios")}>
+        <Link href="/dashboard/usuarios" className={itemClass("/dashboard/usuarios")} onClick={handleLinkClick}>
           Usuarios
         </Link>
 
-        <Link href="/dashboard/torneos" className={itemClass("/dashboard/torneos")}>
+        <Link href="/dashboard/equipos" className={itemClass("/dashboard/equipos")} onClick={handleLinkClick}>
+          Equipos
+        </Link>
+
+        <Link href="/dashboard/torneos" className={itemClass("/dashboard/torneos")} onClick={handleLinkClick}>
           Torneos
         </Link>
 
         <Link
           href="/dashboard/inscripciones"
           className={itemClass("/dashboard/inscripciones")}
+          onClick={handleLinkClick}
         >
           Inscripciones
         </Link>

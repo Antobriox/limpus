@@ -106,14 +106,14 @@ export default function DashboardPage() {
   const getBarHeight = (count: number) => (count / maxCount) * 100;
 
   return (
-    <div className="flex flex-col gap-8 p-10">
+    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-6 lg:p-10">
       {/* Page Heading */}
       <div className="flex flex-wrap justify-between gap-3">
-        <div className="flex min-w-72 flex-col gap-1">
-          <p className="text-gray-900 dark:text-white text-3xl font-bold leading-tight">
+        <div className="flex flex-col gap-1">
+          <p className="text-gray-900 dark:text-white text-2xl sm:text-3xl font-bold leading-tight">
             Dashboard
           </p>
-          <p className="text-gray-600 dark:text-gray-400 text-base font-normal leading-normal">
+          <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base font-normal leading-normal">
             Bienvenido de nuevo, {user?.email?.split("@")[0] || "Admin"}. Aquí tienes un resumen del estado del evento.
           </p>
         </div>
@@ -156,9 +156,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
         {/* Activity Chart */}
-        <div className="lg:col-span-3 flex flex-col gap-4 rounded-lg p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+        <div className="lg:col-span-3 flex flex-col gap-4 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
           <p className="text-gray-900 dark:text-white text-base font-medium leading-normal">
             Actividad de la Última Semana
           </p>
@@ -209,7 +209,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Sports Chart */}
-        <div className="lg:col-span-2 flex flex-col gap-4 rounded-lg p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+        <div className="lg:col-span-2 flex flex-col gap-4 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
           <p className="text-gray-900 dark:text-white text-base font-medium leading-normal">
             Inscripciones por Disciplina
           </p>
@@ -236,9 +236,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Activity & Quick Access */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Recent Activity */}
-        <div className="lg:col-span-2 flex flex-col gap-4 rounded-lg p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+        <div className="lg:col-span-2 flex flex-col gap-4 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
           <h3 className="text-gray-900 dark:text-white text-base font-medium leading-normal">
             Tareas Pendientes y Actividad Reciente
           </h3>
@@ -301,7 +301,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick Access */}
-        <div className="flex flex-col gap-4 rounded-lg p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+        <div className="flex flex-col gap-4 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
           <h3 className="text-gray-900 dark:text-white text-base font-medium leading-normal">
             Accesos Rápidos
           </h3>

@@ -72,11 +72,11 @@ export default function UsuariosPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
             Usuarios
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -86,7 +86,7 @@ export default function UsuariosPage() {
 
         <a
           href="/dashboard/usuarios/nuevo"
-          className="bg-blue-600 hover:bg-blue-700 transition text-white px-5 py-2 rounded-lg text-sm font-medium"
+          className="bg-blue-600 hover:bg-blue-700 transition text-white px-4 sm:px-5 py-2 rounded-lg text-sm font-medium whitespace-nowrap"
         >
           + Nuevo usuario
         </a>
@@ -102,15 +102,16 @@ export default function UsuariosPage() {
       {/* Table */}
       {users.length > 0 && (
         <div className="bg-white border border-gray-200 dark:bg-neutral-900 dark:border-neutral-800 rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-gray-300">
-              <tr>
-                <th className="px-4 py-3 text-left">Nombre</th>
-                <th className="text-left">Email</th>
-                <th className="text-center">Rol</th>
-                <th className="text-right px-4">Acciones</th>
-              </tr>
-            </thead>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="w-full text-sm min-w-[640px]">
+              <thead className="bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-gray-300">
+                <tr>
+                  <th className="px-4 sm:px-6 py-3 text-left">Nombre</th>
+                  <th className="px-4 sm:px-6 py-3 text-left">Email</th>
+                  <th className="px-4 sm:px-6 py-3 text-center">Rol</th>
+                  <th className="px-4 sm:px-6 py-3 text-right">Acciones</th>
+                </tr>
+              </thead>
 
             <tbody>
               {users.map((u) => (
@@ -118,15 +119,15 @@ export default function UsuariosPage() {
                   key={u.id}
                   className="border-t border-gray-200 dark:border-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition"
                 >
-                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
+                  <td className="px-4 sm:px-6 py-3 font-medium text-gray-900 dark:text-white">
                     {u.full_name || "Sin nombre"}
                   </td>
 
-                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                    {u.email}
+                  <td className="px-4 sm:px-6 py-3 text-gray-700 dark:text-gray-300">
+                    <span className="break-all">{u.email}</span>
                   </td>
 
-                  <td className="text-center">
+                  <td className="px-4 sm:px-6 py-3 text-center">
                     {u.roles && u.roles.length > 0 ? (
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
                         {u.roles.map((r) => r.name).join(", ")}
@@ -138,17 +139,17 @@ export default function UsuariosPage() {
                     )}
                   </td>
 
-                  <td className="px-4 py-3 text-right space-x-3">
+                  <td className="px-4 sm:px-6 py-3 text-right space-x-2 sm:space-x-3">
                     <a
                       href={`/dashboard/usuarios/${u.id}`}
-                      className="text-yellow-400 hover:text-yellow-300 transition"
+                      className="text-yellow-400 hover:text-yellow-300 transition text-xs sm:text-sm"
                     >
                       Editar
                     </a>
 
                     <button
                       onClick={() => deleteUser(u.id)}
-                      className="text-red-400 hover:text-red-300 transition"
+                      className="text-red-400 hover:text-red-300 transition text-xs sm:text-sm"
                     >
                       Eliminar
                     </button>
@@ -157,6 +158,7 @@ export default function UsuariosPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

@@ -351,17 +351,17 @@ export default function TorneosPage() {
     : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+      <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-4 mb-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
                 {tournament.name}
               </h1>
               <span
-                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                   tournament.status === "EN CURSO"
                     ? "bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400"
                     : "bg-gray-100 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400"
@@ -370,36 +370,37 @@ export default function TorneosPage() {
                 {tournament.status}
               </span>
             </div>
-            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
               <div className="flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4" />
-                <span>
+                <CalendarIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="break-words">
                   {formatDate(tournament.start_date)} -{" "}
                   {formatDate(tournament.end_date)}
                 </span>
               </div>
-              <span>•</span>
+              <span className="hidden sm:inline">•</span>
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4" />
+                <MapPin className="w-4 h-4 flex-shrink-0" />
                 <span>{tournament.location}</span>
               </div>
             </div>
           </div>
-          <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+            <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition text-sm">
               <Edit className="w-4 h-4" />
-              Editar
+              <span className="hidden sm:inline">Editar</span>
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+            <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm whitespace-nowrap">
               <Plus className="w-4 h-4" />
-              Nueva Disciplina
+              <span className="hidden sm:inline">Nueva Disciplina</span>
+              <span className="sm:hidden">Nueva</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <AdvancedStatCard
           icon={<Users className="w-5 h-5 text-gray-700 dark:text-gray-300" />}
           value={stats.equiposInscritos.toString()}
@@ -428,7 +429,7 @@ export default function TorneosPage() {
       </div>
 
       {/* Action Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <ActionCard
           icon={<Network className="w-6 h-6 text-blue-600 dark:text-blue-400" />}
           title="Generar Brackets"
@@ -448,37 +449,37 @@ export default function TorneosPage() {
       </div>
 
       {/* Bottom Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Equipos Recientes */}
         <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900 dark:text-white">
+          <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
+            <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white">
               Equipos Recientes
             </h3>
             <a
               href="#"
-              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline"
             >
               Ver todos
             </a>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="w-full text-sm min-w-[640px]">
               <thead className="bg-gray-50 dark:bg-neutral-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     EQUIPO
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     FACULTAD
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     CAPITÁN
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     ESTADO
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     ACCIÓN
                   </th>
                 </tr>
@@ -490,9 +491,9 @@ export default function TorneosPage() {
                       key={team.id}
                       className="hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition"
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white font-semibold text-sm">
+                          <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
                             {team.name.charAt(0).toUpperCase()}
                           </div>
                           <span className="font-medium text-gray-900 dark:text-white">
@@ -500,18 +501,18 @@ export default function TorneosPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {team.faculty}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {team.captain}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                         <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-500/10 dark:text-green-400">
                           {team.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
                         <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                           <MoreVertical className="w-5 h-5" />
                         </button>
@@ -531,21 +532,21 @@ export default function TorneosPage() {
         </div>
 
         {/* Resultados Recientes y Documentos */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Resultados Recientes */}
           <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg overflow-hidden">
-            <div className="p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900 dark:text-white">
+            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
+              <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white">
                 Resultados Recientes
               </h3>
               <a
                 href="#"
-                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline"
               >
                 Ver todo
               </a>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               {recentResults.length > 0 ? (
                 recentResults.map((result) => (
                   <div
