@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Trophy } from "lucide-react";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -16,7 +17,7 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-white border-r h-screen p-4">
       <div className="mb-6 flex items-center gap-2 font-bold text-lg">
-        🏆 Olimpiadas U
+        <Trophy className="w-6 h-6" /> Olimpiadas U
       </div>
 
       <nav className="space-y-1">

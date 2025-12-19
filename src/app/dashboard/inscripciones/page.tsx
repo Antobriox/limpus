@@ -71,10 +71,10 @@ export default function InscripcionesPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Formularios de Inscripción
           </h1>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Gestiona las inscripciones por deporte
           </p>
         </div>
@@ -89,22 +89,22 @@ export default function InscripcionesPage() {
 
       {/* Empty state */}
       {forms.length === 0 && (
-        <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-10 text-center text-gray-400">
+        <div className="bg-gray-100 border border-gray-200 dark:bg-neutral-900 dark:border-neutral-800 rounded-lg p-10 text-center text-gray-500 dark:text-gray-400">
           No hay formularios creados todavía.
         </div>
       )}
 
       {/* Table */}
       {forms.length > 0 && (
-        <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden">
+        <div className="bg-white border border-gray-200 dark:bg-neutral-900 dark:border-neutral-800 rounded-lg overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-neutral-800 text-gray-300">
+            <thead className="bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-gray-300">
               <tr>
                 <th className="px-4 py-3 text-left">Nombre</th>
-                <th>Deporte</th>
-                <th>Jugadores</th>
-                <th>Fechas</th>
-                <th>Estado</th>
+                <th className="text-center">Deporte</th>
+                <th className="text-center">Jugadores</th>
+                <th className="text-center">Fechas</th>
+                <th className="text-center">Estado</th>
                 <th className="text-right px-4">Acciones</th>
               </tr>
             </thead>
@@ -113,29 +113,29 @@ export default function InscripcionesPage() {
               {forms.map((f) => (
                 <tr
                   key={f.id}
-                  className="border-t border-neutral-800 hover:bg-neutral-800/40 transition"
+                  className="border-t border-gray-200 dark:border-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition"
                 >
-                  <td className="px-4 py-3 font-medium text-white">
+                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
                     {f.name}
                   </td>
 
-                  <td className="text-gray-300">{f.sports?.name}</td>
+                  <td className="text-center text-gray-700 dark:text-gray-300">{f.sports?.name}</td>
 
-                  <td className="text-gray-300">
+                  <td className="text-center text-gray-700 dark:text-gray-300">
                     {f.min_players} – {f.max_players}
                   </td>
 
-                  <td className="text-gray-400">
+                  <td className="text-center text-gray-500 dark:text-gray-400">
                     {f.start_date} → {f.end_date}
                   </td>
 
-                  <td>
+                  <td className="text-center">
                     {f.is_locked ? (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400">
                         Cerrada
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-600 dark:bg-green-500/10 dark:text-green-400">
                         Abierta
                       </span>
                     )}

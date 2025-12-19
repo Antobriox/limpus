@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, GraduationCap, Mail } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -48,7 +48,7 @@ export default function LoginPage() {
 
         <div className="relative z-10 max-w-md space-y-6">
           <div className="flex items-center gap-3">
-            <span className="text-4xl">🎓</span>
+            <GraduationCap className="w-10 h-10" />
             <span className="text-2xl font-bold tracking-tight">
               Olimpiadas Universitarias
             </span>
@@ -95,7 +95,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                 />
                 <div className="flex items-center px-4 text-gray-400">
-                  ✉️
+                  <Mail className="w-5 h-5" />
                 </div>
               </div>
             </div>
