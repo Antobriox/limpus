@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Plus, X } from "lucide-react";
 
 type Leader = {
@@ -11,9 +11,13 @@ type Leader = {
   email: string;
 };
 
-export default function NuevoEquipoPage() {
+export default function EditarEquipoPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const params = useParams();
+  const teamId = params.id as string;
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [leaders, setLeaders] = useState<Leader[]>([]);
 
   const [careerInput, setCareerInput] = useState("");
@@ -23,6 +27,61 @@ export default function NuevoEquipoPage() {
     name: "",
     selectedLeaders: [] as string[],
   });
+
+  // Cargar datos del equipo
+  useEffect(() => {
+    const loadTeam = async () => {
+      try {
+        // Cargar el equipo
+        const { data: teamData, error: teamError } = await supabase
+          .from("teams")
+          .select("id, name")
+          .eq("id", teamId)
+          .single();
+
+        if (teamError || !teamData) {
+          alert("Equipo no encontrado");
+          router.replace("/dashboard/equipos");
+          return;
+        }
+
+        setForm({ ...form, name: teamData.name });
+
+        // Cargar carreras del equipo
+        const { data: careersData } = await supabase
+          .from("careers")
+          .select("id, name")
+          .eq("team_id", teamId);
+
+        if (careersData) {
+          setCareers(careersData.map((c: any) => c.name));
+        }
+
+        // Cargar líderes del equipo
+        const { data: teamLeadersData } = await supabase
+          .from("team_leaders")
+          .select("user_id")
+          .eq("team_id", teamId);
+
+        if (teamLeadersData) {
+          setForm((prev) => ({
+            ...prev,
+            selectedLeaders: teamLeadersData.map((tl: any) => tl.user_id),
+          }));
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error("Error cargando equipo:", error);
+        alert("Error al cargar el equipo");
+        router.replace("/dashboard/equipos");
+      }
+    };
+
+    if (teamId) {
+      loadTeam();
+    }
+  }, [teamId, router]);
 
   // Cargar solo usuarios con rol "líder de equipo"
   useEffect(() => {
@@ -39,8 +98,6 @@ export default function NuevoEquipoPage() {
           return;
         }
 
-        console.log("Todos los roles encontrados:", rolesData);
-
         // Buscar el rol que sea "lider_equipo" o contenga "líder" o "lider"
         const leaderRole = rolesData?.find(
           (r: any) => {
@@ -56,15 +113,12 @@ export default function NuevoEquipoPage() {
         );
 
         if (!leaderRole) {
-          console.warn("No se encontró el rol 'líder de equipo'. Roles encontrados:", rolesData);
+          console.warn("No se encontró el rol 'líder de equipo'");
           setLeaders([]);
           return;
         }
 
-        console.log("Rol de líder encontrado:", leaderRole);
-
         // Intentar consultar desde profiles con filtro en user_roles
-        // Enfoque alternativo: consultar directamente desde profiles
         const { data: profilesData, error: profilesError } = await supabase
           .from("profiles")
           .select(`
@@ -83,8 +137,6 @@ export default function NuevoEquipoPage() {
           .order("full_name", { ascending: true });
 
         if (profilesError) {
-          console.error("Error cargando perfiles (método 1):", profilesError);
-          
           // Método alternativo: consultar user_roles primero
           const { data: userRolesData, error: userRolesError } = await supabase
             .from("user_roles")
@@ -97,18 +149,12 @@ export default function NuevoEquipoPage() {
             return;
           }
 
-          console.log("User roles encontrados:", userRolesData);
-
           if (!userRolesData || userRolesData.length === 0) {
-            console.warn("No se encontraron usuarios con rol de líder de equipo (role_id:", leaderRole.id, ")");
             setLeaders([]);
             return;
           }
 
-          // Obtener los perfiles de esos usuarios
           const userIds = userRolesData.map((ur: any) => ur.user_id);
-          console.log("User IDs a buscar:", userIds);
-
           const { data: profilesData2, error: profilesError2 } = await supabase
             .from("profiles")
             .select("id, full_name, email")
@@ -116,15 +162,13 @@ export default function NuevoEquipoPage() {
             .order("full_name", { ascending: true });
 
           if (profilesError2) {
-            console.error("Error cargando perfiles (método 2):", profilesError2);
+            console.error("Error cargando perfiles:", profilesError2);
             setLeaders([]);
             return;
           }
 
-          console.log("Perfiles encontrados (método 2):", profilesData2);
-          
           if (profilesData2 && profilesData2.length > 0) {
-            const leaders = profilesData2.map((profile: any) => ({
+            const leadersList = profilesData2.map((profile: any) => ({
               id: profile.id,
               full_name:
                 profile.full_name ||
@@ -132,19 +176,13 @@ export default function NuevoEquipoPage() {
                 "Sin nombre",
               email: profile.email,
             }));
-
-            console.log("Líderes finales:", leaders);
-            setLeaders(leaders);
-          } else {
-            setLeaders([]);
+            setLeaders(leadersList);
           }
           return;
         }
 
-        console.log("Perfiles encontrados (método 1):", profilesData);
-
         if (profilesData && profilesData.length > 0) {
-          const leaders = profilesData.map((profile: any) => ({
+          const leadersList = profilesData.map((profile: any) => ({
             id: profile.id,
             full_name:
               profile.full_name ||
@@ -152,12 +190,7 @@ export default function NuevoEquipoPage() {
               "Sin nombre",
             email: profile.email,
           }));
-
-          console.log("Líderes finales:", leaders);
-          setLeaders(leaders);
-        } else {
-          console.warn("No se encontraron perfiles con el rol de líder de equipo");
-          setLeaders([]);
+          setLeaders(leadersList);
         }
       } catch (error) {
         console.error("Error inesperado cargando líderes:", error);
@@ -196,7 +229,7 @@ export default function NuevoEquipoPage() {
     }
   };
 
-  const createTeam = async () => {
+  const updateTeam = async () => {
     if (!form.name.trim()) {
       alert("El nombre del equipo es requerido");
       return;
@@ -207,36 +240,34 @@ export default function NuevoEquipoPage() {
       return;
     }
 
-    setLoading(true);
+    setSaving(true);
 
     try {
-      // Obtener el usuario actual
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      // 1. Crear el equipo
-      const { data: teamData, error: teamError } = await supabase
+      // 1. Actualizar el equipo
+      const { error: teamError } = await supabase
         .from("teams")
-        .insert({
+        .update({
           name: form.name.trim(),
-          created_by: user?.id || null,
         })
-        .select()
-        .single();
+        .eq("id", teamId);
 
       if (teamError) {
         throw teamError;
       }
 
-      if (!teamData) {
-        throw new Error("No se pudo crear el equipo");
+      // 2. Eliminar todas las carreras existentes y crear las nuevas
+      const { error: deleteCareersError } = await supabase
+        .from("careers")
+        .delete()
+        .eq("team_id", teamId);
+
+      if (deleteCareersError) {
+        throw deleteCareersError;
       }
 
-      // 2. Crear las carreras asociadas al equipo
       const careersToInsert = careers.map((careerName) => ({
         name: careerName,
-        team_id: teamData.id,
+        team_id: parseInt(teamId),
       }));
 
       const { error: careersError } = await supabase
@@ -244,16 +275,25 @@ export default function NuevoEquipoPage() {
         .insert(careersToInsert);
 
       if (careersError) {
-        // Si falla la inserción de carreras, eliminar el equipo creado
-        await supabase.from("teams").delete().eq("id", teamData.id);
         throw careersError;
       }
 
-      // 3. Asociar líderes al equipo en team_leaders
+      // 3. Actualizar líderes del equipo
+      // Eliminar todos los líderes actuales
+      const { error: deleteLeadersError } = await supabase
+        .from("team_leaders")
+        .delete()
+        .eq("team_id", teamId);
+
+      if (deleteLeadersError) {
+        console.error("Error eliminando líderes:", deleteLeadersError);
+      }
+
+      // Insertar los nuevos líderes
       if (form.selectedLeaders.length > 0) {
         const teamLeadersToInsert = form.selectedLeaders.map((leaderId) => ({
           user_id: leaderId,
-          team_id: teamData.id,
+          team_id: parseInt(teamId),
         }));
 
         const { error: leadersError } = await supabase
@@ -262,28 +302,35 @@ export default function NuevoEquipoPage() {
 
         if (leadersError) {
           console.error("Error asociando líderes:", leadersError);
-          // No lanzamos error, solo registramos, ya que el equipo y carreras ya están creados
         }
       }
 
       router.push("/dashboard/equipos");
     } catch (error: any) {
-      console.error("Error creando equipo:", error);
-      alert(error.message || "Error al crear el equipo");
+      console.error("Error actualizando equipo:", error);
+      alert(error.message || "Error al actualizar el equipo");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64 text-gray-400 dark:text-gray-500">
+        Cargando equipo...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-          Nuevo Equipo
+          Editar Equipo
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Registra un nuevo equipo con sus carreras y líderes
+          Modifica los datos del equipo
         </p>
       </div>
 
@@ -356,22 +403,28 @@ export default function NuevoEquipoPage() {
           </label>
 
           <div className="border border-gray-300 dark:border-neutral-700 rounded-lg p-3 max-h-48 overflow-y-auto bg-white dark:bg-neutral-800">
-            {leaders.map((leader) => (
-              <label
-                key={leader.id}
-                className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50 dark:hover:bg-neutral-700"
-              >
-                <input
-                  type="checkbox"
-                  checked={form.selectedLeaders.includes(leader.id)}
-                  onChange={() => toggleLeader(leader.id)}
-                />
-                <div>
-                  <p className="text-sm">{leader.full_name}</p>
-                  <p className="text-xs text-gray-500">{leader.email}</p>
-                </div>
-              </label>
-            ))}
+            {leaders.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                No hay líderes disponibles
+              </p>
+            ) : (
+              leaders.map((leader) => (
+                <label
+                  key={leader.id}
+                  className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50 dark:hover:bg-neutral-700"
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.selectedLeaders.includes(leader.id)}
+                    onChange={() => toggleLeader(leader.id)}
+                  />
+                  <div>
+                    <p className="text-sm">{leader.full_name}</p>
+                    <p className="text-xs text-gray-500">{leader.email}</p>
+                  </div>
+                </label>
+              ))
+            )}
           </div>
         </div>
 
@@ -380,19 +433,20 @@ export default function NuevoEquipoPage() {
           <button
             onClick={() => router.back()}
             className="px-4 py-2 border rounded-lg"
-            disabled={loading}
+            disabled={saving}
           >
             Cancelar
           </button>
           <button
-            onClick={createTeam}
-            disabled={loading}
+            onClick={updateTeam}
+            disabled={saving}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg"
           >
-            {loading ? "Creando..." : "Crear Equipo"}
+            {saving ? "Guardando..." : "Guardar Cambios"}
           </button>
         </div>
       </div>
     </div>
   );
 }
+

@@ -29,10 +29,24 @@ export async function PUT(req: Request) {
       );
     }
 
-    // 2️⃣ Actualizar rol (upsert)
+    // 2️⃣ Eliminar todos los roles existentes del usuario
+    const { error: deleteError } = await supabaseAdmin
+      .from("user_roles")
+      .delete()
+      .eq("user_id", user_id);
+
+    if (deleteError) {
+      console.error(deleteError);
+      return NextResponse.json(
+        { error: "Error eliminando roles anteriores" },
+        { status: 500 }
+      );
+    }
+
+    // 3️⃣ Insertar el nuevo rol
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .upsert({
+      .insert({
         user_id,
         role_id,
       });
@@ -40,7 +54,7 @@ export async function PUT(req: Request) {
     if (roleError) {
       console.error(roleError);
       return NextResponse.json(
-        { error: "Error actualizando rol" },
+        { error: "Error asignando nuevo rol" },
         { status: 500 }
       );
     }

@@ -8,10 +8,9 @@ type Form = {
   name: string;
   min_players: number;
   max_players: number;
-  start_date: string;
-  end_date: string;
+  editable_until: string | null;
   is_locked: boolean;
-  sports: { name: string };
+  created_at: string | null;
 };
 
 export default function InscripcionesPage() {
@@ -27,10 +26,9 @@ export default function InscripcionesPage() {
         name,
         min_players,
         max_players,
-        start_date,
-        end_date,
+        editable_until,
         is_locked,
-        sports(name)
+        created_at
       `)
       .order("id", { ascending: false });
 
@@ -102,9 +100,8 @@ export default function InscripcionesPage() {
               <thead className="bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-gray-300">
                 <tr>
                   <th className="px-4 sm:px-6 py-3 text-left">Nombre</th>
-                  <th className="px-4 sm:px-6 py-3 text-center">Deporte</th>
                   <th className="px-4 sm:px-6 py-3 text-center">Jugadores</th>
-                  <th className="px-4 sm:px-6 py-3 text-center">Fechas</th>
+                  <th className="px-4 sm:px-6 py-3 text-center">Editable hasta</th>
                   <th className="px-4 sm:px-6 py-3 text-center">Estado</th>
                   <th className="px-4 sm:px-6 py-3 text-right">Acciones</th>
                 </tr>
@@ -120,15 +117,18 @@ export default function InscripcionesPage() {
                     {f.name}
                   </td>
 
-                  <td className="px-4 sm:px-6 py-3 text-center text-gray-700 dark:text-gray-300">{f.sports?.name}</td>
-
                   <td className="px-4 sm:px-6 py-3 text-center text-gray-700 dark:text-gray-300">
                     {f.min_players} – {f.max_players}
                   </td>
 
                   <td className="px-4 sm:px-6 py-3 text-center text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
-                    <span className="hidden sm:inline">{f.start_date} → {f.end_date}</span>
-                    <span className="sm:hidden">{f.start_date}</span>
+                    {f.editable_until 
+                      ? new Date(f.editable_until).toLocaleDateString("es-ES", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "Sin límite"}
                   </td>
 
                   <td className="px-4 sm:px-6 py-3 text-center">

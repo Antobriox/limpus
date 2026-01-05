@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AdvancedStatCard from "../../../components/AdvancedStatCard";
 import ActionCard from "../../../components/ActionCard";
@@ -25,7 +26,7 @@ type Tournament = {
   start_date: string;
   end_date: string;
   location?: string;
-  status?: string;
+  status: string;
 };
 
 type Team = {
@@ -49,6 +50,7 @@ type RecentResult = {
 };
 
 export default function TorneosPage() {
+  const router = useRouter();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [stats, setStats] = useState({
     equiposInscritos: 0,
@@ -68,10 +70,10 @@ export default function TorneosPage() {
 
   const loadData = async () => {
     try {
-      // Cargar torneo activo (por ahora usamos datos de ejemplo o el primero)
+      // Cargar torneo activo (el más reciente)
       const { data: tournaments } = await supabase
-        .from("registration_forms")
-        .select("*")
+        .from("tournaments")
+        .select("id, name, start_date, end_date")
         .order("id", { ascending: false })
         .limit(1);
 
@@ -79,28 +81,29 @@ export default function TorneosPage() {
         const t = tournaments[0];
         setTournament({
           id: t.id,
-          name: t.name || "Olimpiadas Universitarias 2024",
-          start_date: t.start_date,
-          end_date: t.end_date,
-          location: "Campus Central",
-          status: t.is_locked ? "FINALIZADO" : "EN CURSO",
+          name: t.name || "Torneo",
+          start_date: t.start_date || "",
+          end_date: t.end_date || "",
+          location: undefined,
+          status: "EN CURSO",
         });
       } else {
         // Datos por defecto si no hay torneo
         setTournament({
-          id: 1,
-          name: "Olimpiadas Universitarias 2024",
-          start_date: "2024-10-15",
-          end_date: "2024-11-20",
-          location: "Campus Central",
-          status: "EN CURSO",
+          id: 0,
+          name: "Sin torneo activo",
+          start_date: "",
+          end_date: "",
+          location: undefined,
+          status: "SIN INICIAR",
         });
       }
 
-      // Contar equipos inscritos
-      const { count: equiposCount } = await supabase
+      // Contar TODOS los equipos (no filtrar por torneo)
+      const { count } = await supabase
         .from("teams")
         .select("*", { count: "exact", head: true });
+      const equiposCount = count || 0;
 
       // Contar equipos nuevos (últimos 7 días)
       const sevenDaysAgo = new Date();
@@ -115,32 +118,23 @@ export default function TorneosPage() {
         .from("sports")
         .select("*", { count: "exact", head: true });
 
-      // Intentar contar partidos reales de la tabla 'matches' si existe
+      // Contar partidos usando match_results (partidos con resultado confirmado)
       let partidosJugadosCount = 0;
       let partidosTotales = 0;
 
-      const { count: matchesCount, data: matchesData } = await supabase
-        .from("matches")
-        .select("*", { count: "exact" })
-        .not("score1", "is", null)
-        .not("score2", "is", null);
+      // Contar partidos con resultados confirmados
+      const { count: matchesWithResultsCount } = await supabase
+        .from("match_results")
+        .select("*", { count: "exact", head: true });
 
-      if (matchesCount !== null) {
-        partidosJugadosCount = matchesCount;
-        // Contar total de partidos programados
-        const { count: totalMatchesCount } = await supabase
-          .from("matches")
-          .select("*", { count: "exact", head: true });
-        partidosTotales = totalMatchesCount || 0;
-      } else {
-        // Fallback: usar inscripciones como proxy
-        const { count: partidosJugadosCountFallback } = await supabase
-          .from("registration_forms")
-          .select("*", { count: "exact", head: true })
-          .eq("is_locked", true);
-        partidosJugadosCount = partidosJugadosCountFallback || 0;
-        partidosTotales = (equiposCount || 0) * 2; // Estimación
-      }
+      partidosJugadosCount = matchesWithResultsCount || 0;
+
+      // Contar total de partidos programados
+      const { count: totalMatchesCount } = await supabase
+        .from("matches")
+        .select("*", { count: "exact", head: true });
+      
+      partidosTotales = totalMatchesCount || 0;
 
       // Calcular progreso general
       const progreso = partidosTotales > 0 
@@ -156,20 +150,56 @@ export default function TorneosPage() {
         progresoGeneral: progreso,
       });
 
-      // Cargar equipos recientes con sus carreras y capitanes
-      const { data: teamsData } = await supabase
-        .from("teams")
-        .select(`
-          id,
-          name,
-          created_at,
-          careers (
+      // Cargar equipos que participan en el torneo activo
+      let teamsData: any[] = [];
+      
+      if (tournaments && tournaments.length > 0) {
+        const tournament = tournaments[0];
+        const maxId = tournament.id;
+        
+        // Obtener todos los torneos del mismo lote de creación (IDs cercanos, mismo nombre)
+        const { data: allTournamentsWithSameName } = await supabase
+          .from("tournaments")
+          .select("id")
+          .eq("name", tournament.name)
+          .gte("id", maxId - 10) // Buscar IDs cercanos (mismo lote)
+          .lte("id", maxId)
+          .order("id", { ascending: false });
+
+        // Mostrar todos los equipos recientes (no filtrar por torneo)
+        const { data: allTeamsData } = await supabase
+          .from("teams")
+          .select(`
             id,
-            name
-          )
-        `)
-        .order("created_at", { ascending: false })
-        .limit(5);
+            name,
+            created_at,
+            careers (
+              id,
+              name
+            )
+          `)
+          .order("created_at", { ascending: false })
+          .limit(5);
+        
+        teamsData = allTeamsData || [];
+      } else {
+        // Si no hay torneo, mostrar equipos recientes
+        const { data: allTeamsData } = await supabase
+          .from("teams")
+          .select(`
+            id,
+            name,
+            created_at,
+            careers (
+              id,
+              name
+            )
+          `)
+          .order("created_at", { ascending: false })
+          .limit(5);
+        
+        teamsData = allTeamsData || [];
+      }
 
       if (teamsData && teamsData.length > 0) {
         // Obtener todos los career_ids únicos
@@ -218,36 +248,45 @@ export default function TorneosPage() {
         setRecentTeams([]);
       }
 
-      // Intentar cargar resultados reales de partidos
-      // Buscar en diferentes posibles tablas
+      // Cargar resultados recientes usando match_results y matches
       let results: RecentResult[] = [];
 
-      // Intentar buscar en tabla 'matches' si existe
-      const { data: matchesResultsData } = await supabase
-        .from("matches")
+      // Obtener partidos con resultados confirmados
+      const { data: matchResultsData } = await supabase
+        .from("match_results")
         .select(`
-          id,
-          team1_id,
-          team2_id,
-          score1,
-          score2,
-          match_date,
-          match_time,
-          sports(name),
-          category
+          match_id,
+          score_team_a,
+          score_team_b,
+          confirmed_at,
+          matches!inner (
+            id,
+            team_a,
+            team_b,
+            scheduled_at,
+            tournaments!inner (
+              id,
+              name,
+              sports!inner (
+                name
+              )
+            )
+          )
         `)
-        .order("match_date", { ascending: false })
+        .order("confirmed_at", { ascending: false })
         .limit(3);
 
-      if (matchesResultsData && matchesResultsData.length > 0) {
-        // Obtener nombres de equipos
-        const teamIds = [
-          ...new Set([
-            ...matchesResultsData.map((m: any) => m.team1_id),
-            ...matchesResultsData.map((m: any) => m.team2_id),
-          ]),
+      if (matchResultsData && matchResultsData.length > 0) {
+        // Obtener todos los IDs de equipos únicos
+        const allTeamIds = [
+          ...matchResultsData.map((mr: any) => mr.matches?.team_a),
+          ...matchResultsData.map((mr: any) => mr.matches?.team_b),
         ];
+        const teamIds = Array.from(new Set(allTeamIds)).filter(
+          (id): id is number => id !== undefined && typeof id === "number"
+        );
 
+        // Obtener nombres de equipos
         const { data: teamsForResults } = await supabase
           .from("teams")
           .select("id, name")
@@ -257,50 +296,50 @@ export default function TorneosPage() {
           teamsForResults?.map((t: any) => [t.id, t.name]) || []
         );
 
-        results = matchesResultsData.map((match: any) => {
-          const matchDate = new Date(match.match_date);
+        results = matchResultsData.map((mr: any) => {
+          const match = mr.matches;
+          const scheduledAt = match?.scheduled_at 
+            ? new Date(match.scheduled_at)
+            : null;
+
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           const yesterday = new Date(today);
           yesterday.setDate(yesterday.getDate() - 1);
 
-          let dateLabel = "";
-          if (matchDate.toDateString() === today.toDateString()) {
-            dateLabel = "Hoy";
-          } else if (matchDate.toDateString() === yesterday.toDateString()) {
-            dateLabel = "Ayer";
-          } else {
-            dateLabel = matchDate.toLocaleDateString("es-ES", {
-              day: "numeric",
-              month: "short",
-            });
+          let dateLabel = "Sin fecha";
+          if (scheduledAt) {
+            if (scheduledAt.toDateString() === today.toDateString()) {
+              dateLabel = "Hoy";
+            } else if (scheduledAt.toDateString() === yesterday.toDateString()) {
+              dateLabel = "Ayer";
+            } else {
+              dateLabel = scheduledAt.toLocaleDateString("es-ES", {
+                day: "numeric",
+                month: "short",
+              });
+            }
           }
 
-          const time = match.match_time
-            ? new Date(`2000-01-01T${match.match_time}`).toLocaleTimeString(
-                "es-ES",
-                { hour: "2-digit", minute: "2-digit" }
-              )
+          const time = scheduledAt
+            ? scheduledAt.toLocaleTimeString("es-ES", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
             : "";
 
           return {
-            id: match.id,
-            sport: match.sports?.name || "Deporte",
-            category: match.category || "General",
-            team1: teamsMap.get(match.team1_id) || "Equipo 1",
-            team2: teamsMap.get(match.team2_id) || "Equipo 2",
-            score1: match.score1 || 0,
-            score2: match.score2 || 0,
+            id: mr.match_id,
+            sport: match?.tournaments?.sports?.name || "Deporte",
+            category: "General",
+            team1: teamsMap.get(match?.team_a) || "Equipo A",
+            team2: teamsMap.get(match?.team_b) || "Equipo B",
+            score1: mr.score_team_a || 0,
+            score2: mr.score_team_b || 0,
             date: dateLabel,
             time: time,
           };
         });
-      }
-
-      // Si no hay resultados reales, mostrar mensaje vacío o datos de ejemplo
-      if (results.length === 0) {
-        // Intentar buscar en otras posibles tablas o dejar vacío
-        results = [];
       }
 
       setRecentResults(results);
@@ -379,21 +418,34 @@ export default function TorneosPage() {
                 </span>
               </div>
               <span className="hidden sm:inline">•</span>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 flex-shrink-0" />
-                <span>{tournament.location}</span>
-              </div>
+              {tournament.location && (
+                <>
+                  <span className="hidden sm:inline">•</span>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 flex-shrink-0" />
+                    <span>{tournament.location}</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-            <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition text-sm">
-              <Edit className="w-4 h-4" />
-              <span className="hidden sm:inline">Editar</span>
-            </button>
-            <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm whitespace-nowrap">
+            {tournament && tournament.id > 0 && (
+              <button 
+                onClick={() => router.push(`/dashboard/torneos/${tournament.id}`)}
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition text-sm"
+              >
+                <Edit className="w-4 h-4" />
+                <span className="hidden sm:inline">Editar</span>
+              </button>
+            )}
+            <button 
+              onClick={() => router.push("/dashboard/torneos/nuevo")}
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm whitespace-nowrap"
+            >
               <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Nueva Disciplina</span>
-              <span className="sm:hidden">Nueva</span>
+              <span className="hidden sm:inline">Nuevo Torneo</span>
+              <span className="sm:hidden">Nuevo</span>
             </button>
           </div>
         </div>

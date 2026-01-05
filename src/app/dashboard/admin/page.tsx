@@ -30,10 +30,18 @@ export default function DashboardPage() {
   useEffect(() => {
     const loadStats = async () => {
       try {
-        // Contar equipos
-        const { count: equiposCount } = await supabase
+        // Obtener el torneo activo (el más reciente)
+        const { data: tournaments } = await supabase
+          .from("tournaments")
+          .select("id, name")
+          .order("id", { ascending: false })
+          .limit(1);
+
+        // Contar TODOS los equipos (no filtrar por torneo)
+        const { count } = await supabase
           .from("teams")
           .select("*", { count: "exact", head: true });
+        const equiposCount = count || 0;
 
         // Contar disciplinas/deportes
         const { count: disciplinasCount } = await supabase
@@ -46,18 +54,33 @@ export default function DashboardPage() {
           .select("*", { count: "exact", head: true })
           .eq("is_locked", false);
 
-        // Para partidos hoy, contamos inscripciones que están activas hoy
+        // Contar partidos programados para hoy
         const today = new Date().toISOString().split("T")[0];
-        const { count: partidosHoyCount } = await supabase
-          .from("registration_forms")
-          .select("*", { count: "exact", head: true })
-          .lte("start_date", today)
-          .gte("end_date", today)
-          .eq("is_locked", false);
+        let partidosHoyCount = 0;
+        
+        if (tournaments && tournaments.length > 0) {
+          const { data: allTournaments } = await supabase
+            .from("tournaments")
+            .select("id")
+            .eq("name", tournaments[0].name);
+
+          if (allTournaments && allTournaments.length > 0) {
+            const allTournamentIds = allTournaments.map((t: any) => t.id);
+            
+            const { count } = await supabase
+              .from("matches")
+              .select("*", { count: "exact", head: true })
+              .in("tournament_id", allTournamentIds)
+              .gte("scheduled_at", `${today}T00:00:00`)
+              .lt("scheduled_at", `${today}T23:59:59`);
+            
+            partidosHoyCount = count || 0;
+          }
+        }
 
         setStats({
-          equipos: equiposCount || 0,
-          partidosHoy: partidosHoyCount || 0,
+          equipos: equiposCount,
+          partidosHoy: partidosHoyCount,
           disciplinas: disciplinasCount || 0,
           pendientes: pendientesCount || 0,
         });

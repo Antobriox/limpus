@@ -49,12 +49,23 @@ export default function Sidebar({ onClose }: SidebarProps) {
     return name.substring(0, 2).toUpperCase();
   };
 
-  const itemClass = (path: string) =>
-    `block px-4 py-2 rounded-md transition-colors ${
-      pathname.startsWith(path)
+  const itemClass = (path: string) => {
+    let isActive = false;
+    
+    if (path === "/dashboard") {
+      // Dashboard solo se activa cuando es exactamente /dashboard o /dashboard/
+      isActive = pathname === "/dashboard" || pathname === "/dashboard/";
+    } else {
+      // Otras rutas se activan cuando el pathname empieza con la ruta
+      isActive = pathname.startsWith(path);
+    }
+    
+    return `block px-4 py-2 rounded-md transition-colors ${
+      isActive
         ? "bg-blue-600 text-white"
         : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800"
     }`;
+  };
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "Usuario";
   const initials = profile?.full_name ? getInitials(profile.full_name) : (user?.email?.[0]?.toUpperCase() || "U");
