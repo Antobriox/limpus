@@ -15,6 +15,7 @@ export default function NuevoEquipoPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [leaders, setLeaders] = useState<Leader[]>([]);
+  const [occupiedLeaders, setOccupiedLeaders] = useState<Set<string>>(new Set());
 
   const [careerInput, setCareerInput] = useState("");
   const [careers, setCareers] = useState<string[]>([]);
@@ -135,6 +136,20 @@ export default function NuevoEquipoPage() {
 
             console.log("Líderes finales:", leaders);
             setLeaders(leaders);
+            
+            // Cargar líderes que ya están ocupados (asignados a otros equipos)
+            const leaderIds = leaders.map((l) => l.id);
+            if (leaderIds.length > 0) {
+              const { data: occupiedLeadersData } = await supabase
+                .from("team_leaders")
+                .select("user_id")
+                .in("user_id", leaderIds);
+              
+              if (occupiedLeadersData) {
+                const occupiedSet = new Set(occupiedLeadersData.map((ol: any) => ol.user_id));
+                setOccupiedLeaders(occupiedSet);
+              }
+            }
           } else {
             setLeaders([]);
           }
@@ -155,6 +170,20 @@ export default function NuevoEquipoPage() {
 
           console.log("Líderes finales:", leaders);
           setLeaders(leaders);
+          
+          // Cargar líderes que ya están ocupados (asignados a otros equipos)
+          const leaderIds = leaders.map((l) => l.id);
+          if (leaderIds.length > 0) {
+            const { data: occupiedLeadersData } = await supabase
+              .from("team_leaders")
+              .select("user_id")
+              .in("user_id", leaderIds);
+            
+            if (occupiedLeadersData) {
+              const occupiedSet = new Set(occupiedLeadersData.map((ol: any) => ol.user_id));
+              setOccupiedLeaders(occupiedSet);
+            }
+          }
         } else {
           console.warn("No se encontraron perfiles con el rol de líder de equipo");
           setLeaders([]);
@@ -169,6 +198,11 @@ export default function NuevoEquipoPage() {
   }, []);
 
   const toggleLeader = (leaderId: string) => {
+    // No permitir seleccionar líderes ocupados
+    if (occupiedLeaders.has(leaderId)) {
+      return;
+    }
+    
     setForm((prev) => ({
       ...prev,
       selectedLeaders: prev.selectedLeaders.includes(leaderId)
@@ -251,18 +285,54 @@ export default function NuevoEquipoPage() {
 
       // 3. Asociar líderes al equipo en team_leaders
       if (form.selectedLeaders.length > 0) {
-        const teamLeadersToInsert = form.selectedLeaders.map((leaderId) => ({
-          user_id: leaderId,
-          team_id: teamData.id,
-        }));
-
-        const { error: leadersError } = await supabase
+        // Eliminar duplicados
+        const uniqueLeaders = [...new Set(form.selectedLeaders)];
+        
+        // Verificar si alguno de estos líderes ya es líder de otro equipo
+        const { data: existingLeaders } = await supabase
           .from("team_leaders")
-          .insert(teamLeadersToInsert);
+          .select("user_id")
+          .in("user_id", uniqueLeaders);
 
-        if (leadersError) {
-          console.error("Error asociando líderes:", leadersError);
-          // No lanzamos error, solo registramos, ya que el equipo y carreras ya están creados
+        if (existingLeaders && existingLeaders.length > 0) {
+          const existingUserIds = new Set(existingLeaders.map((l: any) => l.user_id));
+          // Filtrar solo los líderes que no están ya asignados a otro equipo
+          const newLeaders = uniqueLeaders.filter((id) => !existingUserIds.has(id));
+          
+          // Si algunos líderes ya estaban asignados, mostrar advertencia
+          const skipped = uniqueLeaders.length - newLeaders.length;
+          if (skipped > 0) {
+            console.warn(`${skipped} líder(es) ya están asignados a otro equipo y fueron omitidos`);
+          }
+          
+          if (newLeaders.length > 0) {
+            const teamLeadersToInsert = newLeaders.map((leaderId) => ({
+              user_id: leaderId,
+              team_id: teamData.id,
+            }));
+
+            const { error: leadersError } = await supabase
+              .from("team_leaders")
+              .insert(teamLeadersToInsert);
+
+            if (leadersError) {
+              console.error("Error asociando líderes:", leadersError);
+            }
+          }
+        } else {
+          // Ningún líder está asignado, insertar todos
+          const teamLeadersToInsert = uniqueLeaders.map((leaderId) => ({
+            user_id: leaderId,
+            team_id: teamData.id,
+          }));
+
+          const { error: leadersError } = await supabase
+            .from("team_leaders")
+            .insert(teamLeadersToInsert);
+
+          if (leadersError) {
+            console.error("Error asociando líderes:", leadersError);
+          }
         }
       }
 
@@ -356,22 +426,44 @@ export default function NuevoEquipoPage() {
           </label>
 
           <div className="border border-gray-300 dark:border-neutral-700 rounded-lg p-3 max-h-48 overflow-y-auto bg-white dark:bg-neutral-800">
-            {leaders.map((leader) => (
-              <label
-                key={leader.id}
-                className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50 dark:hover:bg-neutral-700"
-              >
-                <input
-                  type="checkbox"
-                  checked={form.selectedLeaders.includes(leader.id)}
-                  onChange={() => toggleLeader(leader.id)}
-                />
-                <div>
-                  <p className="text-sm">{leader.full_name}</p>
-                  <p className="text-xs text-gray-500">{leader.email}</p>
-                </div>
-              </label>
-            ))}
+            {leaders.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                No hay líderes disponibles
+              </p>
+            ) : (
+              leaders.map((leader) => {
+                const isOccupied = occupiedLeaders.has(leader.id);
+                return (
+                  <label
+                    key={leader.id}
+                    className={`flex items-center space-x-2 p-2 rounded ${
+                      isOccupied
+                        ? "opacity-50 cursor-not-allowed bg-gray-100 dark:bg-neutral-800"
+                        : "cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-700"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.selectedLeaders.includes(leader.id)}
+                      onChange={() => toggleLeader(leader.id)}
+                      disabled={isOccupied}
+                      className={isOccupied ? "cursor-not-allowed" : ""}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm">{leader.full_name}</p>
+                        {isOccupied && (
+                          <span className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 rounded-full">
+                            Ocupado
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">{leader.email}</p>
+                    </div>
+                  </label>
+                );
+              })
+            )}
           </div>
         </div>
 

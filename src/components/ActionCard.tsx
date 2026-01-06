@@ -20,20 +20,10 @@ export default function ActionCard({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left border rounded-lg p-6 transition-all hover:shadow-md ${
-        variant === "blue"
-          ? "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900"
-          : "bg-white dark:bg-neutral-900 border-gray-200 dark:border-neutral-800"
-      }`}
+      className="w-full text-left border border-gray-200 dark:border-neutral-800 rounded-lg p-6 transition-all hover:shadow-md hover:border-blue-500 dark:hover:border-blue-500 bg-white dark:bg-neutral-900 group"
     >
       <div className="flex items-start gap-4">
-        <div
-          className={`p-3 rounded-lg ${
-            variant === "blue"
-              ? "bg-blue-100 dark:bg-blue-900/30"
-              : "bg-gray-100 dark:bg-neutral-800"
-          }`}
-        >
+        <div className="p-3 rounded-lg bg-gray-100 dark:bg-neutral-800 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors [&>svg]:transition-colors [&>svg]:group-hover:text-blue-600 [&>svg]:dark:group-hover:text-blue-400">
           {icon}
         </div>
         <div className="flex-1">

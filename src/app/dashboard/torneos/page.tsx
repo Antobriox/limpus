@@ -1,3 +1,4 @@
+// Página principal de torneos - Refactorizada y organizada
 "use client";
 
 import { useEffect, useState } from "react";
@@ -19,40 +20,15 @@ import {
   MapPin,
   MoreVertical,
 } from "lucide-react";
-
-type Tournament = {
-  id: number;
-  name: string;
-  start_date: string;
-  end_date: string;
-  location?: string;
-  status: string;
-};
-
-type Team = {
-  id: number;
-  name: string;
-  faculty?: string;
-  captain?: string;
-  status?: string;
-};
-
-type RecentResult = {
-  id: number;
-  sport: string;
-  category: string;
-  team1: string;
-  team2: string;
-  score1: number;
-  score2: number;
-  date: string;
-  time: string;
-};
+import { Tournament, Team, RecentResult, TournamentStats } from "./types";
+import BracketsModal from "./components/BracketsModal";
+import DocumentsModal from "./components/DocumentsModal";
+import { useBrackets } from "./hooks/useBrackets";
 
 export default function TorneosPage() {
   const router = useRouter();
   const [tournament, setTournament] = useState<Tournament | null>(null);
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<TournamentStats>({
     equiposInscritos: 0,
     equiposNuevos: 0,
     disciplinasActivas: 0,
@@ -63,6 +39,10 @@ export default function TorneosPage() {
   const [recentTeams, setRecentTeams] = useState<Team[]>([]);
   const [recentResults, setRecentResults] = useState<RecentResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [showBracketsModal, setShowBracketsModal] = useState(false);
+
+  const { loadTeams } = useBrackets(tournament);
 
   useEffect(() => {
     loadData();
@@ -88,7 +68,6 @@ export default function TorneosPage() {
           status: "EN CURSO",
         });
       } else {
-        // Datos por defecto si no hay torneo
         setTournament({
           id: 0,
           name: "Sin torneo activo",
@@ -99,7 +78,7 @@ export default function TorneosPage() {
         });
       }
 
-      // Contar TODOS los equipos (no filtrar por torneo)
+      // Contar TODOS los equipos
       const { count } = await supabase
         .from("teams")
         .select("*", { count: "exact", head: true });
@@ -118,26 +97,23 @@ export default function TorneosPage() {
         .from("sports")
         .select("*", { count: "exact", head: true });
 
-      // Contar partidos usando match_results (partidos con resultado confirmado)
+      // Contar partidos
       let partidosJugadosCount = 0;
       let partidosTotales = 0;
 
-      // Contar partidos con resultados confirmados
       const { count: matchesWithResultsCount } = await supabase
         .from("match_results")
         .select("*", { count: "exact", head: true });
 
       partidosJugadosCount = matchesWithResultsCount || 0;
 
-      // Contar total de partidos programados
       const { count: totalMatchesCount } = await supabase
         .from("matches")
         .select("*", { count: "exact", head: true });
-      
+
       partidosTotales = totalMatchesCount || 0;
 
-      // Calcular progreso general
-      const progreso = partidosTotales > 0 
+      const progreso = partidosTotales > 0
         ? Math.round((partidosJugadosCount / partidosTotales) * 100)
         : 0;
 
@@ -150,84 +126,44 @@ export default function TorneosPage() {
         progresoGeneral: progreso,
       });
 
-      // Cargar equipos que participan en el torneo activo
-      let teamsData: any[] = [];
-      
-      if (tournaments && tournaments.length > 0) {
-        const tournament = tournaments[0];
-        const maxId = tournament.id;
-        
-        // Obtener todos los torneos del mismo lote de creación (IDs cercanos, mismo nombre)
-        const { data: allTournamentsWithSameName } = await supabase
-          .from("tournaments")
-          .select("id")
-          .eq("name", tournament.name)
-          .gte("id", maxId - 10) // Buscar IDs cercanos (mismo lote)
-          .lte("id", maxId)
-          .order("id", { ascending: false });
-
-        // Mostrar todos los equipos recientes (no filtrar por torneo)
-        const { data: allTeamsData } = await supabase
-          .from("teams")
-          .select(`
+      // Cargar equipos recientes
+      const { data: allTeamsData } = await supabase
+        .from("teams")
+        .select(`
+          id,
+          name,
+          created_at,
+          careers (
             id,
-            name,
-            created_at,
-            careers (
-              id,
-              name
-            )
-          `)
-          .order("created_at", { ascending: false })
-          .limit(5);
-        
-        teamsData = allTeamsData || [];
-      } else {
-        // Si no hay torneo, mostrar equipos recientes
-        const { data: allTeamsData } = await supabase
-          .from("teams")
-          .select(`
-            id,
-            name,
-            created_at,
-            careers (
-              id,
-              name
-            )
-          `)
-          .order("created_at", { ascending: false })
-          .limit(5);
-        
-        teamsData = allTeamsData || [];
-      }
+            name
+          )
+        `)
+        .order("created_at", { ascending: false })
+        .limit(5);
 
-      if (teamsData && teamsData.length > 0) {
-        // Obtener todos los career_ids únicos
-        const careerIds = teamsData
+      if (allTeamsData && allTeamsData.length > 0) {
+        const careerIds = allTeamsData
           .flatMap((team: any) => team.careers || [])
           .map((career: any) => career.id)
           .filter((id: number) => id);
 
-        // Obtener todos los capitanes de una vez
         const { data: captainsData } = await supabase
           .from("players")
           .select("career_id, full_name")
           .in("career_id", careerIds)
           .eq("is_captain", true);
 
-        // Crear un mapa de career_id -> captain name
         const captainsMap = new Map(
           captainsData?.map((c: any) => [c.career_id, c.full_name]) || []
         );
 
-        // Mapear equipos con sus detalles
-        const teamsWithDetails = teamsData.map((team: any) => {
-          const faculty = team.careers && team.careers.length > 0 
-            ? team.careers[0].name 
+        const teamsWithDetails = allTeamsData.map((team: any) => {
+          const faculty = team.careers && team.careers.length > 0
+            ? team.careers[0].name
             : "Sin facultad";
 
-          const careerId = team.careers && team.careers.length > 0 
-            ? team.careers[0].id 
+          const careerId = team.careers && team.careers.length > 0
+            ? team.careers[0].id
             : null;
 
           const captain = careerId && captainsMap.has(careerId)
@@ -248,10 +184,7 @@ export default function TorneosPage() {
         setRecentTeams([]);
       }
 
-      // Cargar resultados recientes usando match_results y matches
-      let results: RecentResult[] = [];
-
-      // Obtener partidos con resultados confirmados
+      // Cargar resultados recientes
       const { data: matchResultsData } = await supabase
         .from("match_results")
         .select(`
@@ -276,8 +209,9 @@ export default function TorneosPage() {
         .order("confirmed_at", { ascending: false })
         .limit(3);
 
+      let results: RecentResult[] = [];
+
       if (matchResultsData && matchResultsData.length > 0) {
-        // Obtener todos los IDs de equipos únicos
         const allTeamIds = [
           ...matchResultsData.map((mr: any) => mr.matches?.team_a),
           ...matchResultsData.map((mr: any) => mr.matches?.team_b),
@@ -286,7 +220,6 @@ export default function TorneosPage() {
           (id): id is number => id !== undefined && typeof id === "number"
         );
 
-        // Obtener nombres de equipos
         const { data: teamsForResults } = await supabase
           .from("teams")
           .select("id, name")
@@ -298,7 +231,7 @@ export default function TorneosPage() {
 
         results = matchResultsData.map((mr: any) => {
           const match = mr.matches;
-          const scheduledAt = match?.scheduled_at 
+          const scheduledAt = match?.scheduled_at
             ? new Date(match.scheduled_at)
             : null;
 
@@ -413,11 +346,9 @@ export default function TorneosPage() {
               <div className="flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4 flex-shrink-0" />
                 <span className="break-words">
-                  {formatDate(tournament.start_date)} -{" "}
-                  {formatDate(tournament.end_date)}
+                  {formatDate(tournament.start_date)} - {formatDate(tournament.end_date)}
                 </span>
               </div>
-              <span className="hidden sm:inline">•</span>
               {tournament.location && (
                 <>
                   <span className="hidden sm:inline">•</span>
@@ -431,7 +362,7 @@ export default function TorneosPage() {
           </div>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
             {tournament && tournament.id > 0 && (
-              <button 
+              <button
                 onClick={() => router.push(`/dashboard/torneos/${tournament.id}`)}
                 className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition text-sm"
               >
@@ -439,7 +370,7 @@ export default function TorneosPage() {
                 <span className="hidden sm:inline">Editar</span>
               </button>
             )}
-            <button 
+            <button
               onClick={() => router.push("/dashboard/torneos/nuevo")}
               className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm whitespace-nowrap"
             >
@@ -483,15 +414,19 @@ export default function TorneosPage() {
       {/* Action Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <ActionCard
-          icon={<Network className="w-6 h-6 text-blue-600 dark:text-blue-400" />}
+          icon={<Network className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
           title="Generar Brackets"
           description="Crear llaves de eliminación automática"
-          variant="blue"
+          onClick={async () => {
+            setShowBracketsModal(true);
+            await loadTeams();
+          }}
         />
         <ActionCard
           icon={<Calendar className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
           title="Programar Partidos"
           description="Asignar fechas y canchas pendientes"
+          onClick={() => router.push("/dashboard/torneos/programar")}
         />
         <ActionCard
           icon={<Upload className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
@@ -649,10 +584,23 @@ export default function TorneosPage() {
               </div>
             }
             title="Documentos"
-            description="Descarga el reporte completo del torneo"
+            description="Agregar y gestionar documentos PDF del torneo"
+            onClick={() => setShowDocumentsModal(true)}
           />
         </div>
       </div>
+
+      {/* Modales */}
+      <BracketsModal
+        isOpen={showBracketsModal}
+        onClose={() => setShowBracketsModal(false)}
+        tournament={tournament}
+      />
+      <DocumentsModal
+        isOpen={showDocumentsModal}
+        onClose={() => setShowDocumentsModal(false)}
+        tournament={tournament}
+      />
     </div>
   );
 }

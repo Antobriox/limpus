@@ -46,6 +46,7 @@ export type Player = {
 export type RegistrationForm = {
   id: number;
   name: string;
+  sport_id: number; // -> sports.id
   min_players: number;
   max_players: number;
   editable_until: string | null; // timestamp
