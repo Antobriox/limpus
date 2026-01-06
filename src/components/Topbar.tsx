@@ -1,6 +1,6 @@
 "use client";
 
-import { useTheme } from "../hooks/useTheme";
+import { useTheme } from "../contexts/ThemeContext";
 import { Sun, Moon, Menu } from "lucide-react";
 
 interface TopbarProps {

@@ -24,7 +24,9 @@ export const useMatches = (tournament: Tournament | null) => {
           scheduled_at,
           status,
           referee,
-          assistant
+          assistant,
+          tournament_id,
+          field
         `)
         .eq("tournament_id", tournament.id)
         .order("scheduled_at", { ascending: true, nullsFirst: true });
@@ -55,12 +57,71 @@ export const useMatches = (tournament: Tournament | null) => {
           teamsData?.map((t: any) => [t.id, { id: t.id, name: t.name }]) || []
         );
 
-        // Enriquecer los partidos con los nombres de los equipos
-        const enrichedMatches = matches.map((match: any) => ({
-          ...match,
-          teams: teamsMap.get(match.team_a) || { id: match.team_a, name: "Equipo A" },
-          teams1: teamsMap.get(match.team_b) || { id: match.team_b, name: "Equipo B" },
-        }));
+        // Obtener IDs de árbitros y asistentes
+        const userIds = [
+          ...matches.map((m: any) => m.referee),
+          ...matches.map((m: any) => m.assistant),
+        ].filter(Boolean);
+        const uniqueUserIds = Array.from(new Set(userIds));
+
+        let profilesMap = new Map<string, string>();
+        if (uniqueUserIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .in("id", uniqueUserIds);
+          profilesMap = new Map(profilesData?.map((p: any) => [p.id, p.full_name]) || []);
+        }
+
+        // Obtener información de disciplinas de los torneos
+        const tournamentIds = Array.from(new Set(matches.map((m: any) => m.tournament_id).filter(Boolean)));
+        const tournamentsMap = new Map<number, number>(); // tournament_id -> sport_id
+        
+        if (tournamentIds.length > 0) {
+          const { data: tournamentsData } = await supabase
+            .from("tournaments")
+            .select("id, sport_id")
+            .in("id", tournamentIds);
+          
+          if (tournamentsData) {
+            tournamentsData.forEach((t: any) => {
+              tournamentsMap.set(t.id, t.sport_id);
+            });
+          }
+        }
+
+        // Obtener nombres de deportes
+        const sportIds = Array.from(new Set(Array.from(tournamentsMap.values()).filter(Boolean)));
+        const sportsMap = new Map<number, string>();
+        
+        if (sportIds.length > 0) {
+          const { data: sportsData } = await supabase
+            .from("sports")
+            .select("id, name")
+            .in("id", sportIds);
+          
+          if (sportsData) {
+            sportsData.forEach((s: any) => {
+              sportsMap.set(s.id, s.name);
+            });
+          }
+        }
+
+        // Enriquecer los partidos con los nombres de los equipos, árbitros, asistentes, disciplinas y canchas
+        const enrichedMatches = matches.map((match: any) => {
+          const tournamentSportId = tournamentsMap.get(match.tournament_id);
+          const sportName = tournamentSportId ? (sportsMap.get(tournamentSportId) || null) : null;
+          
+          return {
+            ...match,
+            teams: teamsMap.get(match.team_a) || { id: match.team_a, name: "Equipo A" },
+            teams1: teamsMap.get(match.team_b) || { id: match.team_b, name: "Equipo B" },
+            refereeName: profilesMap.get(match.referee) || null,
+            assistantName: profilesMap.get(match.assistant) || null,
+            sportName: sportName,
+            field: match.field || null,
+          };
+        });
 
         const pending = enrichedMatches.filter((m: any) => !m.scheduled_at);
         const scheduled = enrichedMatches.filter((m: any) => m.scheduled_at);
@@ -177,6 +238,7 @@ export const useMatches = (tournament: Tournament | null) => {
 
       if (form.referee) updateData.referee = form.referee;
       if (form.assistant) updateData.assistant = form.assistant;
+      if (form.field) updateData.field = form.field;
       
       // Manejar el estado: los valores válidos según el constraint de la base de datos
       // Valores válidos: "pending", "scheduled", "in_progress", "finished", "cancelled", "postponed", "suspended"

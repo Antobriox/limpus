@@ -21,9 +21,7 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { Tournament, Team, RecentResult, TournamentStats } from "./types";
-import BracketsModal from "./components/BracketsModal";
 import DocumentsModal from "./components/DocumentsModal";
-import { useBrackets } from "./hooks/useBrackets";
 
 export default function TorneosPage() {
   const router = useRouter();
@@ -40,9 +38,6 @@ export default function TorneosPage() {
   const [recentResults, setRecentResults] = useState<RecentResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
-  const [showBracketsModal, setShowBracketsModal] = useState(false);
-
-  const { loadTeams } = useBrackets(tournament);
 
   useEffect(() => {
     loadData();
@@ -107,13 +102,13 @@ export default function TorneosPage() {
 
       partidosJugadosCount = matchesWithResultsCount || 0;
 
-      const { count: totalMatchesCount } = await supabase
-        .from("matches")
-        .select("*", { count: "exact", head: true });
+        const { count: totalMatchesCount } = await supabase
+          .from("matches")
+          .select("*", { count: "exact", head: true });
 
-      partidosTotales = totalMatchesCount || 0;
+        partidosTotales = totalMatchesCount || 0;
 
-      const progreso = partidosTotales > 0
+      const progreso = partidosTotales > 0 
         ? Math.round((partidosJugadosCount / partidosTotales) * 100)
         : 0;
 
@@ -158,12 +153,12 @@ export default function TorneosPage() {
         );
 
         const teamsWithDetails = allTeamsData.map((team: any) => {
-          const faculty = team.careers && team.careers.length > 0
-            ? team.careers[0].name
+          const faculty = team.careers && team.careers.length > 0 
+            ? team.careers[0].name 
             : "Sin facultad";
 
-          const careerId = team.careers && team.careers.length > 0
-            ? team.careers[0].id
+          const careerId = team.careers && team.careers.length > 0 
+            ? team.careers[0].id 
             : null;
 
           const captain = careerId && captainsMap.has(careerId)
@@ -243,15 +238,15 @@ export default function TorneosPage() {
           let dateLabel = "Sin fecha";
           if (scheduledAt) {
             if (scheduledAt.toDateString() === today.toDateString()) {
-              dateLabel = "Hoy";
+            dateLabel = "Hoy";
             } else if (scheduledAt.toDateString() === yesterday.toDateString()) {
-              dateLabel = "Ayer";
-            } else {
+            dateLabel = "Ayer";
+          } else {
               dateLabel = scheduledAt.toLocaleDateString("es-ES", {
-                day: "numeric",
-                month: "short",
-              });
-            }
+              day: "numeric",
+              month: "short",
+            });
+          }
           }
 
           const time = scheduledAt
@@ -351,11 +346,11 @@ export default function TorneosPage() {
               </div>
               {tournament.location && (
                 <>
-                  <span className="hidden sm:inline">•</span>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 flex-shrink-0" />
-                    <span>{tournament.location}</span>
-                  </div>
+              <span className="hidden sm:inline">•</span>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 flex-shrink-0" />
+                <span>{tournament.location}</span>
+              </div>
                 </>
               )}
             </div>
@@ -366,9 +361,9 @@ export default function TorneosPage() {
                 onClick={() => router.push(`/dashboard/torneos/${tournament.id}`)}
                 className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition text-sm"
               >
-                <Edit className="w-4 h-4" />
-                <span className="hidden sm:inline">Editar</span>
-              </button>
+              <Edit className="w-4 h-4" />
+              <span className="hidden sm:inline">Editar</span>
+            </button>
             )}
             <button
               onClick={() => router.push("/dashboard/torneos/nuevo")}
@@ -417,10 +412,7 @@ export default function TorneosPage() {
           icon={<Network className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
           title="Generar Brackets"
           description="Crear llaves de eliminación automática"
-          onClick={async () => {
-            setShowBracketsModal(true);
-            await loadTeams();
-          }}
+          onClick={() => router.push("/dashboard/torneos/brackets")}
         />
         <ActionCard
           icon={<Calendar className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
@@ -432,6 +424,7 @@ export default function TorneosPage() {
           icon={<Upload className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
           title="Publicar Resultados"
           description="Actualizar marcadores de la jornada"
+          onClick={() => router.push("/dashboard/torneos/resultados")}
         />
       </div>
 
@@ -591,11 +584,6 @@ export default function TorneosPage() {
       </div>
 
       {/* Modales */}
-      <BracketsModal
-        isOpen={showBracketsModal}
-        onClose={() => setShowBracketsModal(false)}
-        tournament={tournament}
-      />
       <DocumentsModal
         isOpen={showDocumentsModal}
         onClose={() => setShowDocumentsModal(false)}

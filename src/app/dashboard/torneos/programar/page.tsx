@@ -30,6 +30,7 @@ export default function ProgramarPartidosPage() {
     referee: "",
     assistant: "",
     status: "",
+    field: "",
   });
   const [sports, setSports] = useState<{ id: number; name: string }[]>([]);
   const [teams, setTeams] = useState<{ id: number; name: string }[]>([]);
@@ -179,7 +180,8 @@ export default function ProgramarPartidosPage() {
           status,
           referee,
           assistant,
-          tournament_id
+          tournament_id,
+          field
         `)
         .order("scheduled_at", { ascending: true, nullsFirst: true });
 
@@ -231,14 +233,55 @@ export default function ProgramarPartidosPage() {
           );
         }
 
-        // Enriquecer los partidos con los nombres de los equipos y árbitros
-        const enrichedMatches = matches.map((match: any) => ({
-          ...match,
-          teams: teamsMap.get(match.team_a) || { id: match.team_a, name: "Equipo A" },
-          teams1: teamsMap.get(match.team_b) || { id: match.team_b, name: "Equipo B" },
-          refereeName: match.referee ? refereesMap.get(match.referee) || "Sin árbitro" : null,
-          assistantName: match.assistant ? refereesMap.get(match.assistant) || "Sin asistente" : null,
-        }));
+        // Obtener información de disciplinas de los torneos
+        const tournamentIds = Array.from(new Set(matches.map((m: any) => m.tournament_id).filter(Boolean)));
+        const tournamentsMap = new Map<number, number>(); // tournament_id -> sport_id
+        
+        if (tournamentIds.length > 0) {
+          const { data: tournamentsData } = await supabase
+            .from("tournaments")
+            .select("id, sport_id")
+            .in("id", tournamentIds);
+          
+          if (tournamentsData) {
+            tournamentsData.forEach((t: any) => {
+              tournamentsMap.set(t.id, t.sport_id);
+            });
+          }
+        }
+
+        // Obtener nombres de deportes
+        const sportIds = Array.from(new Set(Array.from(tournamentsMap.values()).filter(Boolean)));
+        const sportsMap = new Map<number, string>();
+        
+        if (sportIds.length > 0) {
+          const { data: sportsData } = await supabase
+            .from("sports")
+            .select("id, name")
+            .in("id", sportIds);
+          
+          if (sportsData) {
+            sportsData.forEach((s: any) => {
+              sportsMap.set(s.id, s.name);
+            });
+          }
+        }
+
+        // Enriquecer los partidos con los nombres de los equipos, árbitros, asistentes, disciplinas y canchas
+        const enrichedMatches = matches.map((match: any) => {
+          const tournamentSportId = tournamentsMap.get(match.tournament_id);
+          const sportName = tournamentSportId ? (sportsMap.get(tournamentSportId) || null) : null;
+          
+          return {
+            ...match,
+            teams: teamsMap.get(match.team_a) || { id: match.team_a, name: "Equipo A" },
+            teams1: teamsMap.get(match.team_b) || { id: match.team_b, name: "Equipo B" },
+            refereeName: match.referee ? refereesMap.get(match.referee) || "Sin árbitro" : null,
+            assistantName: match.assistant ? refereesMap.get(match.assistant) || "Sin asistente" : null,
+            sportName: sportName,
+            field: match.field || null,
+          };
+        });
 
         // Aplicar filtros si existen
         let filteredMatches = enrichedMatches;
@@ -346,6 +389,7 @@ export default function ProgramarPartidosPage() {
         referee: "",
         assistant: "",
         status: "",
+        field: "",
       });
       setShowEditMatchModal(false);
       // Recargar todos los partidos después de programar
@@ -386,6 +430,7 @@ export default function ProgramarPartidosPage() {
       referee: match.referee || "",
       assistant: match.assistant || "",
       status: match.status || "",
+      field: match.field || "",
     });
     setShowEditMatchModal(true);
   };
@@ -398,11 +443,6 @@ export default function ProgramarPartidosPage() {
 
     if (!newMatchForm.team_a || !newMatchForm.team_b) {
       alert("Debes seleccionar ambos equipos");
-      return;
-    }
-
-    if (!newMatchForm.scheduled_at) {
-      alert("Debes ingresar la fecha y hora del partido");
       return;
     }
 
@@ -448,10 +488,6 @@ export default function ProgramarPartidosPage() {
       if (scheduledAtISO) {
         matchData.scheduled_at = scheduledAtISO;
       }
-
-      // NO incluir status al crear el partido - se establecerá cuando se programe
-      // El constraint de la base de datos no acepta "PROGRAMADO" al crear
-      // El status se establecerá cuando se programe el partido usando el modal de edición
       
       // Solo incluir referee si tiene valor (no string vacío)
       if (newMatchForm.referee && newMatchForm.referee.trim() !== "") {
@@ -461,6 +497,31 @@ export default function ProgramarPartidosPage() {
       // Solo incluir assistant si tiene valor (no string vacío)
       if (newMatchForm.assistant && newMatchForm.assistant.trim() !== "") {
         matchData.assistant = newMatchForm.assistant;
+      }
+
+      // Solo incluir field (cancha) si tiene valor (no string vacío)
+      if (newMatchForm.cancha && newMatchForm.cancha.trim() !== "") {
+        matchData.field = newMatchForm.cancha;
+      }
+
+      // Determinar el estado automáticamente:
+      // Si falta algún campo opcional (scheduled_at, referee, assistant, cancha), estado = "pending"
+      // Si todos los campos opcionales están llenos, usar el estado seleccionado o "scheduled" por defecto
+      const hasAllOptionalFields = scheduledAtISO && 
+                                   newMatchForm.referee && newMatchForm.referee.trim() !== "" &&
+                                   newMatchForm.assistant && newMatchForm.assistant.trim() !== "" &&
+                                   newMatchForm.cancha && newMatchForm.cancha.trim() !== "";
+
+      if (hasAllOptionalFields) {
+        // Si todos los campos opcionales están llenos, usar el estado seleccionado o "scheduled" por defecto
+        if (newMatchForm.status && newMatchForm.status.trim() !== "") {
+          matchData.status = newMatchForm.status;
+        } else {
+          matchData.status = "scheduled";
+        }
+      } else {
+        // Si falta algún campo opcional, el estado debe ser "pending"
+        matchData.status = "pending";
       }
 
       console.log("Datos del partido a crear:", matchData);
@@ -650,6 +711,7 @@ export default function ProgramarPartidosPage() {
                       referee: "",
                       assistant: "",
                       status: "",
+                      field: "",
                     });
                   }}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -728,6 +790,20 @@ export default function ProgramarPartidosPage() {
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Cancha
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Cancha 1"
+                    value={scheduleForm.field || ""}
+                    onChange={(e) =>
+                      setScheduleForm({ ...scheduleForm, field: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                  />
+                </div>
               </div>
               <div className="flex gap-3 mt-6">
                 <button
@@ -746,6 +822,7 @@ export default function ProgramarPartidosPage() {
                       referee: "",
                       assistant: "",
                       status: "",
+                      field: "",
                     });
                   }}
                   className="px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
@@ -865,6 +942,12 @@ export default function ProgramarPartidosPage() {
 
                         {/* Información del partido */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                          {/* Disciplina */}
+                          <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                            <span className="font-medium">Disciplina:</span>
+                            <span>{match.sportName || "Sin disciplina"}</span>
+                          </div>
+
                           {/* Fecha y Hora */}
                           {scheduledDate && (
                             <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
@@ -883,6 +966,12 @@ export default function ProgramarPartidosPage() {
                             </div>
                           )}
 
+                          {/* Asistente */}
+                          <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                            <span className="font-medium">Asistente:</span>
+                            <span>{match.assistantName || "Sin asignar"}</span>
+                          </div>
+
                           {/* Árbitro */}
                           {match.refereeName && (
                             <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
@@ -890,6 +979,12 @@ export default function ProgramarPartidosPage() {
                               <span>{match.refereeName}</span>
                             </div>
                           )}
+
+                          {/* Cancha */}
+                          <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                            <span className="font-medium">Cancha:</span>
+                            <span>{match.field || "Sin asignar"}</span>
+                          </div>
 
                           {/* Estado del partido */}
                           <div className="flex items-center gap-2">
@@ -921,6 +1016,7 @@ export default function ProgramarPartidosPage() {
                                match.status || "Sin estado"}
                             </span>
                           </div>
+
                         </div>
                       </div>
 
@@ -1065,7 +1161,7 @@ export default function ProgramarPartidosPage() {
               {/* Fecha y Hora */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Fecha y Hora *
+                  Fecha y Hora
                 </label>
                 <input
                   type="datetime-local"
@@ -1074,7 +1170,6 @@ export default function ProgramarPartidosPage() {
                     setNewMatchForm({ ...newMatchForm, scheduled_at: e.target.value })
                   }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
-                  required
                 />
               </div>
 
@@ -1093,8 +1188,6 @@ export default function ProgramarPartidosPage() {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
                 />
               </div>
-
-              {/* Estado - No se incluye al crear, se establece cuando se programa el partido */}
 
               {/* Árbitro */}
               <div>
@@ -1137,12 +1230,51 @@ export default function ProgramarPartidosPage() {
                   ))}
                 </select>
               </div>
+
+              {/* Estado */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Estado
+                </label>
+                <select
+                  value={newMatchForm.status}
+                  onChange={(e) =>
+                    setNewMatchForm({ ...newMatchForm, status: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                  disabled={
+                    !newMatchForm.scheduled_at ||
+                    !newMatchForm.referee ||
+                    !newMatchForm.assistant ||
+                    !newMatchForm.cancha
+                  }
+                >
+                  <option value="">
+                    {!newMatchForm.scheduled_at ||
+                    !newMatchForm.referee ||
+                    !newMatchForm.assistant ||
+                    !newMatchForm.cancha
+                      ? "Pendiente (faltan campos)"
+                      : "Seleccionar estado"}
+                  </option>
+                  <option value="pending">Pendiente</option>
+                  <option value="scheduled">Programado</option>
+                </select>
+                {(!newMatchForm.scheduled_at ||
+                  !newMatchForm.referee ||
+                  !newMatchForm.assistant ||
+                  !newMatchForm.cancha) && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Completa todos los campos opcionales para poder seleccionar "Programado"
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-3 mt-6">
               <button
                 onClick={handleCreateMatch}
-                disabled={creatingMatch || !newMatchForm.disciplina || !newMatchForm.team_a || !newMatchForm.team_b || !newMatchForm.scheduled_at}
+                disabled={creatingMatch || !newMatchForm.disciplina || !newMatchForm.team_a || !newMatchForm.team_b}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {creatingMatch ? "Creando..." : "Crear Partido"}

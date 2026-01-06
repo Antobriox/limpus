@@ -28,5 +28,13 @@ export default function HomePage() {
     }
   }, [loading, user, roles, router]);
 
-  return null;
+  // Mostrar un componente de carga mientras se verifica la autenticación
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-900">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mb-4"></div>
+        <p className="text-gray-600 dark:text-gray-400">Cargando...</p>
+      </div>
+    </div>
+  );
 }

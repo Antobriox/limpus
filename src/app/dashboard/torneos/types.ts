@@ -44,6 +44,8 @@ export type Match = {
   teams1?: { id: number; name: string };
   refereeName?: string | null;
   assistantName?: string | null;
+  sportName?: string | null;
+  field?: string | null;
 };
 
 export type Referee = {
@@ -57,6 +59,7 @@ export type ScheduleForm = {
   referee: string;
   assistant: string;
   status: string;
+  field?: string;
 };
 
 export type TournamentStats = {
