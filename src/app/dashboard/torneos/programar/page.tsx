@@ -582,6 +582,11 @@ export default function ProgramarPartidosPage() {
                 <option value="">Todos</option>
                 <option value="pending">Pendiente</option>
                 <option value="scheduled">Programado</option>
+                <option value="in_progress">En Curso</option>
+                <option value="finished">Finalizado</option>
+                <option value="cancelled">Cancelado</option>
+                <option value="postponed">Aplazado</option>
+                <option value="suspended">Suspendido</option>
               </select>
               <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
@@ -823,6 +828,21 @@ export default function ProgramarPartidosPage() {
                 } else if (match.status === "pending") {
                   matchStatusText = "Pendiente";
                   matchStatusColor = "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300";
+                } else if (match.status === "in_progress") {
+                  matchStatusText = "En Curso";
+                  matchStatusColor = "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300";
+                } else if (match.status === "finished") {
+                  matchStatusText = "Finalizado";
+                  matchStatusColor = "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300";
+                } else if (match.status === "cancelled") {
+                  matchStatusText = "Cancelado";
+                  matchStatusColor = "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300";
+                } else if (match.status === "postponed") {
+                  matchStatusText = "Aplazado";
+                  matchStatusColor = "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300";
+                } else if (match.status === "suspended") {
+                  matchStatusText = "Suspendido";
+                  matchStatusColor = "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300";
                 } else {
                   matchStatusText = match.status || "Sin estado";
                   matchStatusColor = "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300";
@@ -879,10 +899,25 @@ export default function ProgramarPartidosPage() {
                                 ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                                 : match.status === "pending"
                                 ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300"
+                                : match.status === "in_progress"
+                                ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                                : match.status === "finished"
+                                ? "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                                : match.status === "cancelled"
+                                ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+                                : match.status === "postponed"
+                                ? "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"
+                                : match.status === "suspended"
+                                ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
                                 : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
                             }`}>
                               {match.status === "scheduled" ? "Programado" : 
                                match.status === "pending" ? "Pendiente" : 
+                               match.status === "in_progress" ? "En Curso" :
+                               match.status === "finished" ? "Finalizado" :
+                               match.status === "cancelled" ? "Cancelado" :
+                               match.status === "postponed" ? "Aplazado" :
+                               match.status === "suspended" ? "Suspendido" :
                                match.status || "Sin estado"}
                             </span>
                           </div>

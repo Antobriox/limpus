@@ -178,9 +178,9 @@ export const useMatches = (tournament: Tournament | null) => {
       if (form.referee) updateData.referee = form.referee;
       if (form.assistant) updateData.assistant = form.assistant;
       
-      // Manejar el estado: los valores válidos son en minúsculas según el constraint
-      // Valores válidos: "pending", "scheduled", "in_progress", "finished", "cancelled"
-      const validStatuses = ["pending", "scheduled", "in_progress", "finished", "cancelled"];
+      // Manejar el estado: los valores válidos según el constraint de la base de datos
+      // Valores válidos: "pending", "scheduled", "in_progress", "finished", "cancelled", "postponed", "suspended"
+      const validStatuses = ["pending", "scheduled", "in_progress", "finished", "cancelled", "postponed", "suspended"];
       if (form.status && form.status.trim() !== "" && validStatuses.includes(form.status.toLowerCase())) {
         updateData.status = form.status.toLowerCase();
       } else {
