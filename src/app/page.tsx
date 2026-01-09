@@ -18,13 +18,13 @@ export default function HomePage() {
 
     // 🔥 AQUÍ SE DECIDE TODO
     if (roles.includes("administrador")) {
-      router.replace("/dashboard/admin");
+      router.replace("/dashboard/torneos");
     } else if (roles.includes("lider_equipo")) {
       router.replace("/dashboard/leader");
     } else if (roles.includes("arbitro")) {
       router.replace("/dashboard/referee");
     } else {
-      router.replace("/dashboard");
+      router.replace("/dashboard/torneos");
     }
   }, [loading, user, roles, router]);
 

@@ -50,15 +50,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   };
 
   const itemClass = (path: string) => {
-    let isActive = false;
-    
-    if (path === "/dashboard") {
-      // Dashboard solo se activa cuando es exactamente /dashboard o /dashboard/
-      isActive = pathname === "/dashboard" || pathname === "/dashboard/";
-    } else {
-      // Otras rutas se activan cuando el pathname empieza con la ruta
-      isActive = pathname.startsWith(path);
-    }
+    const isActive = pathname.startsWith(path);
     
     return `block px-4 py-2 rounded-md transition-colors ${
       isActive
@@ -92,8 +84,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
       </div>
 
       <nav className="space-y-1 flex-1">
-        <Link href="/dashboard" className={itemClass("/dashboard")} onClick={handleLinkClick}>
-          Dashboard
+        <Link href="/dashboard/torneos" className={itemClass("/dashboard/torneos")} onClick={handleLinkClick}>
+          Torneos
         </Link>
 
         <Link href="/dashboard/usuarios" className={itemClass("/dashboard/usuarios")} onClick={handleLinkClick}>
@@ -102,10 +94,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
         <Link href="/dashboard/equipos" className={itemClass("/dashboard/equipos")} onClick={handleLinkClick}>
           Equipos
-        </Link>
-
-        <Link href="/dashboard/torneos" className={itemClass("/dashboard/torneos")} onClick={handleLinkClick}>
-          Torneos
         </Link>
 
         <Link

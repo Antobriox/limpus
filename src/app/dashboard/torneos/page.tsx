@@ -19,6 +19,7 @@ import {
   Calendar as CalendarIcon,
   MapPin,
   MoreVertical,
+  X,
 } from "lucide-react";
 import { Tournament, Team, RecentResult, TournamentStats } from "./types";
 import DocumentsModal from "./components/DocumentsModal";
@@ -38,6 +39,12 @@ export default function TorneosPage() {
   const [recentResults, setRecentResults] = useState<RecentResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [showAllTeamsModal, setShowAllTeamsModal] = useState(false);
+  const [showAllResultsModal, setShowAllResultsModal] = useState(false);
+  const [allTeams, setAllTeams] = useState<Team[]>([]);
+  const [allResults, setAllResults] = useState<RecentResult[]>([]);
+  const [loadingAllTeams, setLoadingAllTeams] = useState(false);
+  const [loadingAllResults, setLoadingAllResults] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -96,12 +103,15 @@ export default function TorneosPage() {
       let partidosJugadosCount = 0;
       let partidosTotales = 0;
 
-      const { count: matchesWithResultsCount } = await supabase
-        .from("match_results")
-        .select("*", { count: "exact", head: true });
+      // Contar partidos finalizados (estado "finished")
+      const { count: finishedMatchesCount } = await supabase
+        .from("matches")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "finished");
 
-      partidosJugadosCount = matchesWithResultsCount || 0;
+      partidosJugadosCount = finishedMatchesCount || 0;
 
+      // Contar todos los partidos
         const { count: totalMatchesCount } = await supabase
           .from("matches")
           .select("*", { count: "exact", head: true });
@@ -179,30 +189,54 @@ export default function TorneosPage() {
         setRecentTeams([]);
       }
 
-      // Cargar resultados recientes
-      const { data: matchResultsData } = await supabase
-        .from("match_results")
+      // Cargar resultados recientes (solo partidos finalizados)
+      const { data: finishedMatches } = await supabase
+        .from("matches")
         .select(`
-          match_id,
-          score_team_a,
-          score_team_b,
-          confirmed_at,
-          matches!inner (
+          id,
+          team_a,
+          team_b,
+          scheduled_at,
+          ended_at,
+          status,
+          tournaments!inner (
             id,
-            team_a,
-            team_b,
-            scheduled_at,
-            tournaments!inner (
-              id,
-              name,
-              sports!inner (
-                name
-              )
+            name,
+            sports!inner (
+              name
             )
           )
         `)
-        .order("confirmed_at", { ascending: false })
-        .limit(3);
+        .eq("status", "finished")
+        .order("ended_at", { ascending: false, nullsFirst: false })
+        .limit(5);
+
+      // Obtener los resultados de esos partidos
+      let matchResultsData: any[] = [];
+      if (finishedMatches && finishedMatches.length > 0) {
+        const matchIds = finishedMatches.map((m: any) => m.id);
+        const { data: resultsData } = await supabase
+          .from("match_results")
+          .select(`
+            match_id,
+            score_team_a,
+            score_team_b,
+            confirmed_at
+          `)
+          .in("match_id", matchIds);
+
+        // Combinar partidos con sus resultados
+        matchResultsData = finishedMatches.map((match: any) => {
+          const result = resultsData?.find((r: any) => r.match_id === match.id);
+          return {
+            match_id: match.id,
+            score_team_a: result?.score_team_a || 0,
+            score_team_b: result?.score_team_b || 0,
+            confirmed_at: result?.confirmed_at || match.ended_at,
+            matches: match,
+          };
+        });
+      }
 
       let results: RecentResult[] = [];
 
@@ -295,6 +329,207 @@ export default function TorneosPage() {
       "Diciembre",
     ];
     return `${date.getDate()} de ${months[date.getMonth()]}`;
+  };
+
+  const loadAllTeams = async () => {
+    setLoadingAllTeams(true);
+    try {
+      const { data: allTeamsData } = await supabase
+        .from("teams")
+        .select(`
+          id,
+          name,
+          created_at,
+          careers (
+            id,
+            name
+          )
+        `)
+        .order("created_at", { ascending: false });
+
+      if (allTeamsData && allTeamsData.length > 0) {
+        const careerIds = allTeamsData
+          .flatMap((team: any) => team.careers || [])
+          .map((career: any) => career.id)
+          .filter((id: number) => id);
+
+        const { data: captainsData } = await supabase
+          .from("players")
+          .select("career_id, full_name")
+          .in("career_id", careerIds)
+          .eq("is_captain", true);
+
+        const captainsMap = new Map(
+          captainsData?.map((c: any) => [c.career_id, c.full_name]) || []
+        );
+
+        const teamsWithDetails = allTeamsData.map((team: any) => {
+          const faculty = team.careers && team.careers.length > 0 
+            ? team.careers[0].name 
+            : "Sin facultad";
+
+          const careerId = team.careers && team.careers.length > 0 
+            ? team.careers[0].id 
+            : null;
+
+          const captain = careerId && captainsMap.has(careerId)
+            ? captainsMap.get(careerId)!
+            : "Sin capitán";
+
+          return {
+            id: team.id,
+            name: team.name,
+            faculty: faculty,
+            captain: captain,
+            status: "Verificado",
+          };
+        });
+
+        setAllTeams(teamsWithDetails);
+      } else {
+        setAllTeams([]);
+      }
+    } catch (error) {
+      console.error("Error cargando todos los equipos:", error);
+    } finally {
+      setLoadingAllTeams(false);
+    }
+  };
+
+  const loadAllResults = async () => {
+    setLoadingAllResults(true);
+    try {
+      const { data: finishedMatches } = await supabase
+        .from("matches")
+        .select(`
+          id,
+          team_a,
+          team_b,
+          scheduled_at,
+          ended_at,
+          status,
+          tournaments!inner (
+            id,
+            name,
+            sports!inner (
+              name
+            )
+          )
+        `)
+        .eq("status", "finished")
+        .order("ended_at", { ascending: false, nullsFirst: false });
+
+      let matchResultsData: any[] = [];
+      if (finishedMatches && finishedMatches.length > 0) {
+        const matchIds = finishedMatches.map((m: any) => m.id);
+        const { data: resultsData } = await supabase
+          .from("match_results")
+          .select(`
+            match_id,
+            score_team_a,
+            score_team_b,
+            confirmed_at
+          `)
+          .in("match_id", matchIds);
+
+        matchResultsData = finishedMatches.map((match: any) => {
+          const result = resultsData?.find((r: any) => r.match_id === match.id);
+          return {
+            match_id: match.id,
+            score_team_a: result?.score_team_a || 0,
+            score_team_b: result?.score_team_b || 0,
+            confirmed_at: result?.confirmed_at || match.ended_at,
+            matches: match,
+          };
+        });
+      }
+
+      let results: RecentResult[] = [];
+
+      if (matchResultsData && matchResultsData.length > 0) {
+        const allTeamIds = [
+          ...matchResultsData.map((mr: any) => mr.matches?.team_a),
+          ...matchResultsData.map((mr: any) => mr.matches?.team_b),
+        ];
+        const teamIds = Array.from(new Set(allTeamIds)).filter(
+          (id): id is number => id !== undefined && typeof id === "number"
+        );
+
+        const { data: teamsForResults } = await supabase
+          .from("teams")
+          .select("id, name")
+          .in("id", teamIds);
+
+        const teamsMap = new Map(
+          teamsForResults?.map((t: any) => [t.id, t.name]) || []
+        );
+
+        results = matchResultsData.map((mr: any) => {
+          const match = mr.matches;
+          const scheduledAt = match?.scheduled_at
+            ? new Date(match.scheduled_at)
+            : null;
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+
+          let dateLabel = "Sin fecha";
+          if (scheduledAt) {
+            if (scheduledAt.toDateString() === today.toDateString()) {
+              dateLabel = "Hoy";
+            } else if (scheduledAt.toDateString() === yesterday.toDateString()) {
+              dateLabel = "Ayer";
+            } else {
+              dateLabel = scheduledAt.toLocaleDateString("es-ES", {
+                day: "numeric",
+                month: "short",
+              });
+            }
+          }
+
+          const time = scheduledAt
+            ? scheduledAt.toLocaleTimeString("es-ES", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "";
+
+          return {
+            id: mr.match_id,
+            sport: match?.tournaments?.sports?.name || "Deporte",
+            category: "General",
+            team1: teamsMap.get(match?.team_a) || "Equipo A",
+            team2: teamsMap.get(match?.team_b) || "Equipo B",
+            score1: mr.score_team_a || 0,
+            score2: mr.score_team_b || 0,
+            date: dateLabel,
+            time: time,
+          };
+        });
+      }
+
+      setAllResults(results);
+    } catch (error) {
+      console.error("Error cargando todos los resultados:", error);
+    } finally {
+      setLoadingAllResults(false);
+    }
+  };
+
+  const handleOpenAllTeams = () => {
+    setShowAllTeamsModal(true);
+    if (allTeams.length === 0) {
+      loadAllTeams();
+    }
+  };
+
+  const handleOpenAllResults = () => {
+    setShowAllResultsModal(true);
+    if (allResults.length === 0) {
+      loadAllResults();
+    }
   };
 
   if (loading) {
@@ -407,7 +642,7 @@ export default function TorneosPage() {
       </div>
 
       {/* Action Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <ActionCard
           icon={<Network className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
           title="Generar Brackets"
@@ -426,6 +661,12 @@ export default function TorneosPage() {
           description="Actualizar marcadores de la jornada"
           onClick={() => router.push("/dashboard/torneos/resultados")}
         />
+        <ActionCard
+          icon={<TrendingUp className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+          title="Tablas de Posiciones"
+          description="Ver clasificación por disciplina"
+          onClick={() => router.push("/dashboard/torneos/tablas")}
+        />
       </div>
 
       {/* Bottom Sections */}
@@ -436,12 +677,12 @@ export default function TorneosPage() {
             <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white">
               Equipos Recientes
             </h3>
-            <a
-              href="#"
+            <button
+              onClick={handleOpenAllTeams}
               className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline"
             >
               Ver todos
-            </a>
+            </button>
           </div>
           <div className="overflow-x-auto -mx-4 sm:mx-0">
             <table className="w-full text-sm min-w-[640px]">
@@ -519,12 +760,12 @@ export default function TorneosPage() {
               <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white">
                 Resultados Recientes
               </h3>
-              <a
-                href="#"
+              <button
+                onClick={handleOpenAllResults}
                 className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline"
               >
                 Ver todo
-              </a>
+              </button>
             </div>
             <div className="p-4 sm:p-6 space-y-4">
               {recentResults.length > 0 ? (
@@ -589,6 +830,169 @@ export default function TorneosPage() {
         onClose={() => setShowDocumentsModal(false)}
         tournament={tournament}
       />
+
+      {/* Modal: Todos los Equipos */}
+      {showAllTeamsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                Todos los Equipos
+              </h2>
+              <button
+                onClick={() => setShowAllTeamsModal(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingAllTeams ? (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
+                  <p className="mt-2 text-gray-600 dark:text-gray-400">Cargando equipos...</p>
+                </div>
+              ) : allTeams.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 dark:bg-neutral-800">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          EQUIPO
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          FACULTAD
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          CAPITÁN
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          ESTADO
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-neutral-800">
+                      {allTeams.map((team) => (
+                        <tr
+                          key={team.id}
+                          className="hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition"
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                                {team.name.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="font-medium text-gray-900 dark:text-white">
+                                {team.name}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                            {team.faculty}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                            {team.captain}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-500/10 dark:text-green-400">
+                              {team.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  No hay equipos registrados
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-200 dark:border-neutral-800 flex justify-end">
+              <button
+                onClick={() => setShowAllTeamsModal(false)}
+                className="px-4 py-2 bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-700 transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Todos los Resultados */}
+      {showAllResultsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                Todos los Resultados
+              </h2>
+              <button
+                onClick={() => setShowAllResultsModal(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingAllResults ? (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
+                  <p className="mt-2 text-gray-600 dark:text-gray-400">Cargando resultados...</p>
+                </div>
+              ) : allResults.length > 0 ? (
+                <div className="space-y-4">
+                  {allResults.map((result) => (
+                    <div
+                      key={result.id}
+                      className="p-4 border border-gray-200 dark:border-neutral-800 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          {result.sport} - {result.category}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {result.date} {result.time && `, ${result.time}`}
+                        </span>
+                      </div>
+                      <div className="text-base text-gray-700 dark:text-gray-300">
+                        <span className="font-medium">{result.team1}</span>{" "}
+                        <span className="font-bold text-lg">{result.score1}</span> -{" "}
+                        <span className="font-bold text-lg">{result.score2}</span>{" "}
+                        <span className="font-medium">{result.team2}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  No hay resultados disponibles
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-200 dark:border-neutral-800 flex justify-end">
+              <button
+                onClick={() => setShowAllResultsModal(false)}
+                className="px-4 py-2 bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-700 transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

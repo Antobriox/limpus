@@ -4,8 +4,9 @@ import { supabase } from "../../../../lib/supabaseClient";
 import { Team, Tournament } from "../types";
 import { generateBracketsPDF } from "../utils/pdfGenerator";
 
-export const useBrackets = (tournament: Tournament | null) => {
+export const useBrackets = (tournament: Tournament | null, sportId: number | null) => {
   const [allTeams, setAllTeams] = useState<Team[]>([]);
+  const [selectedTeams, setSelectedTeams] = useState<Set<number>>(new Set());
   const [bombos, setBombos] = useState<Team[][]>([]);
   const [generating, setGenerating] = useState(false);
   const [savedDrawId, setSavedDrawId] = useState<number | null>(null);
@@ -13,18 +14,21 @@ export const useBrackets = (tournament: Tournament | null) => {
 
   const loadTeams = async () => {
     try {
-      const { data: teams, error } = await supabase
+      // Cargar TODOS los equipos disponibles (sin filtrar por inscripciones)
+      const { data: teams, error: teamsError } = await supabase
         .from("teams")
         .select("id, name")
         .order("name");
 
-      if (error) {
-        console.error("Error cargando equipos:", error);
+      if (teamsError) {
+        console.error("Error cargando equipos:", teamsError);
         alert("Error al cargar los equipos");
         return;
       }
 
       setAllTeams(teams || []);
+      // Limpiar selección al cargar nuevos equipos
+      setSelectedTeams(new Set());
     } catch (error) {
       console.error("Error:", error);
       alert("Error al cargar los equipos");
@@ -32,33 +36,67 @@ export const useBrackets = (tournament: Tournament | null) => {
   };
 
   const loadSavedBrackets = async () => {
-    if (!tournament || tournament.id === 0) {
+    if (!tournament || tournament.id === 0 || !sportId) {
+      setLoadingSaved(false);
       return;
     }
 
     setLoadingSaved(true);
     try {
-      // Buscar el draw más reciente para este torneo
+      // Obtener el nombre de la disciplina para filtrar por nombre del draw
+      const { data: sportData, error: sportError } = await supabase
+        .from("sports")
+        .select("name")
+        .eq("id", sportId)
+        .single();
+
+      if (sportError) {
+        console.error("Error cargando deporte:", sportError);
+        setLoadingSaved(false);
+        setBombos([]);
+        setSavedDrawId(null);
+        return;
+      }
+
+      const sportName = sportData?.name || "";
+      
+      // Buscar todos los draws para este torneo
       const { data: draws, error: drawsError } = await supabase
         .from("draws")
         .select("id, name, created_at")
         .eq("tournament_id", tournament.id)
-        .order("created_at", { ascending: false })
-        .limit(1);
+        .order("created_at", { ascending: false });
 
       if (drawsError) {
         console.error("Error cargando draws:", drawsError);
         setLoadingSaved(false);
+        setBombos([]);
+        setSavedDrawId(null);
         return;
       }
 
-      if (!draws || draws.length === 0) {
+      // Filtrar manualmente por el nombre exacto del deporte en el formato esperado
+      // El formato es: "Brackets - [Torneo] - [Deporte]"
+      const filteredDraws = draws?.filter(draw => {
+        const drawName = draw.name?.toLowerCase() || "";
+        const sportNameLower = sportName.toLowerCase();
+        // Buscar el nombre del deporte en el nombre del draw
+        const matches = drawName.includes(sportNameLower);
+        if (matches) {
+          console.log(`Bracket encontrado para ${sportName}:`, draw.name);
+        }
+        return matches;
+      }) || [];
+
+      if (filteredDraws.length === 0) {
+        console.log(`No se encontraron brackets guardados para ${sportName}. Total de draws: ${draws?.length || 0}`);
         setLoadingSaved(false);
+        setBombos([]);
+        setSavedDrawId(null);
         return;
       }
 
-      const latestDraw = draws[0];
-      setSavedDrawId(latestDraw.id);
+      const latestDraw = filteredDraws[0];
 
       // Cargar los resultados del draw
       const { data: drawResults, error: resultsError } = await supabase
@@ -70,11 +108,15 @@ export const useBrackets = (tournament: Tournament | null) => {
       if (resultsError) {
         console.error("Error cargando resultados:", resultsError);
         setLoadingSaved(false);
+        setBombos([]);
+        setSavedDrawId(null);
         return;
       }
 
       if (!drawResults || drawResults.length === 0) {
         setLoadingSaved(false);
+        setBombos([]);
+        setSavedDrawId(null);
         return;
       }
 
@@ -88,6 +130,8 @@ export const useBrackets = (tournament: Tournament | null) => {
       if (teamsError || !teams) {
         console.error("Error cargando equipos:", teamsError);
         setLoadingSaved(false);
+        setBombos([]);
+        setSavedDrawId(null);
         return;
       }
 
@@ -115,24 +159,30 @@ export const useBrackets = (tournament: Tournament | null) => {
       });
 
       setBombos(sortedBombos);
+      setSavedDrawId(latestDraw.id);
     } catch (error) {
       console.error("Error:", error);
+      setBombos([]);
+      setSavedDrawId(null);
     } finally {
       setLoadingSaved(false);
     }
   };
 
   const generateBombos = () => {
-    if (allTeams.length === 0) {
-      alert("No hay equipos disponibles");
+    // Usar solo los equipos seleccionados
+    const teamsToUse = allTeams.filter(team => selectedTeams.has(team.id));
+    
+    if (teamsToUse.length === 0) {
+      alert("Debes seleccionar al menos un equipo para generar los brackets");
       return;
     }
 
     const equiposPorBombo = 4;
-    const totalEquipos = allTeams.length;
+    const totalEquipos = teamsToUse.length;
     const numBombos = Math.ceil(totalEquipos / equiposPorBombo);
 
-    const shuffled = [...allTeams].sort(() => Math.random() - 0.5);
+    const shuffled = [...teamsToUse].sort(() => Math.random() - 0.5);
     const newBombos: Team[][] = [];
 
     for (let i = 0; i < numBombos; i++) {
@@ -167,10 +217,19 @@ export const useBrackets = (tournament: Tournament | null) => {
         return;
       }
 
+      // Obtener el nombre de la disciplina
+      const { data: sportData } = await supabase
+        .from("sports")
+        .select("name")
+        .eq("id", sportId)
+        .single();
+
+      const sportName = sportData?.name || "Disciplina";
+
       const { data: draw, error: drawError } = await supabase
         .from("draws")
         .insert({
-          name: `Brackets - ${tournament.name}`,
+          name: `Brackets - ${tournament.name} - ${sportName}`,
           tournament_id: tournament.id,
           created_by: user.id,
         })
@@ -204,20 +263,26 @@ export const useBrackets = (tournament: Tournament | null) => {
         return;
       }
 
-      // Generar PDF
+      // Generar PDF (opcional - si falla no afecta el guardado)
       try {
         const pdfBlob = await generateBracketsPDF(bombos, tournament.name);
         const fileName = `brackets_${tournament.id}_${Date.now()}.pdf`;
         const filePath = `torneos/${tournament.id}/${fileName}`;
 
-        await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from("documents")
           .upload(filePath, pdfBlob, {
             contentType: "application/pdf",
             upsert: false,
           });
+
+        if (uploadError) {
+          console.warn("No se pudo guardar el PDF (esto no afecta los brackets):", uploadError);
+        } else {
+          console.log("✅ PDF guardado correctamente");
+        }
       } catch (pdfError) {
-        console.error("Error generando PDF:", pdfError);
+        console.warn("Error generando PDF (esto no afecta los brackets):", pdfError);
       }
 
       alert("Brackets generados y guardados correctamente");
@@ -273,8 +338,27 @@ export const useBrackets = (tournament: Tournament | null) => {
     }
   };
 
+  const toggleTeamSelection = (teamId: number) => {
+    const newSelected = new Set(selectedTeams);
+    if (newSelected.has(teamId)) {
+      newSelected.delete(teamId);
+    } else {
+      newSelected.add(teamId);
+    }
+    setSelectedTeams(newSelected);
+  };
+
+  const selectAllTeams = () => {
+    setSelectedTeams(new Set(allTeams.map(team => team.id)));
+  };
+
+  const deselectAllTeams = () => {
+    setSelectedTeams(new Set());
+  };
+
   return {
     allTeams,
+    selectedTeams,
     bombos,
     generating,
     savedDrawId,
@@ -285,6 +369,9 @@ export const useBrackets = (tournament: Tournament | null) => {
     saveBrackets,
     deleteSavedBrackets,
     setBombos,
+    toggleTeamSelection,
+    selectAllTeams,
+    deselectAllTeams,
   };
 };
 

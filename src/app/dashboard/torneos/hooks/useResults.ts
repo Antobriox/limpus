@@ -26,16 +26,24 @@ export const useResults = (tournament: Tournament | null) => {
   const [saving, setSaving] = useState(false);
 
   const loadScheduledMatches = useCallback(async () => {
-    if (!tournament || tournament.id === 0) {
-      console.log("No hay torneo o el ID es 0, no se cargarán partidos");
-      setScheduledMatches([]);
-      setLoading(false);
-      return;
-    }
-
-    console.log("Cargando partidos para el torneo:", tournament.id);
     setLoading(true);
     try {
+      // Obtener la fecha de hoy (inicio y fin del día)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Inicio del día (00:00:00)
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1); // Fin del día (00:00:00 del día siguiente)
+
+      const todayStart = today.toISOString();
+      const todayEnd = tomorrow.toISOString();
+
+      console.log("📅 Filtrando partidos para hoy:", {
+        fecha: today.toLocaleDateString("es-ES"),
+        inicio: todayStart,
+        fin: todayEnd,
+      });
+
+      // Cargar solo los partidos programados para HOY
       const { data: matches, error } = await supabase
         .from("matches")
         .select(`
@@ -51,16 +59,18 @@ export const useResults = (tournament: Tournament | null) => {
           tournament_id,
           field
         `)
-        .eq("tournament_id", tournament.id)
-        .order("scheduled_at", { ascending: true, nullsFirst: false });
-
-      console.log("Partidos encontrados:", matches?.length || 0);
+        .not("scheduled_at", "is", null)
+        .gte("scheduled_at", todayStart)
+        .lt("scheduled_at", todayEnd)
+        .order("scheduled_at", { ascending: true });
 
       if (error) {
         console.error("Error cargando partidos:", error);
         setScheduledMatches([]);
         return;
       }
+
+      console.log("✅ Partidos programados para hoy encontrados:", matches?.length || 0);
 
       if (matches && matches.length > 0) {
         const teamIds = [...matches.map((m: any) => m.team_a), ...matches.map((m: any) => m.team_b)];
@@ -149,7 +159,7 @@ export const useResults = (tournament: Tournament | null) => {
     } finally {
       setLoading(false);
     }
-  }, [tournament]);
+  }, []); // Removemos la dependencia de tournament para cargar todos los partidos
 
   const loadPlayersForTeam = async (teamId: number): Promise<Player[]> => {
     try {
@@ -208,21 +218,27 @@ export const useResults = (tournament: Tournament | null) => {
         return false;
       }
 
-      // Determinar el ganador
+      // Determinar el ganador (null si es empate)
       let winnerTeam: number | null = null;
-      if (form.score_team_a > form.score_team_b) {
+      const scoreA = Number(form.score_team_a) || 0;
+      const scoreB = Number(form.score_team_b) || 0;
+      
+      if (scoreA > scoreB) {
         winnerTeam = match.team_a;
-      } else if (form.score_team_b > form.score_team_a) {
+      } else if (scoreB > scoreA) {
         winnerTeam = match.team_b;
       }
+      // Si scoreA === scoreB, winnerTeam queda null (empate)
+
+      console.log(`💾 Guardando resultado: ${scoreA}-${scoreB}, ganador: ${winnerTeam || "Empate"}`);
 
       // Guardar o actualizar el resultado del partido
       const { error: resultError } = await supabase
         .from("match_results")
         .upsert({
           match_id: matchId,
-          score_team_a: form.score_team_a,
-          score_team_b: form.score_team_b,
+          score_team_a: scoreA,
+          score_team_b: scoreB,
           winner_team: winnerTeam,
           confirmed_by: user.id,
           confirmed_at: new Date().toISOString(),
@@ -345,6 +361,36 @@ export const useResults = (tournament: Tournament | null) => {
     }
   };
 
+  const updateMatchStatus = async (matchId: number, status: string) => {
+    try {
+      const updateData: any = { status };
+      
+      if (status === "in_progress") {
+        updateData.started_at = new Date().toISOString();
+      } else if (status === "finished") {
+        updateData.ended_at = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from("matches")
+        .update(updateData)
+        .eq("id", matchId);
+
+      if (error) {
+        console.error("Error actualizando estado:", error);
+        alert("Error al actualizar el estado del partido");
+        return false;
+      }
+
+      await loadScheduledMatches();
+      return true;
+    } catch (error: any) {
+      console.error("Error:", error);
+      alert(`Error: ${error.message}`);
+      return false;
+    }
+  };
+
   return {
     scheduledMatches,
     loading,
@@ -352,6 +398,7 @@ export const useResults = (tournament: Tournament | null) => {
     loadScheduledMatches,
     loadPlayersForTeam,
     saveMatchResult,
+    updateMatchStatus,
   };
 };
 

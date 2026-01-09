@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Clock, Trophy, Users, Calendar } from "lucide-react";
 import { Tournament, Match } from "../types";
 import { useResults, MatchResultForm, Player } from "../hooks/useResults";
+import { getDisciplineRulesByName } from "../config/disciplineRules";
 import { supabase } from "../../../../lib/supabaseClient";
 
 export default function ResultadosPage() {
@@ -18,6 +19,7 @@ export default function ResultadosPage() {
     loadScheduledMatches,
     loadPlayersForTeam,
     saveMatchResult,
+    updateMatchStatus,
   } = useResults(tournament);
 
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -41,14 +43,9 @@ export default function ResultadosPage() {
   }, []);
 
   useEffect(() => {
-    if (tournament && tournament.id > 0) {
-      console.log("Cargando partidos para torneo:", tournament.id, tournament.name);
-      loadScheduledMatches();
-    } else {
-      console.log("No se puede cargar partidos - torneo:", tournament);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tournament?.id]);
+    // Cargar todos los partidos programados, sin importar el torneo
+    loadScheduledMatches();
+  }, [loadScheduledMatches]);
 
   const loadTournament = async () => {
     try {
@@ -83,7 +80,41 @@ export default function ResultadosPage() {
     }
   };
 
+  const handleStartMatch = async (matchId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("¿Deseas comenzar este partido?")) {
+      await updateMatchStatus(matchId, "in_progress");
+    }
+  };
+
+  const handleHalfTime = async (matchId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("¿Deseas pausar el partido para el entretiempo?")) {
+      await updateMatchStatus(matchId, "suspended");
+    }
+  };
+
+  const handleStatusChange = async (matchId: number, newStatus: string, e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.stopPropagation();
+    
+    // Buscar el partido para verificar su estado actual
+    const match = scheduledMatches.find((m: any) => m.id === matchId);
+    if (match?.status === "finished") {
+      alert("No se puede cambiar el estado de un partido finalizado");
+      e.target.value = match.status; // Restaurar el valor anterior
+      return;
+    }
+    
+    await updateMatchStatus(matchId, newStatus);
+  };
+
   const handleOpenResultModal = async (match: Match) => {
+    // Solo permitir abrir el modal si el partido está en progreso, suspendido o finalizado
+    if (match.status !== "in_progress" && match.status !== "suspended" && match.status !== "finished") {
+      alert("Debes comenzar el partido antes de publicar resultados");
+      return;
+    }
+
     setSelectedMatch(match);
     setResultForm({
       score_team_a: 0,
@@ -116,6 +147,10 @@ export default function ResultadosPage() {
   });
 
   const handleAddGoal = (team: "a" | "b", playerId: number, minute: number) => {
+    if (selectedMatch?.status === "finished") {
+      alert("No se pueden agregar goles a un partido finalizado");
+      return;
+    }
     if (team === "a") {
       setResultForm({
         ...resultForm,
@@ -133,10 +168,18 @@ export default function ResultadosPage() {
   };
 
   const handleOpenGoalForm = (team: "a" | "b") => {
+    if (selectedMatch?.status === "finished") {
+      alert("No se pueden agregar goles a un partido finalizado");
+      return;
+    }
     setShowGoalForm({ team, playerId: "", minute: "" });
   };
 
   const handleRemoveGoal = (team: "a" | "b", index: number) => {
+    if (selectedMatch?.status === "finished") {
+      alert("No se pueden eliminar goles de un partido finalizado");
+      return;
+    }
     if (team === "a") {
       const newGoals = resultForm.goals_team_a.filter((_, i) => i !== index);
       setResultForm({
@@ -161,7 +204,19 @@ export default function ResultadosPage() {
     minute: "",
   });
 
+  const handleOpenCardForm = (team: "a" | "b", type: "yellow" | "red") => {
+    if (selectedMatch?.status === "finished") {
+      alert("No se pueden agregar tarjetas a un partido finalizado");
+      return;
+    }
+    setShowCardForm({ team, type, playerId: "", minute: "" });
+  };
+
   const handleAddCard = (team: "a" | "b", type: "yellow" | "red", playerId: number, minute: number) => {
+    if (selectedMatch?.status === "finished") {
+      alert("No se pueden agregar tarjetas a un partido finalizado");
+      return;
+    }
     if (type === "yellow") {
       if (team === "a") {
         setResultForm({
@@ -190,6 +245,10 @@ export default function ResultadosPage() {
   };
 
   const handleRemoveCard = (team: "a" | "b", type: "yellow" | "red", index: number) => {
+    if (selectedMatch?.status === "finished") {
+      alert("No se pueden eliminar tarjetas de un partido finalizado");
+      return;
+    }
     if (type === "yellow") {
       if (team === "a") {
         setResultForm({
@@ -219,6 +278,11 @@ export default function ResultadosPage() {
 
   const handleSaveResult = async () => {
     if (!selectedMatch) return;
+    
+    if (selectedMatch.status === "finished") {
+      alert("No se pueden modificar los resultados de un partido finalizado");
+      return;
+    }
 
     const success = await saveMatchResult(selectedMatch.id, resultForm);
     if (success) {
@@ -283,8 +347,7 @@ export default function ResultadosPage() {
             return (
               <div
                 key={match.id}
-                className="p-4 bg-white dark:bg-neutral-900 rounded-lg border border-gray-200 dark:border-neutral-700 hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => handleOpenResultModal(match)}
+                className="p-4 bg-white dark:bg-neutral-900 rounded-lg border border-gray-200 dark:border-neutral-700 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -293,7 +356,7 @@ export default function ResultadosPage() {
                         {match.teams?.name || "Equipo A"} vs {match.teams1?.name || "Equipo B"}
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600 dark:text-gray-400">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600 dark:text-gray-400 mb-4">
                       {scheduledDate && (
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 flex-shrink-0" />
@@ -310,20 +373,6 @@ export default function ResultadosPage() {
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 flex-shrink-0" />
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          match.status === "finished"
-                            ? "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                            : match.status === "in_progress"
-                            ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
-                            : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                        }`}>
-                          {match.status === "finished" ? "Finalizado" : 
-                           match.status === "in_progress" ? "En Curso" : 
-                           "Programado"}
-                        </span>
-                      </div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">Disciplina:</span>
                         <span>{match.sportName || "Sin disciplina"}</span>
@@ -345,10 +394,72 @@ export default function ResultadosPage() {
                         </div>
                       )}
                     </div>
+                    
+                    {/* Controles de estado del partido */}
+                    <div className="flex flex-wrap items-center gap-2 mt-4">
+                      {match.status === "scheduled" || match.status === "pending" ? (
+                        <button
+                          onClick={(e) => handleStartMatch(match.id, e)}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm whitespace-nowrap"
+                        >
+                          Comenzar Partido
+                        </button>
+                      ) : match.status === "in_progress" || match.status === "suspended" ? (
+                        <>
+                          {match.status === "in_progress" && (
+                            <button
+                              onClick={(e) => handleHalfTime(match.id, e)}
+                              className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm whitespace-nowrap"
+                            >
+                              Entretiempo
+                            </button>
+                          )}
+                          {match.status === "suspended" && (
+                            <button
+                              onClick={(e) => handleStartMatch(match.id, e)}
+                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm whitespace-nowrap"
+                            >
+                              Reanudar Partido
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleOpenResultModal(match)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm whitespace-nowrap"
+                          >
+                            Publicar Resultado
+                          </button>
+                        </>
+                      ) : match.status === "finished" ? (
+                        <button
+                          onClick={() => handleOpenResultModal(match)}
+                          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm whitespace-nowrap"
+                        >
+                          Ver Resultado
+                        </button>
+                      ) : null}
+                      
+                      {/* Select para cambiar estado manualmente */}
+                      <select
+                        value={match.status || "scheduled"}
+                        onChange={(e) => handleStatusChange(match.id, e.target.value, e)}
+                        disabled={match.status === "finished"}
+                        className={`px-3 py-2 border rounded-lg text-sm ${
+                          match.status === "finished"
+                            ? "border-gray-400 dark:border-neutral-600 bg-gray-100 dark:bg-neutral-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                            : "border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                        }`}
+                        onClick={(e) => e.stopPropagation()}
+                        title={match.status === "finished" ? "No se puede cambiar el estado de un partido finalizado" : ""}
+                      >
+                        <option value="scheduled">Programado</option>
+                        <option value="in_progress">En Curso</option>
+                        <option value="suspended">Suspendido/Entretiempo</option>
+                        <option value="finished">Finalizado</option>
+                        <option value="postponed">Aplazado</option>
+                        <option value="cancelled">Cancelado</option>
+                      </select>
+                    </div>
                   </div>
-                  <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm whitespace-nowrap">
-                    {match.status === "finished" ? "Ver Resultado" : "Publicar Resultado"}
-                  </button>
                 </div>
               </div>
             );
@@ -394,41 +505,71 @@ export default function ResultadosPage() {
                 </div>
               ) : (
                 <>
-                  {/* Resultado del partido */}
-                  <div className="mb-6">
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Resultado</h3>
-                    <div className="grid grid-cols-3 gap-4 items-center">
-                      <div className="text-center">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                          {selectedMatch.teams?.name || "Equipo A"}
-                        </p>
-                        <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                          {resultForm.score_team_a}
+                  {(() => {
+                    const isFinished = selectedMatch.status === "finished";
+                    // Obtener reglas de la disciplina
+                    const disciplineRules = selectedMatch.sportName 
+                      ? getDisciplineRulesByName(selectedMatch.sportName)
+                      : null;
+                    const usesCards = disciplineRules?.usesCards || false;
+                    const usesSets = disciplineRules?.usesSets || false;
+                    const metricName = disciplineRules?.metricName || "goles";
+                    
+                    // Determinar el nombre de la métrica a mostrar
+                    const scoreLabel = usesSets 
+                      ? "Sets" 
+                      : metricName === "puntos" 
+                        ? "Puntos" 
+                        : "Goles";
+                    
+                    return (
+                      <>
+                        {/* Resultado del partido */}
+                        <div className="mb-6">
+                          <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Resultado</h3>
+                          <div className="grid grid-cols-3 gap-4 items-center">
+                            <div className="text-center">
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                {selectedMatch.teams?.name || "Equipo A"}
+                              </p>
+                              <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                                {resultForm.score_team_a}
+                              </div>
+                            </div>
+                            <div className="text-center text-gray-400">vs</div>
+                            <div className="text-center">
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                {selectedMatch.teams1?.name || "Equipo B"}
+                              </p>
+                              <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                                {resultForm.score_team_b}
+                              </div>
+                            </div>
+                          </div>
+                          {isFinished && (
+                            <p className="text-sm text-red-600 dark:text-red-400 mt-2 text-center">
+                              ⚠️ Partido finalizado - No se pueden agregar más eventos
+                            </p>
+                          )}
                         </div>
-                      </div>
-                      <div className="text-center text-gray-400">vs</div>
-                      <div className="text-center">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                          {selectedMatch.teams1?.name || "Equipo B"}
-                        </p>
-                        <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                          {resultForm.score_team_b}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Goles del Equipo A */}
+                  {/* Goles/Puntos del Equipo A - Solo mostrar si no es vóley */}
+                  {!usesSets && (
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-gray-900 dark:text-white">
-                        Goles - {selectedMatch.teams?.name || "Equipo A"}
+                        {scoreLabel} - {selectedMatch.teams?.name || "Equipo A"}
                       </h3>
                       <button
                         onClick={() => handleOpenGoalForm("a")}
-                        className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                        disabled={isFinished}
+                        className={`px-3 py-1 text-sm rounded ${
+                          isFinished
+                            ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                            : "bg-green-600 text-white hover:bg-green-700"
+                        }`}
                       >
-                        + Agregar Gol
+                        + Agregar {scoreLabel === "Puntos" ? "Punto" : "Gol"}
                       </button>
                     </div>
                     <div className="space-y-2">
@@ -439,7 +580,12 @@ export default function ResultadosPage() {
                           </span>
                           <button
                             onClick={() => handleRemoveGoal("a", index)}
-                            className="text-red-600 hover:text-red-700 text-sm"
+                            disabled={isFinished}
+                            className={`text-sm ${
+                              isFinished
+                                ? "text-gray-400 cursor-not-allowed"
+                                : "text-red-600 hover:text-red-700"
+                            }`}
                           >
                             Eliminar
                           </button>
@@ -447,10 +593,10 @@ export default function ResultadosPage() {
                       ))}
                       {resultForm.goals_team_a.length === 0 && (
                         <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
-                          No hay goles registrados
+                          No hay {scoreLabel.toLowerCase()} registrados
                         </p>
                       )}
-                      {showGoalForm.team === "a" && (
+                      {showGoalForm.team === "a" && !isFinished && (
                         <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-900">
                           <div className="grid grid-cols-2 gap-3 mb-3">
                             <div>
@@ -507,18 +653,25 @@ export default function ResultadosPage() {
                       )}
                     </div>
                   </div>
+                  )}
 
-                  {/* Goles del Equipo B */}
+                  {/* Goles/Puntos del Equipo B - Solo mostrar si no es vóley */}
+                  {!usesSets && (
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-gray-900 dark:text-white">
-                        Goles - {selectedMatch.teams1?.name || "Equipo B"}
+                        {scoreLabel} - {selectedMatch.teams1?.name || "Equipo B"}
                       </h3>
                       <button
                         onClick={() => handleOpenGoalForm("b")}
-                        className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                        disabled={isFinished}
+                        className={`px-3 py-1 text-sm rounded ${
+                          isFinished
+                            ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                            : "bg-green-600 text-white hover:bg-green-700"
+                        }`}
                       >
-                        + Agregar Gol
+                        + Agregar {scoreLabel === "Puntos" ? "Punto" : "Gol"}
                       </button>
                     </div>
                     <div className="space-y-2">
@@ -529,7 +682,12 @@ export default function ResultadosPage() {
                           </span>
                           <button
                             onClick={() => handleRemoveGoal("b", index)}
-                            className="text-red-600 hover:text-red-700 text-sm"
+                            disabled={isFinished}
+                            className={`text-sm ${
+                              isFinished
+                                ? "text-gray-400 cursor-not-allowed"
+                                : "text-red-600 hover:text-red-700"
+                            }`}
                           >
                             Eliminar
                           </button>
@@ -537,10 +695,10 @@ export default function ResultadosPage() {
                       ))}
                       {resultForm.goals_team_b.length === 0 && (
                         <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
-                          No hay goles registrados
+                          No hay {scoreLabel.toLowerCase()} registrados
                         </p>
                       )}
-                      {showGoalForm.team === "b" && (
+                      {showGoalForm.team === "b" && !isFinished && (
                         <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-900">
                           <div className="grid grid-cols-2 gap-3 mb-3">
                             <div>
@@ -597,8 +755,10 @@ export default function ResultadosPage() {
                       )}
                     </div>
                   </div>
+                  )}
 
-                  {/* Tarjetas Amarillas Equipo A */}
+                  {/* Tarjetas Amarillas Equipo A - Solo mostrar si la disciplina usa tarjetas */}
+                  {usesCards && (
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -607,7 +767,12 @@ export default function ResultadosPage() {
                       </h3>
                       <button
                         onClick={() => handleOpenCardForm("a", "yellow")}
-                        className="px-3 py-1 text-sm bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                        disabled={isFinished}
+                        className={`px-3 py-1 text-sm rounded ${
+                          isFinished
+                            ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                            : "bg-yellow-600 text-white hover:bg-yellow-700"
+                        }`}
                       >
                         + Agregar
                       </button>
@@ -620,7 +785,12 @@ export default function ResultadosPage() {
                           </span>
                           <button
                             onClick={() => handleRemoveCard("a", "yellow", index)}
-                            className="text-red-600 hover:text-red-700 text-sm"
+                            disabled={isFinished}
+                            className={`text-sm ${
+                              isFinished
+                                ? "text-gray-400 cursor-not-allowed"
+                                : "text-red-600 hover:text-red-700"
+                            }`}
                           >
                             Eliminar
                           </button>
@@ -631,7 +801,7 @@ export default function ResultadosPage() {
                           No hay tarjetas amarillas registradas
                         </p>
                       )}
-                      {showCardForm.team === "a" && showCardForm.type === "yellow" && (
+                      {showCardForm.team === "a" && showCardForm.type === "yellow" && !isFinished && (
                         <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-900">
                           <div className="grid grid-cols-2 gap-3 mb-3">
                             <div>
@@ -688,8 +858,10 @@ export default function ResultadosPage() {
                       )}
                     </div>
                   </div>
+                  )}
 
-                  {/* Tarjetas Amarillas Equipo B */}
+                  {/* Tarjetas Amarillas Equipo B - Solo mostrar si la disciplina usa tarjetas */}
+                  {usesCards && (
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -698,7 +870,12 @@ export default function ResultadosPage() {
                       </h3>
                       <button
                         onClick={() => handleOpenCardForm("b", "yellow")}
-                        className="px-3 py-1 text-sm bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                        disabled={isFinished}
+                        className={`px-3 py-1 text-sm rounded ${
+                          isFinished
+                            ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                            : "bg-yellow-600 text-white hover:bg-yellow-700"
+                        }`}
                       >
                         + Agregar
                       </button>
@@ -711,7 +888,12 @@ export default function ResultadosPage() {
                           </span>
                           <button
                             onClick={() => handleRemoveCard("b", "yellow", index)}
-                            className="text-red-600 hover:text-red-700 text-sm"
+                            disabled={isFinished}
+                            className={`text-sm ${
+                              isFinished
+                                ? "text-gray-400 cursor-not-allowed"
+                                : "text-red-600 hover:text-red-700"
+                            }`}
                           >
                             Eliminar
                           </button>
@@ -722,7 +904,7 @@ export default function ResultadosPage() {
                           No hay tarjetas amarillas registradas
                         </p>
                       )}
-                      {showCardForm.team === "b" && showCardForm.type === "yellow" && (
+                      {showCardForm.team === "b" && showCardForm.type === "yellow" && !isFinished && (
                         <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-900">
                           <div className="grid grid-cols-2 gap-3 mb-3">
                             <div>
@@ -779,8 +961,10 @@ export default function ResultadosPage() {
                       )}
                     </div>
                   </div>
+                  )}
 
-                  {/* Tarjetas Rojas Equipo A */}
+                  {/* Tarjetas Rojas Equipo A - Solo mostrar si la disciplina usa tarjetas */}
+                  {usesCards && (
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -789,7 +973,12 @@ export default function ResultadosPage() {
                       </h3>
                       <button
                         onClick={() => handleOpenCardForm("a", "red")}
-                        className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                        disabled={isFinished}
+                        className={`px-3 py-1 text-sm rounded ${
+                          isFinished
+                            ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                            : "bg-red-600 text-white hover:bg-red-700"
+                        }`}
                       >
                         + Agregar
                       </button>
@@ -802,7 +991,12 @@ export default function ResultadosPage() {
                           </span>
                           <button
                             onClick={() => handleRemoveCard("a", "red", index)}
-                            className="text-red-600 hover:text-red-700 text-sm"
+                            disabled={isFinished}
+                            className={`text-sm ${
+                              isFinished
+                                ? "text-gray-400 cursor-not-allowed"
+                                : "text-red-600 hover:text-red-700"
+                            }`}
                           >
                             Eliminar
                           </button>
@@ -813,7 +1007,7 @@ export default function ResultadosPage() {
                           No hay tarjetas rojas registradas
                         </p>
                       )}
-                      {showCardForm.team === "a" && showCardForm.type === "red" && (
+                      {showCardForm.team === "a" && showCardForm.type === "red" && !isFinished && (
                         <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-900">
                           <div className="grid grid-cols-2 gap-3 mb-3">
                             <div>
@@ -870,8 +1064,10 @@ export default function ResultadosPage() {
                       )}
                     </div>
                   </div>
+                  )}
 
-                  {/* Tarjetas Rojas Equipo B */}
+                  {/* Tarjetas Rojas Equipo B - Solo mostrar si la disciplina usa tarjetas */}
+                  {usesCards && (
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -880,7 +1076,12 @@ export default function ResultadosPage() {
                       </h3>
                       <button
                         onClick={() => handleOpenCardForm("b", "red")}
-                        className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                        disabled={isFinished}
+                        className={`px-3 py-1 text-sm rounded ${
+                          isFinished
+                            ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                            : "bg-red-600 text-white hover:bg-red-700"
+                        }`}
                       >
                         + Agregar
                       </button>
@@ -893,7 +1094,12 @@ export default function ResultadosPage() {
                           </span>
                           <button
                             onClick={() => handleRemoveCard("b", "red", index)}
-                            className="text-red-600 hover:text-red-700 text-sm"
+                            disabled={isFinished}
+                            className={`text-sm ${
+                              isFinished
+                                ? "text-gray-400 cursor-not-allowed"
+                                : "text-red-600 hover:text-red-700"
+                            }`}
                           >
                             Eliminar
                           </button>
@@ -904,7 +1110,7 @@ export default function ResultadosPage() {
                           No hay tarjetas rojas registradas
                         </p>
                       )}
-                      {showCardForm.team === "b" && showCardForm.type === "red" && (
+                      {showCardForm.team === "b" && showCardForm.type === "red" && !isFinished && (
                         <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-900">
                           <div className="grid grid-cols-2 gap-3 mb-3">
                             <div>
@@ -961,6 +1167,7 @@ export default function ResultadosPage() {
                       )}
                     </div>
                   </div>
+                  )}
 
                   {/* Botones de acción */}
                   <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-neutral-800">
@@ -972,12 +1179,19 @@ export default function ResultadosPage() {
                     </button>
                     <button
                       onClick={handleSaveResult}
-                      disabled={saving}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={saving || isFinished}
+                      className={`px-4 py-2 rounded-lg transition-colors ${
+                        isFinished
+                          ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                          : "bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      }`}
                     >
-                      {saving ? "Guardando..." : "Guardar Resultado"}
+                      {saving ? "Guardando..." : isFinished ? "Resultado Finalizado" : "Guardar Resultado"}
                     </button>
                   </div>
+                      </>
+                    );
+                  })()}
                 </>
               )}
             </div>

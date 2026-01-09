@@ -11,8 +11,11 @@ import { supabase } from "../../../../lib/supabaseClient";
 export default function BracketsPage() {
   const router = useRouter();
   const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [sports, setSports] = useState<{ id: number; name: string }[]>([]);
+  const [selectedSport, setSelectedSport] = useState<number | null>(null);
   const {
     allTeams,
+    selectedTeams,
     bombos,
     generating,
     savedDrawId,
@@ -23,22 +26,44 @@ export default function BracketsPage() {
     saveBrackets,
     deleteSavedBrackets,
     setBombos,
-  } = useBrackets(tournament);
+    toggleTeamSelection,
+    selectAllTeams,
+    deselectAllTeams,
+  } = useBrackets(tournament, selectedSport);
 
   useEffect(() => {
     const initialize = async () => {
       await loadTournament();
-      await loadTeams();
+      await loadSports();
     };
     initialize();
   }, []);
 
   useEffect(() => {
-    // Cargar brackets guardados cuando el torneo esté disponible
-    if (tournament && tournament.id !== 0) {
+    // Cargar todos los equipos disponibles (sin importar la disciplina)
+    loadTeams();
+  }, []);
+
+  const loadSports = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("sports")
+        .select("id, name")
+        .order("name");
+
+      if (error) throw error;
+      setSports(data || []);
+    } catch (err) {
+      console.error("Error cargando deportes:", err);
+    }
+  };
+
+  useEffect(() => {
+    // Cargar brackets guardados cuando el torneo y disciplina estén disponibles
+    if (tournament && tournament.id !== 0 && selectedSport) {
       loadSavedBrackets();
     }
-  }, [tournament?.id]);
+  }, [tournament?.id, selectedSport]);
 
   const loadTournament = async () => {
     try {
@@ -105,14 +130,47 @@ export default function BracketsPage() {
         </div>
       </div>
 
+      {/* Selector de disciplina */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Seleccionar Disciplina (para identificar los brackets guardados)
+        </label>
+        <select
+          value={selectedSport || ""}
+          onChange={(e) => {
+            const sportId = e.target.value ? parseInt(e.target.value) : null;
+            setSelectedSport(sportId);
+            setBombos([]); // Limpiar brackets al cambiar disciplina
+            // Los brackets guardados se cargarán automáticamente en el useEffect
+          }}
+          className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+        >
+          <option value="">Seleccionar disciplina...</option>
+          {sports.map((sport) => (
+            <option key={sport.id} value={sport.id}>
+              {sport.name}
+            </option>
+          ))}
+        </select>
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+          Nota: Los brackets se generan con los equipos que selecciones manualmente, no por inscripciones.
+        </p>
+      </div>
+
       {/* Información del torneo */}
-      {tournament && (
+      {tournament && selectedSport && (
         <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg">
           <p className="text-sm text-gray-700 dark:text-gray-300">
             <strong>Torneo:</strong> {tournament.name}
           </p>
           <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+            <strong>Disciplina:</strong> {sports.find(s => s.id === selectedSport)?.name || "N/A"}
+          </p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
             <strong>Equipos disponibles:</strong> {allTeams.length}
+          </p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+            <strong>Equipos seleccionados:</strong> {selectedTeams.size}
           </p>
           {loadingSaved && (
             <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
@@ -132,17 +190,63 @@ export default function BracketsPage() {
         </div>
       )}
 
-      {/* Botón para generar brackets */}
-      {!loadingSaved && bombos.length === 0 && (
-        <div className="mb-6 text-center">
-          <button
-            onClick={generateBombos}
-            disabled={allTeams.length === 0}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2 mx-auto"
-          >
-            <Network className="w-5 h-5" />
-            Generar Brackets
-          </button>
+      {/* Selección de equipos */}
+      {!loadingSaved && bombos.length === 0 && selectedSport && allTeams.length > 0 && (
+        <div className="mb-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Seleccionar Equipos para los Brackets
+            </h3>
+            <div className="flex gap-2">
+              <button
+                onClick={selectAllTeams}
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+              >
+                Seleccionar Todos
+              </button>
+              <button
+                onClick={deselectAllTeams}
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+              >
+                Deseleccionar Todos
+              </button>
+            </div>
+          </div>
+          <div className="max-h-96 overflow-y-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {allTeams.map((team) => (
+                <label
+                  key={team.id}
+                  className="flex items-center p-3 border border-gray-200 dark:border-neutral-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTeams.has(team.id)}
+                    onChange={() => toggleTeamSelection(team.id)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-neutral-700 dark:border-neutral-600"
+                  />
+                  <span className="ml-3 text-sm font-medium text-gray-900 dark:text-white">
+                    {team.name}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 text-center">
+            <button
+              onClick={generateBombos}
+              disabled={selectedTeams.size === 0}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2 mx-auto"
+            >
+              <Network className="w-5 h-5" />
+              Generar Brackets
+            </button>
+            {selectedTeams.size === 0 && (
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                Selecciona al menos un equipo para generar los brackets
+              </p>
+            )}
+          </div>
         </div>
       )}
 

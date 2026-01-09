@@ -18,13 +18,13 @@ export default function DashboardPage() {
 
     // Redirigir según el rol del usuario
     if (roles.includes("administrador")) {
-      router.replace("/dashboard/admin");
+      router.replace("/dashboard/torneos");
     } else if (roles.includes("lider_equipo")) {
       router.replace("/dashboard/leader");
     } else if (roles.includes("arbitro")) {
       router.replace("/dashboard/referee");
     } else {
-      router.replace("/dashboard/admin"); // Por defecto mostrar admin dashboard
+      router.replace("/dashboard/torneos"); // Por defecto mostrar torneos
     }
   }, [loading, user, roles, router]);
 

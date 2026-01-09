@@ -9,6 +9,7 @@ interface BracketsModalProps {
   isOpen: boolean;
   onClose: () => void;
   tournament: Tournament | null;
+  sportId?: number | null;
   onSuccess?: () => void;
 }
 
@@ -16,23 +17,28 @@ export default function BracketsModal({
   isOpen,
   onClose,
   tournament,
+  sportId = null,
   onSuccess,
 }: BracketsModalProps) {
   const {
     allTeams,
+    selectedTeams,
     bombos,
     generating,
     loadTeams,
     generateBombos,
     saveBrackets,
     setBombos,
-  } = useBrackets(tournament);
+    toggleTeamSelection,
+    selectAllTeams,
+    deselectAllTeams,
+  } = useBrackets(tournament, sportId);
 
   useEffect(() => {
-    if (isOpen && tournament) {
+    if (isOpen) {
       loadTeams();
     }
-  }, [isOpen, tournament]);
+  }, [isOpen]);
 
   const handleClose = () => {
     setBombos([]);
@@ -70,6 +76,9 @@ export default function BracketsModal({
             <p className="text-sm text-gray-700 dark:text-gray-300">
               <strong>Equipos disponibles:</strong> {allTeams.length}
             </p>
+            <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+              <strong>Equipos seleccionados:</strong> {selectedTeams.size}
+            </p>
             {bombos.length > 0 && (
               <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
                 <strong>Bombos generados:</strong> {bombos.length}
@@ -77,15 +86,56 @@ export default function BracketsModal({
             )}
           </div>
 
-          {bombos.length === 0 && (
-            <div className="mb-6 text-center">
-              <button
-                onClick={generateBombos}
-                disabled={allTeams.length === 0}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-              >
-                Generar Brackets
-              </button>
+          {bombos.length === 0 && allTeams.length > 0 && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Seleccionar Equipos
+                </h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={selectAllTeams}
+                    className="px-3 py-1 text-sm border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                  >
+                    Todos
+                  </button>
+                  <button
+                    onClick={deselectAllTeams}
+                    className="px-3 py-1 text-sm border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                  >
+                    Ninguno
+                  </button>
+                </div>
+              </div>
+              <div className="max-h-64 overflow-y-auto mb-4">
+                <div className="grid grid-cols-2 gap-2">
+                  {allTeams.map((team) => (
+                    <label
+                      key={team.id}
+                      className="flex items-center p-2 border border-gray-200 dark:border-neutral-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedTeams.has(team.id)}
+                        onChange={() => toggleTeamSelection(team.id)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-neutral-700 dark:border-neutral-600"
+                      />
+                      <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                        {team.name}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="text-center">
+                <button
+                  onClick={generateBombos}
+                  disabled={selectedTeams.size === 0}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                >
+                  Generar Brackets
+                </button>
+              </div>
             </div>
           )}
 

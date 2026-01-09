@@ -86,26 +86,41 @@ export default function DashboardPage() {
         });
 
         // Cargar datos de deportes para el gráfico
-        const { data: sports } = await supabase
-          .from("sports")
-          .select("id, name");
+        // Contar inscripciones reales de equipos por disciplina
+        const { data: teamRegistrations } = await supabase
+          .from("team_registrations")
+          .select(`
+            id,
+            registration_forms!inner (
+              sport_id,
+              sports!inner (
+                id,
+                name
+              )
+            )
+          `);
 
-        if (sports) {
-          // Contar inscripciones por deporte
-          const sportsWithCounts = await Promise.all(
-            sports.map(async (sport) => {
-              const { count } = await supabase
-                .from("registration_forms")
-                .select("*", { count: "exact", head: true })
-                .eq("sport_id", sport.id);
-              return { name: sport.name, count: count || 0 };
-            })
-          );
-
-          // Ordenar y tomar los primeros 5
-          const sorted = sportsWithCounts.sort((a, b) => b.count - a.count).slice(0, 5);
-          setSportsData(sorted);
+        // Agrupar por disciplina y contar
+        const sportCounts = new Map<number, { name: string; count: number }>();
+        
+        if (teamRegistrations) {
+          teamRegistrations.forEach((tr: any) => {
+            const sportId = tr.registration_forms?.sports?.id;
+            const sportName = tr.registration_forms?.sports?.name;
+            
+            if (sportId && sportName) {
+              const current = sportCounts.get(sportId) || { name: sportName, count: 0 };
+              sportCounts.set(sportId, { name: sportName, count: current.count + 1 });
+            }
+          });
         }
+
+        // Convertir a array y ordenar por cantidad
+        const sportsWithCounts = Array.from(sportCounts.values())
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5);
+
+        setSportsData(sportsWithCounts);
       } catch (error) {
         console.error("Error cargando estadísticas:", error);
       } finally {
@@ -246,6 +261,9 @@ export default function DashboardPage() {
                   />
                   <p className="text-gray-600 dark:text-gray-400 text-[13px] font-bold leading-normal tracking-[0.015em]">
                     {sport.name}
+                  </p>
+                  <p className="text-gray-900 dark:text-white text-xs font-semibold">
+                    {sport.count} {sport.count === 1 ? "inscripción" : "inscripciones"}
                   </p>
                 </div>
               ))
