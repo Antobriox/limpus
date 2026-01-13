@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Upload } from "lucide-react";
+import { Upload, RefreshCw, Trash2 } from "lucide-react";
 import { Tournament } from "../types";
 import { useDocuments } from "../hooks/useDocuments";
 
@@ -17,7 +17,7 @@ export default function DocumentsModal({
   onClose,
   tournament,
 }: DocumentsModalProps) {
-  const { uploading, uploadedFiles, loadDocuments, uploadFile } = useDocuments(tournament);
+  const { uploading, uploadedFiles, loadDocuments, uploadFile, updateFile, deleteFile } = useDocuments(tournament);
 
   useEffect(() => {
     if (isOpen && tournament) {
@@ -30,6 +30,23 @@ export default function DocumentsModal({
     if (!file) return;
     await uploadFile(file);
     e.target.value = "";
+  };
+
+  const handleUpdateFile = async (filePath: string, fileName: string) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".pdf";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        await updateFile(filePath, file);
+      }
+    };
+    input.click();
+  };
+
+  const handleDeleteFile = async (filePath: string, fileName: string) => {
+    await deleteFile(filePath, fileName);
   };
 
   if (!isOpen) return null;
@@ -82,18 +99,28 @@ export default function DocumentsModal({
 
           {uploadedFiles.length > 0 && (
             <div>
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Archivos subidos
-              </h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Archivos subidos
+                </h3>
+                <button
+                  onClick={loadDocuments}
+                  className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"
+                  disabled={uploading}
+                >
+                  <RefreshCw className={`w-4 h-4 ${uploading ? "animate-spin" : ""}`} />
+                  Actualizar
+                </button>
+              </div>
               <div className="space-y-2">
                 {uploadedFiles.map((file, index) => (
                   <div
                     key={index}
                     className="flex items-center justify-between p-3 bg-gray-50 dark:bg-neutral-800 rounded-lg"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
                       <svg
-                        className="w-5 h-5 text-red-600"
+                        className="w-5 h-5 text-red-600 flex-shrink-0"
                         fill="currentColor"
                         viewBox="0 0 20 20"
                       >
@@ -103,16 +130,34 @@ export default function DocumentsModal({
                           clipRule="evenodd"
                         />
                       </svg>
-                      <span className="text-sm text-gray-900 dark:text-white">{file.name}</span>
+                      <span className="text-sm text-gray-900 dark:text-white truncate">{file.name}</span>
                     </div>
-                    <a
-                      href={file.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-700 text-sm"
-                    >
-                      Ver
-                    </a>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <a
+                        href={file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                      >
+                        Ver
+                      </a>
+                      <button
+                        onClick={() => handleUpdateFile(file.path, file.name)}
+                        disabled={uploading}
+                        className="text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300 text-sm px-2 py-1 rounded hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Actualizar archivo"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFile(file.path, file.name)}
+                        disabled={uploading}
+                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Eliminar archivo"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

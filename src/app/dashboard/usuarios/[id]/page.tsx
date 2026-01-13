@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../../lib/supabaseClient";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function EditarUsuarioPage() {
   const { id } = useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -67,6 +69,9 @@ export default function EditarUsuarioPage() {
       return;
     }
 
+    // Invalidar la query de usuarios para que se actualice la lista
+    queryClient.invalidateQueries({ queryKey: ["users"] });
+    
     alert("Usuario actualizado");
     router.push("/dashboard/usuarios");
   };
@@ -81,6 +86,9 @@ export default function EditarUsuarioPage() {
       body: JSON.stringify({ user_id: id }),
     });
 
+    // Invalidar la query de usuarios para que se actualice la lista
+    queryClient.invalidateQueries({ queryKey: ["users"] });
+    
     router.push("/dashboard/usuarios");
   };
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 type Leader = {
   id: string;
@@ -13,6 +14,7 @@ type Leader = {
 
 export default function NuevoEquipoPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const [occupiedLeaders, setOccupiedLeaders] = useState<Set<string>>(new Set());
@@ -336,6 +338,10 @@ export default function NuevoEquipoPage() {
         }
       }
 
+      // Invalidar las queries relacionadas para que se actualicen las listas
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      
       router.push("/dashboard/equipos");
     } catch (error: any) {
       console.error("Error creando equipo:", error);

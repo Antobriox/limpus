@@ -1,67 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "../../../lib/supabaseClient";
-
-type UserRow = {
-  id: string;
-  full_name: string;
-  email: string;
-  roles: { name: string }[];
-};
+import { useUsers } from "./hooks/useUsers";
 
 export default function UsuariosPage() {
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const loadUsers = async () => {
-    setLoading(true);
-
-    const { data } = await supabase
-      .from("profiles")
-      .select(`
-        id,
-        full_name,
-        email,
-        user_roles (
-          roles (name)
-        )
-      `)
-      .order("full_name", { ascending: true });
-
-    const formatted =
-      data?.map((u: any) => ({
-        id: u.id,
-        full_name: u.full_name,
-        email: u.email,
-        roles: u.user_roles.map((r: any) => r.roles),
-      })) ?? [];
-
-    setUsers(formatted);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  const deleteUser = async (id: string) => {
-    if (!confirm("¿Eliminar este usuario? Esta acción no se puede deshacer.")) return;
-
-    const res = await fetch("/api/admin/delete-user", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: id }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json();
-      alert(data.error || "Error al eliminar usuario");
-      return;
-    }
-
-    loadUsers();
-  };
+  // Usar el hook con TanStack Query - los datos se cargan automáticamente y se cachean
+  const { users, loading, deleteUser } = useUsers();
 
   if (loading) {
     return (

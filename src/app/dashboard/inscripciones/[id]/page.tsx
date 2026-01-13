@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function EditInscripcionPage() {
   const { id } = useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [form, setForm] = useState<any>(null);
 
   useEffect(() => {
@@ -24,6 +26,9 @@ export default function EditInscripcionPage() {
       .update(form)
       .eq("id", id);
 
+    // Invalidar la query de inscripciones para que se actualice la lista
+    queryClient.invalidateQueries({ queryKey: ["registrationForms"] });
+    
     router.push("/dashboard/inscripciones");
   };
 

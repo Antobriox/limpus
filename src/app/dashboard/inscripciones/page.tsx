@@ -1,60 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "../../../lib/supabaseClient";
-
-type Form = {
-  id: number;
-  name: string;
-  min_players: number;
-  max_players: number;
-  editable_until: string | null;
-  is_locked: boolean;
-  created_at: string | null;
-};
+import { useRegistrationForms } from "./hooks/useRegistrationForms";
 
 export default function InscripcionesPage() {
-  const [forms, setForms] = useState<Form[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const loadForms = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("registration_forms")
-      .select(`
-        id,
-        name,
-        min_players,
-        max_players,
-        editable_until,
-        is_locked,
-        created_at
-      `)
-      .order("id", { ascending: false });
-
-    setForms(data || []);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    loadForms();
-  }, []);
-
-  const toggleStatus = async (id: number, locked: boolean) => {
-    await supabase
-      .from("registration_forms")
-      .update({ is_locked: !locked })
-      .eq("id", id);
-
-    loadForms();
-  };
-
-  const deleteForm = async (id: number) => {
-    if (!confirm("¿Eliminar este formulario? Esta acción no se puede deshacer.")) return;
-
-    await supabase.from("registration_forms").delete().eq("id", id);
-    loadForms();
-  };
+  // Usar el hook con TanStack Query - los datos se cargan automáticamente y se cachean
+  const { forms, loading, toggleStatus, deleteForm } = useRegistrationForms();
 
   if (loading) {
     return (

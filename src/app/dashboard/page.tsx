@@ -23,8 +23,10 @@ export default function DashboardPage() {
       router.replace("/dashboard/leader");
     } else if (roles.includes("arbitro")) {
       router.replace("/dashboard/referee");
+    } else if (roles.includes("viewers")) {
+      router.replace("/dashboard/viewers");
     } else {
-      router.replace("/dashboard/torneos"); // Por defecto mostrar torneos
+      router.replace("/dashboard/viewers"); // Por defecto, mostrar página de viewers
     }
   }, [loading, user, roles, router]);
 

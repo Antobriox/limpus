@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useRouter, useParams } from "next/navigation";
 import { Plus, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 type Leader = {
   id: string;
@@ -15,10 +16,12 @@ export default function EditarEquipoPage() {
   const router = useRouter();
   const params = useParams();
   const teamId = params.id as string;
+  const queryClient = useQueryClient();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [leaders, setLeaders] = useState<Leader[]>([]);
+  const [occupiedLeaders, setOccupiedLeaders] = useState<Set<string>>(new Set());
 
   const [careerInput, setCareerInput] = useState("");
   const [careers, setCareers] = useState<string[]>([]);
@@ -191,6 +194,21 @@ export default function EditarEquipoPage() {
             email: profile.email,
           }));
           setLeaders(leadersList);
+          
+          // Cargar líderes que ya están ocupados (asignados a otros equipos, excluyendo el equipo actual)
+          const leaderIds = leadersList.map((l) => l.id);
+          if (leaderIds.length > 0 && teamId) {
+            const { data: occupiedLeadersData, error: occupiedError } = await supabase
+              .from("team_leaders")
+              .select("user_id, team_id")
+              .in("user_id", leaderIds)
+              .neq("team_id", parseInt(teamId));
+            
+            if (!occupiedError && occupiedLeadersData) {
+              const occupiedSet = new Set(occupiedLeadersData.map((ol: any) => ol.user_id));
+              setOccupiedLeaders(occupiedSet);
+            }
+          }
         }
       } catch (error) {
         console.error("Error inesperado cargando líderes:", error);
@@ -199,9 +217,14 @@ export default function EditarEquipoPage() {
     };
 
     loadLeaders();
-  }, []);
+  }, [teamId]);
 
   const toggleLeader = (leaderId: string) => {
+    // No permitir seleccionar líderes ocupados
+    if (occupiedLeaders.has(leaderId)) {
+      return;
+    }
+    
     setForm((prev) => ({
       ...prev,
       selectedLeaders: prev.selectedLeaders.includes(leaderId)
@@ -305,6 +328,10 @@ export default function EditarEquipoPage() {
         }
       }
 
+      // Invalidar las queries relacionadas para que se actualicen las listas
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      
       router.push("/dashboard/equipos");
     } catch (error: any) {
       console.error("Error actualizando equipo:", error);
@@ -408,22 +435,38 @@ export default function EditarEquipoPage() {
                 No hay líderes disponibles
               </p>
             ) : (
-              leaders.map((leader) => (
-                <label
-                  key={leader.id}
-                  className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50 dark:hover:bg-neutral-700"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.selectedLeaders.includes(leader.id)}
-                    onChange={() => toggleLeader(leader.id)}
-                  />
-                  <div>
-                    <p className="text-sm">{leader.full_name}</p>
-                    <p className="text-xs text-gray-500">{leader.email}</p>
-                  </div>
-                </label>
-              ))
+              leaders.map((leader) => {
+                const isOccupied = occupiedLeaders.has(leader.id);
+                return (
+                  <label
+                    key={leader.id}
+                    className={`flex items-center space-x-2 p-2 rounded ${
+                      isOccupied
+                        ? "opacity-50 cursor-not-allowed bg-gray-100 dark:bg-neutral-800"
+                        : "cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-700"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.selectedLeaders.includes(leader.id)}
+                      onChange={() => toggleLeader(leader.id)}
+                      disabled={isOccupied}
+                      className={isOccupied ? "cursor-not-allowed" : ""}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm">{leader.full_name}</p>
+                        {isOccupied && (
+                          <span className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 rounded-full">
+                            Ocupado
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">{leader.email}</p>
+                    </div>
+                  </label>
+                );
+              })
             )}
           </div>
         </div>

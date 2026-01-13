@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function NuevoUsuarioPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,6 +35,9 @@ export default function NuevoUsuarioPage() {
       return;
     }
 
+    // Invalidar la query de usuarios para que se actualice la lista
+    queryClient.invalidateQueries({ queryKey: ["users"] });
+    
     alert("Usuario creado correctamente");
     router.push("/dashboard/usuarios");
   };

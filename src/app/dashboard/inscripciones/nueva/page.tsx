@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 type Sport = {
   id: number;
@@ -11,6 +12,7 @@ type Sport = {
 
 export default function NuevaInscripcionPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const [loading, setLoading] = useState(false);
   const [sports, setSports] = useState<Sport[]>([]);
@@ -80,6 +82,9 @@ export default function NuevaInscripcionPage() {
       return;
     }
 
+    // Invalidar la query de inscripciones para que se actualice la lista
+    queryClient.invalidateQueries({ queryKey: ["registrationForms"] });
+    
     router.push("/dashboard/inscripciones");
   };
 

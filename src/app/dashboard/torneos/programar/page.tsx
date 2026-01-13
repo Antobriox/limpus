@@ -7,9 +7,12 @@ import { Clock, ArrowLeft, Printer, Plus, Search, Calendar, ChevronDown, X } fro
 import { Tournament, Match, ScheduleForm } from "../types";
 import { useMatches } from "../hooks/useMatches";
 import { supabase } from "../../../../lib/supabaseClient";
+import { useQueryClient } from "@tanstack/react-query";
+import jsPDF from "jspdf";
 
 export default function ProgramarPartidosPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const {
     referees,
@@ -34,12 +37,15 @@ export default function ProgramarPartidosPage() {
   });
   const [sports, setSports] = useState<{ id: number; name: string }[]>([]);
   const [teams, setTeams] = useState<{ id: number; name: string }[]>([]);
+  const [bombos, setBombos] = useState<{ number: number; teams: { id: number; name: string }[] }[]>([]);
+  const [loadingBombos, setLoadingBombos] = useState(false);
   const [showNewMatchModal, setShowNewMatchModal] = useState(false);
   const [showEditMatchModal, setShowEditMatchModal] = useState(false);
   const [creatingMatch, setCreatingMatch] = useState(false);
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [newMatchForm, setNewMatchForm] = useState({
     disciplina: "",
+    bombo: "",
     team_a: "",
     team_b: "",
     scheduled_at: "",
@@ -64,46 +70,204 @@ export default function ProgramarPartidosPage() {
     const initializeData = async () => {
       await loadTournament();
       await loadSports();
-      await loadTeams();
     };
     initializeData();
   }, []);
 
-  const loadTeams = async () => {
-    // Evitar cargas duplicadas si ya se está cargando
-    if (loadingTeams) {
-      return;
-    }
-    
-    setLoadingTeams(true);
+  // Cargar bombos disponibles para una disciplina
+  const loadBombos = async (sportId: number) => {
+    setLoadingBombos(true);
     try {
-      console.log("Cargando equipos...");
-      const { data: teamsData, error: teamsError } = await supabase
-        .from("teams")
-        .select("id, name")
-        .order("name");
+      // Obtener el nombre del deporte
+      const { data: sportData } = await supabase
+        .from("sports")
+        .select("name")
+        .eq("id", sportId)
+        .single();
 
-      if (teamsError) {
-        console.error("Error cargando equipos:", teamsError);
-        alert(`Error cargando equipos: ${teamsError.message}`);
-        setTeams([]);
+      if (!sportData) {
+        setBombos([]);
+        setLoadingBombos(false);
         return;
       }
 
-      console.log("Equipos cargados:", teamsData);
-      setTeams(teamsData || []);
-      
-      if (!teamsData || teamsData.length === 0) {
-        console.warn("No se encontraron equipos en la base de datos");
+      const sportName = sportData.name;
+
+      // Buscar en TODOS los torneos (igual que en useStandings)
+      const { data: tournaments } = await supabase
+        .from("tournaments")
+        .select("id")
+        .order("id", { ascending: false });
+
+      if (!tournaments || tournaments.length === 0) {
+        setBombos([]);
+        setLoadingBombos(false);
+        return;
       }
+
+      const tournamentIds = tournaments.map(t => t.id);
+
+      // Buscar todos los draws de TODOS los torneos
+      const { data: draws } = await supabase
+        .from("draws")
+        .select("id, name, tournament_id")
+        .in("tournament_id", tournamentIds)
+        .order("created_at", { ascending: false });
+
+      if (!draws || draws.length === 0) {
+        setBombos([]);
+        setLoadingBombos(false);
+        return;
+      }
+
+      // Filtrar draws que contengan el nombre del deporte
+      // Usar el mismo mapeo de nombres que en useStandings para mayor compatibilidad
+      const sportNameLower = sportName.toLowerCase();
+      
+      const normalizedNames: Record<string, string[]> = {
+        "fútbol": ["futbol", "football", "fútbol"],
+        "futbol": ["futbol", "football", "fútbol"],
+        "football": ["futbol", "football", "fútbol"],
+        "básquet": ["basket", "basketball", "básquet", "basquet"],
+        "basket": ["basket", "basketball", "básquet", "basquet"],
+        "basketball": ["basket", "basketball", "básquet", "basquet"],
+        "vóley": ["voley", "volleyball", "voleibol", "vóley", "voleib"],
+        "voley": ["voley", "volleyball", "voleibol", "vóley", "voleib"],
+        "volleyball": ["voley", "volleyball", "voleibol", "vóley", "voleib"],
+        "pádel": ["padel", "paddle", "pádel"],
+        "padel": ["padel", "paddle", "pádel"],
+      };
+
+      const searchTerms = normalizedNames[sportNameLower] || [sportNameLower];
+      
+      const filteredDraws = draws.filter((draw) => {
+        const drawName = (draw.name?.toLowerCase() || "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+        
+        return searchTerms.some((term) => {
+          const normalizedTerm = term
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+          return drawName.includes(normalizedTerm);
+        });
+      });
+
+      if (filteredDraws.length === 0) {
+        setBombos([]);
+        setLoadingBombos(false);
+        return;
+      }
+
+      // Tomar el draw más reciente
+      const latestDraw = filteredDraws[0];
+
+      // Cargar draw_results para obtener los bombos
+      const { data: drawResults } = await supabase
+        .from("draw_results")
+        .select("team_id, result_order")
+        .eq("draw_id", latestDraw.id)
+        .order("result_order", { ascending: true });
+
+      if (!drawResults || drawResults.length === 0) {
+        setBombos([]);
+        setLoadingBombos(false);
+        return;
+      }
+
+      // Agrupar equipos por bombo (result_order)
+      const bomboMap = new Map<number, number[]>();
+      drawResults.forEach((dr: any) => {
+        const bombo = dr.result_order || 1;
+        if (!bomboMap.has(bombo)) {
+          bomboMap.set(bombo, []);
+        }
+        bomboMap.get(bombo)!.push(dr.team_id);
+      });
+
+      // Obtener nombres de equipos
+      const allTeamIds = Array.from(new Set(drawResults.map((dr: any) => dr.team_id)));
+      const { data: teamsData } = await supabase
+        .from("teams")
+        .select("id, name")
+        .in("id", allTeamIds);
+
+      if (!teamsData) {
+        setBombos([]);
+        setLoadingBombos(false);
+        return;
+      }
+
+      const teamsMap = new Map(teamsData.map((t: any) => [t.id, t]));
+
+      // Crear array de bombos con sus equipos
+      const bombosArray = Array.from(bomboMap.entries())
+        .sort(([a], [b]) => a - b)
+        .map(([bomboNumber, teamIds]) => ({
+          number: bomboNumber,
+          teams: teamIds
+            .map((id) => teamsMap.get(id))
+            .filter((t): t is { id: number; name: string } => t !== undefined),
+        }));
+
+      setBombos(bombosArray);
     } catch (error) {
-      console.error("Error inesperado cargando equipos:", error);
-      alert("Error inesperado al cargar los equipos");
-      setTeams([]);
+      console.error("Error cargando bombos:", error);
+      setBombos([]);
     } finally {
-      setLoadingTeams(false);
+      setLoadingBombos(false);
     }
   };
+
+  // Cargar equipos del bombo seleccionado
+  const loadTeamsFromBombo = (bomboNumber: string) => {
+    if (!bomboNumber || bomboNumber === "") {
+      setTeams([]);
+      return;
+    }
+
+    const bomboNum = parseInt(bomboNumber);
+    const selectedBombo = bombos.find((b) => b.number === bomboNum);
+    
+    if (selectedBombo) {
+      setTeams(selectedBombo.teams);
+    } else {
+      setTeams([]);
+    }
+  };
+
+  // Efecto para cargar bombos cuando cambia la disciplina
+  useEffect(() => {
+    if (newMatchForm.disciplina) {
+      loadBombos(parseInt(newMatchForm.disciplina));
+      // Limpiar selecciones cuando cambia la disciplina
+      setNewMatchForm((prev) => ({
+        ...prev,
+        bombo: "",
+        team_a: "",
+        team_b: "",
+      }));
+      setTeams([]);
+    } else {
+      setBombos([]);
+      setTeams([]);
+    }
+  }, [newMatchForm.disciplina]);
+
+  // Efecto para cargar equipos cuando cambia el bombo
+  useEffect(() => {
+    if (newMatchForm.bombo) {
+      loadTeamsFromBombo(newMatchForm.bombo);
+      // Limpiar selección de equipos cuando cambia el bombo
+      setNewMatchForm((prev) => ({
+        ...prev,
+        team_a: "",
+        team_b: "",
+      }));
+    } else {
+      setTeams([]);
+    }
+  }, [newMatchForm.bombo, bombos]);
 
   const loadSports = async () => {
     try {
@@ -145,7 +309,7 @@ export default function ProgramarPartidosPage() {
       // Obtener valores únicos de status
       const uniqueStatuses = Array.from(new Set(matches?.map(m => m.status).filter(Boolean) || []));
       console.log("═══════════════════════════════════════════════════════");
-      console.log("📊 ESTADOS ENCONTRADOS EN LA BASE DE DATOS:");
+      console.log("ESTADOS ENCONTRADOS EN LA BASE DE DATOS:");
       console.log("═══════════════════════════════════════════════════════");
       if (uniqueStatuses.length > 0) {
         uniqueStatuses.forEach((status, index) => {
@@ -346,6 +510,152 @@ export default function ProgramarPartidosPage() {
     }
   };
 
+  // Función para exportar calendario a PDF
+  const exportCalendarToPDF = () => {
+    if (scheduledMatches.length === 0) {
+      alert("No hay partidos programados para exportar");
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const startY = 20;
+    let currentY = startY;
+
+    // Título
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("Calendario de Partidos", margin, currentY);
+    currentY += 10;
+
+    // Fecha de generación
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const now = new Date();
+    doc.text(
+      `Generado el: ${now.toLocaleDateString("es-ES", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`,
+      margin,
+      currentY
+    );
+    currentY += 15;
+
+    // Agrupar partidos por fecha
+    const matchesByDate = new Map<string, { dateKey: string; date: Date; matches: any[] }>();
+    scheduledMatches.forEach((match: any) => {
+      if (match.scheduled_at) {
+        const date = new Date(match.scheduled_at);
+        // Usar fecha sin hora para agrupar
+        const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const dateKey = date.toLocaleDateString("es-ES", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
+        
+        if (!matchesByDate.has(dateKey)) {
+          matchesByDate.set(dateKey, {
+            dateKey,
+            date: dateOnly,
+            matches: [],
+          });
+        }
+        matchesByDate.get(dateKey)!.matches.push(match);
+      }
+    });
+
+    // Ordenar fechas por fecha real
+    const sortedDates = Array.from(matchesByDate.values())
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .map((item) => item.dateKey);
+
+    // Generar contenido por fecha
+    sortedDates.forEach((dateKey) => {
+      const dateGroup = matchesByDate.get(dateKey)!;
+      const matches = dateGroup.matches;
+      
+      // Ordenar partidos por hora dentro de cada fecha
+      matches.sort((a: any, b: any) => {
+        const timeA = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
+        const timeB = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
+        return timeA - timeB;
+      });
+      
+      // Verificar si necesitamos una nueva página
+      if (currentY > pageHeight - 60) {
+        doc.addPage();
+        currentY = startY;
+      }
+
+      // Título de la fecha
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(dateKey, margin, currentY);
+      currentY += 8;
+
+      // Tabla de partidos
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+
+      matches.forEach((match: any) => {
+        // Verificar si necesitamos una nueva página
+        if (currentY > pageHeight - 40) {
+          doc.addPage();
+          currentY = startY;
+        }
+
+        const scheduledDate = match.scheduled_at ? new Date(match.scheduled_at) : null;
+        const timeStr = scheduledDate
+          ? scheduledDate.toLocaleTimeString("es-ES", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "Sin hora";
+
+        // Línea de partido
+        const teamA = match.teams?.name || "Equipo A";
+        const teamB = match.teams1?.name || "Equipo B";
+        const sport = match.sportName || "Sin disciplina";
+        const field = match.field || "Sin cancha";
+        const referee = match.refereeName || "Sin árbitro";
+        const assistant = match.assistantName || "Sin asistente";
+
+        // Hora y equipos
+        doc.setFont("helvetica", "bold");
+        doc.text(`${timeStr} - ${teamA} vs ${teamB}`, margin + 5, currentY);
+        currentY += 5;
+
+        // Detalles
+        doc.setFont("helvetica", "normal");
+        doc.text(`   Disciplina: ${sport}`, margin + 5, currentY);
+        currentY += 4;
+        doc.text(`   Cancha: ${field}`, margin + 5, currentY);
+        currentY += 4;
+        doc.text(`   Árbitro: ${referee}`, margin + 5, currentY);
+        currentY += 4;
+        if (assistant !== "Sin asistente") {
+          doc.text(`   Asistente: ${assistant}`, margin + 5, currentY);
+          currentY += 4;
+        }
+        currentY += 3; // Espacio entre partidos
+      });
+
+      currentY += 5; // Espacio entre fechas
+    });
+
+    // Guardar PDF
+    const fileName = `calendario_partidos_${now.toISOString().split("T")[0]}.pdf`;
+    doc.save(fileName);
+  };
+
   const loadTournament = async () => {
     try {
       const { data: tournaments } = await supabase
@@ -383,6 +693,10 @@ export default function ProgramarPartidosPage() {
     if (!selectedMatch) return;
     const success = await scheduleMatch(selectedMatch.id, scheduleForm);
     if (success) {
+      // Invalidar queries relacionadas para actualizar las vistas
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduledMatches"] });
+      
       setSelectedMatch(null);
       setScheduleForm({
         scheduled_at: "",
@@ -412,6 +726,10 @@ export default function ProgramarPartidosPage() {
         throw error;
       }
 
+      // Invalidar queries relacionadas para actualizar las vistas
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduledMatches"] });
+      
       alert("Partido eliminado correctamente");
       await loadAllMatches();
     } catch (error: any) {
@@ -438,6 +756,11 @@ export default function ProgramarPartidosPage() {
   const handleCreateMatch = async () => {
     if (!newMatchForm.disciplina) {
       alert("Debes seleccionar una disciplina");
+      return;
+    }
+
+    if (!newMatchForm.bombo) {
+      alert("Debes seleccionar un bombo");
       return;
     }
 
@@ -538,10 +861,16 @@ export default function ProgramarPartidosPage() {
       }
 
       console.log("Partido creado exitosamente:", data);
+      
+      // Invalidar queries relacionadas para actualizar las vistas
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduledMatches"] });
+      
       alert("Partido creado correctamente");
       setShowNewMatchModal(false);
       setNewMatchForm({
         disciplina: "",
+        bombo: "",
         team_a: "",
         team_b: "",
         scheduled_at: "",
@@ -574,10 +903,7 @@ export default function ProgramarPartidosPage() {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => {
-                // Funcionalidad de exportar calendario
-                alert("Funcionalidad de exportar calendario pendiente");
-              }}
+              onClick={exportCalendarToPDF}
               className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
             >
               <Printer className="w-4 h-4" />
@@ -585,8 +911,7 @@ export default function ProgramarPartidosPage() {
             </button>
             <button
                 onClick={async () => {
-                // Recargar equipos, deportes y administradores antes de abrir el modal
-                await loadTeams();
+                // Recargar deportes y administradores antes de abrir el modal
                 await loadSports();
                 await loadAdministrators();
                 setShowNewMatchModal(true);
@@ -1061,6 +1386,7 @@ export default function ProgramarPartidosPage() {
                   setShowNewMatchModal(false);
                   setNewMatchForm({
                     disciplina: "",
+                    bombo: "",
                     team_a: "",
                     team_b: "",
                     scheduled_at: "",
@@ -1085,7 +1411,7 @@ export default function ProgramarPartidosPage() {
                 <select
                   value={newMatchForm.disciplina}
                   onChange={(e) =>
-                    setNewMatchForm({ ...newMatchForm, disciplina: e.target.value })
+                    setNewMatchForm({ ...newMatchForm, disciplina: e.target.value, bombo: "", team_a: "", team_b: "" })
                   }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
                   required
@@ -1099,51 +1425,89 @@ export default function ProgramarPartidosPage() {
                 </select>
               </div>
 
-              {/* Equipo A */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Equipo A * {teams.length > 0 && <span className="text-xs text-gray-500">({teams.length} equipos disponibles)</span>}
-                </label>
-                <select
-                  value={newMatchForm.team_a}
-                  onChange={(e) =>
-                    setNewMatchForm({ ...newMatchForm, team_a: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
-                  required
-                >
-                  <option value="">Seleccionar equipo</option>
-                  {teams.length > 0 ? (
-                    teams.map((team) => (
-                      <option key={team.id} value={team.id}>
-                        {team.name}
-                      </option>
-                    ))
+              {/* Bombo */}
+              {newMatchForm.disciplina && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Bombo *
+                  </label>
+                  {loadingBombos ? (
+                    <div className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-gray-50 dark:bg-neutral-800 text-gray-500 dark:text-gray-400 text-sm">
+                      Cargando bombos...
+                    </div>
+                  ) : bombos.length > 0 ? (
+                    <select
+                      value={newMatchForm.bombo}
+                      onChange={(e) =>
+                        setNewMatchForm({ ...newMatchForm, bombo: e.target.value, team_a: "", team_b: "" })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                      required
+                    >
+                      <option value="">Seleccionar bombo</option>
+                      {bombos.map((bombo) => (
+                        <option key={bombo.number} value={bombo.number}>
+                          Bombo {bombo.number} ({bombo.teams.length} equipos)
+                        </option>
+                      ))}
+                    </select>
                   ) : (
-                    <option value="" disabled>
-                      No hay equipos disponibles
-                    </option>
+                    <div className="w-full px-3 py-2 border border-yellow-300 dark:border-yellow-700 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 text-sm">
+                      No hay bombos disponibles para esta disciplina. Genera brackets primero.
+                    </div>
                   )}
-                </select>
-              </div>
+                </div>
+              )}
+
+              {/* Equipo A */}
+              {newMatchForm.bombo && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Equipo A * {teams.length > 0 && <span className="text-xs text-gray-500">({teams.length} equipos disponibles)</span>}
+                  </label>
+                  <select
+                    value={newMatchForm.team_a}
+                    onChange={(e) =>
+                      setNewMatchForm({ ...newMatchForm, team_a: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                    required
+                    disabled={!newMatchForm.bombo}
+                  >
+                    <option value="">Seleccionar equipo</option>
+                    {teams.length > 0 ? (
+                      teams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>
+                        No hay equipos disponibles
+                      </option>
+                    )}
+                  </select>
+                </div>
+              )}
 
               {/* Equipo B */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Equipo B *
-                </label>
-                <select
-                  value={newMatchForm.team_b}
-                  onChange={(e) =>
-                    setNewMatchForm({ ...newMatchForm, team_b: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
-                  required
-                  disabled={!newMatchForm.team_a}
-                >
-                  <option value="">Seleccionar equipo</option>
-                  {teams.length > 0 ? (
-                    teams
+              {newMatchForm.bombo && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Equipo B *
+                  </label>
+                  <select
+                    value={newMatchForm.team_b}
+                    onChange={(e) =>
+                      setNewMatchForm({ ...newMatchForm, team_b: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                    required
+                    disabled={!newMatchForm.team_a || !newMatchForm.bombo}
+                  >
+                    <option value="">Seleccionar equipo</option>
+                    {teams.length > 0 ? (
+                      teams
                       .filter((team) => team.id.toString() !== newMatchForm.team_a)
                       .map((team) => (
                         <option key={team.id} value={team.id}>
@@ -1156,7 +1520,8 @@ export default function ProgramarPartidosPage() {
                     </option>
                   )}
                 </select>
-              </div>
+                </div>
+              )}
 
               {/* Fecha y Hora */}
               <div>
@@ -1284,6 +1649,7 @@ export default function ProgramarPartidosPage() {
                   setShowNewMatchModal(false);
                   setNewMatchForm({
                     disciplina: "",
+                    bombo: "",
                     team_a: "",
                     team_b: "",
                     scheduled_at: "",

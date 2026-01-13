@@ -6,9 +6,10 @@ export const DISCIPLINE_RULES: Record<string, DisciplineRules> = {
     disciplineId: 1, // Ajustar según IDs reales en la BD
     disciplineName: "Fútbol",
     pointSystem: {
-      win: 3,
-      draw: 1,
-      loss: 0,
+      // Sistema oficial FIFA: usado en todas las ligas profesionales
+      win: 3, // Victoria: 3 puntos
+      draw: 1, // Empate: 1 punto
+      loss: 0, // Derrota: 0 puntos
     },
     tiebreakerOrder: [
       "points",
@@ -24,9 +25,11 @@ export const DISCIPLINE_RULES: Record<string, DisciplineRules> = {
     disciplineId: 2, // Ajustar según IDs reales en la BD
     disciplineName: "Básquet",
     pointSystem: {
-      win: 2,
-      loss: 1,
-      // No hay empates
+      // Sistema estándar de básquet profesional (NBA, FIBA)
+      // En básquet no hay empates, siempre hay un ganador
+      win: 2, // Victoria: 2 puntos
+      loss: 0, // Derrota: 0 puntos
+      // Nota: Algunas ligas usan solo porcentaje de victorias, pero el sistema de puntos más común es 2-0
     },
     tiebreakerOrder: [
       "points",
@@ -41,17 +44,19 @@ export const DISCIPLINE_RULES: Record<string, DisciplineRules> = {
     disciplineId: 3, // Ajustar según IDs reales en la BD
     disciplineName: "Vóley",
     pointSystem: {
+      // Sistema oficial FIVB: Partidos al mejor de 5 sets
       winBySets: {
-        "3-0": 3,
-        "3-1": 3,
-        "3-2": 2,
+        "3-0": 3, // Victoria 3-0: 3 puntos
+        "3-1": 3, // Victoria 3-1: 3 puntos
+        "3-2": 2, // Victoria 3-2: 2 puntos
       },
       lossBySets: {
-        "2-3": 1,
-        "1-3": 0,
-        "0-3": 0,
+        "2-3": 1, // Derrota 2-3: 1 punto (bonus por llegar al 5to set)
+        "1-3": 0, // Derrota 1-3: 0 puntos
+        "0-3": 0, // Derrota 0-3: 0 puntos
       },
-      loss: 0,
+      win: 3, // Valor por defecto para victorias no contempladas
+      loss: 0, // Valor por defecto para derrotas no contempladas
     },
     tiebreakerOrder: [
       "points",
@@ -66,17 +71,21 @@ export const DISCIPLINE_RULES: Record<string, DisciplineRules> = {
     disciplineId: 4, // Ajustar según IDs reales en la BD
     disciplineName: "Pádel",
     pointSystem: {
-      win: 2,
-      loss: 0,
-      // No hay empates
+      // Sistema estándar de pádel profesional (World Padel Tour, FIP)
+      // Partidos al mejor de 3 sets, no hay empates
+      win: 2, // Victoria: 2 puntos
+      loss: 0, // Derrota: 0 puntos
+      // Nota: En pádel los partidos se juegan al mejor de 3 sets
+      // Una pareja gana un set al alcanzar 6 juegos con diferencia mínima de 2
     },
     tiebreakerOrder: [
       "points",
       "wins",
+      "set_difference", // Diferencia de sets
     ],
     usesCards: false,
-    usesSets: false,
-    metricName: "puntos",
+    usesSets: true, // Pádel usa sets (similar al tenis: juegos y sets)
+    metricName: "sets", // Se mide por sets ganados
   },
 };
 

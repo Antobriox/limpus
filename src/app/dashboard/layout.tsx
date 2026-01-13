@@ -7,13 +7,15 @@ import Topbar from "../../components/Topbar";
 import { useUser } from "../../hooks/useUser";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "../../lib/queryClient";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useUser();
+  const { user, roles, loading } = useUser();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -23,7 +25,14 @@ export default function DashboardLayout({
     }
   }, [user, loading, router]);
 
-  if (loading) {
+  // Si es viewer, mostrar sin sidebar ni topbar (no mostrar loader innecesario)
+  const isViewer = roles.includes("viewers") || (!roles.includes("administrador") && !roles.includes("lider_equipo") && !roles.includes("arbitro"));
+  
+  // Si es líder de equipo, también mostrar sin sidebar/topbar (tiene su propia UI)
+  const isLeader = roles.includes("lider_equipo");
+
+  // Solo mostrar loader si está cargando Y no es viewer ni líder (para evitar flash innecesario)
+  if (loading && !isViewer && !isLeader) {
     return (
       <div className="h-screen flex items-center justify-center bg-white dark:bg-neutral-900 text-gray-900 dark:text-white">
         Cargando dashboard...
@@ -31,32 +40,44 @@ export default function DashboardLayout({
     );
   }
 
-  return (
-    <div className="flex h-screen bg-gray-50 dark:bg-neutral-950">
-      {/* Overlay para móviles */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div
-        className={`fixed lg:static inset-y-0 left-0 z-50 transform ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 transition-transform duration-300 ease-in-out`}
-      >
-        <Sidebar onClose={() => setSidebarOpen(false)} />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex flex-col flex-1 overflow-hidden lg:ml-0">
-        <Topbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-neutral-950 min-h-0">
+  if (isViewer || isLeader) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <div className="min-h-screen bg-white dark:bg-neutral-900">
           {children}
-        </main>
+        </div>
+      </QueryClientProvider>
+    );
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <div className="flex h-screen bg-gray-50 dark:bg-neutral-950">
+        {/* Overlay para móviles */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Sidebar */}
+        <div
+          className={`fixed lg:static inset-y-0 left-0 z-50 transform ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } lg:translate-x-0 transition-transform duration-300 ease-in-out`}
+        >
+          <Sidebar onClose={() => setSidebarOpen(false)} />
+        </div>
+
+        {/* Main Content */}
+        <div className="flex flex-col flex-1 overflow-hidden lg:ml-0">
+          <Topbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+          <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-neutral-950 min-h-0">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </QueryClientProvider>
   );
 }

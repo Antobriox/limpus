@@ -160,7 +160,7 @@ export default function LoginPage() {
           {/* Footer */}
           <div className="text-center text-sm text-gray-500 dark:text-gray-400">
             ¿No tienes una cuenta?{" "}
-            <a href="#" className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
+            <a href="/registro" className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
               Regístrate aquí
             </a>
           </div>

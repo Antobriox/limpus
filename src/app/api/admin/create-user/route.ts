@@ -62,10 +62,21 @@ export async function POST(req: Request) {
       );
     }
 
-    // 3️⃣ UPSERT user_roles
+    // 3️⃣ Eliminar todos los roles existentes del usuario (si tiene)
+    const { error: deleteError } = await supabaseAdmin
+      .from("user_roles")
+      .delete()
+      .eq("user_id", userId);
+
+    if (deleteError) {
+      console.error("Error eliminando roles anteriores:", deleteError);
+      // Continuar de todas formas, puede que no tenga roles previos
+    }
+
+    // 4️⃣ Insertar solo el rol especificado
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .upsert({
+      .insert({
         user_id: userId,
         role_id,
       });

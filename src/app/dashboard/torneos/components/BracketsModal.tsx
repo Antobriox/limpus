@@ -148,7 +148,41 @@ export default function BracketsModal({
                 {bombos.map((bombo, bomboIndex) => (
                   <div
                     key={bomboIndex}
-                    className="border border-gray-200 dark:border-neutral-800 rounded-lg p-4 bg-gray-50 dark:bg-neutral-800"
+                    className="border border-gray-200 dark:border-neutral-800 rounded-lg p-4 bg-gray-50 dark:bg-neutral-800 min-h-[200px]"
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.add("bg-blue-50", "dark:bg-blue-950/20");
+                    }}
+                    onDragLeave={(e) => {
+                      e.currentTarget.classList.remove("bg-blue-50", "dark:bg-blue-950/20");
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove("bg-blue-50", "dark:bg-blue-950/20");
+                      
+                      const draggedTeamId = parseInt(e.dataTransfer.getData("teamId"));
+                      const sourceBomboIndex = parseInt(e.dataTransfer.getData("sourceBomboIndex"));
+                      
+                      if (sourceBomboIndex === bomboIndex) return; // No hacer nada si se suelta en el mismo bombo
+                      
+                      // Encontrar el equipo en el bombo origen
+                      const sourceBombo = bombos[sourceBomboIndex];
+                      const team = sourceBombo.find(t => t.id === draggedTeamId);
+                      
+                      if (!team) return;
+                      
+                      // Crear nuevos bombos actualizados
+                      const newBombos = [...bombos];
+                      
+                      // Remover el equipo del bombo origen
+                      newBombos[sourceBomboIndex] = sourceBombo.filter(t => t.id !== draggedTeamId);
+                      
+                      // Agregar el equipo al bombo destino
+                      newBombos[bomboIndex] = [...newBombos[bomboIndex], team];
+                      
+                      // Actualizar el estado
+                      setBombos(newBombos);
+                    }}
                   >
                     <div className="mb-3 pb-2 border-b border-gray-300 dark:border-neutral-700">
                       <h4 className="font-bold text-lg text-gray-900 dark:text-white">
@@ -162,13 +196,27 @@ export default function BracketsModal({
                       {bombo.map((team, teamIndex) => (
                         <div
                           key={team.id}
-                          className="p-2 bg-white dark:bg-neutral-900 rounded border border-gray-200 dark:border-neutral-700"
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData("teamId", team.id.toString());
+                            e.dataTransfer.setData("sourceBomboIndex", bomboIndex.toString());
+                            e.currentTarget.style.opacity = "0.5";
+                          }}
+                          onDragEnd={(e) => {
+                            e.currentTarget.style.opacity = "1";
+                          }}
+                          className="p-2 bg-white dark:bg-neutral-900 rounded border border-gray-200 dark:border-neutral-700 cursor-move hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
                         >
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
                             {team.name}
                           </p>
                         </div>
                       ))}
+                      {bombo.length === 0 && (
+                        <div className="p-4 text-center text-sm text-gray-400 dark:text-gray-500 border-2 border-dashed border-gray-300 dark:border-neutral-700 rounded">
+                          Arrastra equipos aquí
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

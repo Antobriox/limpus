@@ -48,8 +48,12 @@ const calculateMatchPoints = (
     // Para vóley, los puntos dependen de los sets
     if (rules.usesSets && setsWon !== undefined && setsLost !== undefined) {
       const setResult = `${setsWon}-${setsLost}`;
+      console.log(`Calculando puntos para victoria: ${setResult}, winBySets:`, pointSystem.winBySets);
       if (pointSystem.winBySets) {
-        return pointSystem.winBySets[setResult as keyof typeof pointSystem.winBySets] || 0;
+        const points = pointSystem.winBySets[setResult as keyof typeof pointSystem.winBySets];
+        console.log(`Puntos encontrados para ${setResult}: ${points ?? `undefined (usando valor por defecto: ${pointSystem.win || 0})`}`);
+        // Si no encuentra regla específica, usar valor por defecto de victoria
+        return points !== undefined ? points : (pointSystem.win || 3);
       }
     }
     return pointSystem.win || 0;
@@ -58,8 +62,11 @@ const calculateMatchPoints = (
   // Derrota
   if (rules.usesSets && setsWon !== undefined && setsLost !== undefined) {
     const setResult = `${setsLost}-${setsWon}`;
+    console.log(`Calculando puntos para derrota: ${setResult}, lossBySets:`, pointSystem.lossBySets);
     if (pointSystem.lossBySets) {
-      return pointSystem.lossBySets[setResult as keyof typeof pointSystem.lossBySets] || 0;
+      const points = pointSystem.lossBySets[setResult as keyof typeof pointSystem.lossBySets];
+      console.log(`Puntos encontrados para ${setResult}: ${points ?? 'undefined (usando 0)'}`);
+      return points ?? 0;
     }
   }
   return pointSystem.loss || 0;
@@ -112,10 +119,14 @@ const calculateTeamStats = (
 
       if (mySets! > opponentSets!) {
         wins++;
-        points += calculateMatchPoints(rules, true, false, mySets, opponentSets);
+        const pointsEarned = calculateMatchPoints(rules, true, false, mySets, opponentSets);
+        console.log(`Equipo ${teamId} ganó ${mySets}-${opponentSets}, puntos obtenidos: ${pointsEarned}`);
+        points += pointsEarned;
       } else {
         losses++;
-        points += calculateMatchPoints(rules, false, false, mySets, opponentSets);
+        const pointsEarned = calculateMatchPoints(rules, false, false, mySets, opponentSets);
+        console.log(`Equipo ${teamId} perdió ${mySets}-${opponentSets}, puntos obtenidos: ${pointsEarned}`);
+        points += pointsEarned;
       }
     } else {
       // Fútbol, Básquet, Pádel
@@ -130,7 +141,7 @@ const calculateTeamStats = (
         draws++;
         const drawPoints = calculateMatchPoints(rules, false, true);
         points += drawPoints;
-        console.log(`⚽ Empate detectado para equipo ${teamId}: ${myScore}-${opponentScore}, puntos sumados: ${drawPoints}`);
+        console.log(`Empate detectado para equipo ${teamId}: ${myScore}-${opponentScore}, puntos sumados: ${drawPoints}`);
       }
     }
 

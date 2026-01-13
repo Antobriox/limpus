@@ -3,8 +3,10 @@ import { useState } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { Team, Tournament } from "../types";
 import { generateBracketsPDF } from "../utils/pdfGenerator";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const useBrackets = (tournament: Tournament | null, sportId: number | null) => {
+  const queryClient = useQueryClient();
   const [allTeams, setAllTeams] = useState<Team[]>([]);
   const [selectedTeams, setSelectedTeams] = useState<Set<number>>(new Set());
   const [bombos, setBombos] = useState<Team[][]>([]);
@@ -279,12 +281,16 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
         if (uploadError) {
           console.warn("No se pudo guardar el PDF (esto no afecta los brackets):", uploadError);
         } else {
-          console.log("✅ PDF guardado correctamente");
+          console.log("PDF guardado correctamente");
         }
       } catch (pdfError) {
         console.warn("Error generando PDF (esto no afecta los brackets):", pdfError);
       }
 
+      // Invalidar queries relacionadas para actualizar las vistas
+      queryClient.invalidateQueries({ queryKey: ["standings"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      
       alert("Brackets generados y guardados correctamente");
       setSavedDrawId(draw.id);
       if (onSuccess) onSuccess();
@@ -331,6 +337,11 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
       // Limpiar el estado local
       setBombos([]);
       setSavedDrawId(null);
+      
+      // Invalidar queries relacionadas para actualizar las vistas
+      queryClient.invalidateQueries({ queryKey: ["standings"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      
       alert("Brackets eliminados correctamente");
     } catch (error: any) {
       console.error("Error:", error);

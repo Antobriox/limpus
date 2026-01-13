@@ -11,11 +11,15 @@ import { getDisciplineRulesByName } from "../config/disciplineRules";
 
 export default function TablasPage() {
   const router = useRouter();
-  const { loadStandings, loading, error } = useStandings();
   const [sports, setSports] = useState<{ id: number; name: string }[]>([]);
   const [selectedSport, setSelectedSport] = useState<number | null>(null);
-  const [bomboStandings, setBomboStandings] = useState<BomboStandings[]>([]);
   const [selectedSportName, setSelectedSportName] = useState<string>("");
+
+  // Usar el hook con TanStack Query - los datos se cargan automáticamente y se cachean
+  const { bomboStandings, loading, error } = useStandings(
+    selectedSport,
+    selectedSportName
+  );
 
   useEffect(() => {
     loadSports();
@@ -26,7 +30,6 @@ export default function TablasPage() {
       const sport = sports.find((s) => s.id === selectedSport);
       if (sport) {
         setSelectedSportName(sport.name);
-        loadStandingsForSport(selectedSport, sport.name);
       }
     }
   }, [selectedSport, sports]);
@@ -43,13 +46,6 @@ export default function TablasPage() {
     } catch (err) {
       console.error("Error cargando deportes:", err);
     }
-  };
-
-  const loadStandingsForSport = async (sportId: number, sportName: string) => {
-    console.log(`🔄 Cargando standings para ${sportName} (ID: ${sportId})`);
-    const result = await loadStandings(sportId, sportName);
-    console.log(`📋 Bombos recibidos: ${result.length}`, result);
-    setBomboStandings(result);
   };
 
   const rules = selectedSportName ? getDisciplineRulesByName(selectedSportName) : null;
