@@ -6,14 +6,15 @@ import { getDisciplineRulesByName, getDisciplineRules } from "../config/discipli
 import { TeamStanding, DisciplineRules, BomboStandings } from "../types/standings";
 
 // Query key factory para standings
-const standingsQueryKey = (sportId: number, sportName: string, tournamentId?: number) => 
-  ["standings", sportId, sportName, tournamentId];
+const standingsQueryKey = (sportId: number, sportName: string, tournamentId?: number, genero?: string | null) => 
+  ["standings", sportId, sportName, tournamentId, genero];
 
 // Función para cargar standings
 const loadStandingsQuery = async (
   sportId: number,
   sportName: string,
-  tournamentId?: number
+  tournamentId?: number,
+  genero?: string | null
 ): Promise<BomboStandings[]> => {
   // Obtener reglas de la disciplina
   const rules = getDisciplineRules(sportId) || getDisciplineRulesByName(sportName);
@@ -31,6 +32,7 @@ const loadStandingsQuery = async (
       team_b,
       tournament_id,
       status,
+      genero,
       tournaments!inner (
         sport_id
       )
@@ -38,11 +40,16 @@ const loadStandingsQuery = async (
     .eq("status", "finished")
     .eq("tournaments.sport_id", sportId);
   
-  console.log(`Buscando partidos finalizados para ${sportName} (ID: ${sportId})`);
+  console.log(`Buscando partidos finalizados para ${sportName} (ID: ${sportId})${genero ? ` - Género: ${genero}` : ''}`);
 
   // Filtrar por torneo si se especifica
   if (tournamentId) {
     matchesQuery = matchesQuery.eq("tournament_id", tournamentId);
+  }
+
+  // Filtrar por género si se especifica
+  if (genero) {
+    matchesQuery = matchesQuery.eq("genero", genero);
   }
 
   const { data: matches, error: matchesError } = await matchesQuery;
@@ -389,7 +396,8 @@ const loadStandingsQuery = async (
 export const useStandings = (
   sportId: number | null,
   sportName: string | null,
-  tournamentId?: number
+  tournamentId?: number,
+  genero?: string | null
 ) => {
   const {
     data: bomboStandings = [],
@@ -397,9 +405,9 @@ export const useStandings = (
     isFetching,
     error,
   } = useQuery({
-    queryKey: standingsQueryKey(sportId || 0, sportName || "", tournamentId),
-    queryFn: () => loadStandingsQuery(sportId!, sportName!, tournamentId),
-    enabled: !!sportId && !!sportName, // Solo ejecutar si tenemos sportId y sportName
+    queryKey: standingsQueryKey(sportId || 0, sportName || "", tournamentId, genero),
+    queryFn: () => loadStandingsQuery(sportId!, sportName!, tournamentId, genero),
+    enabled: !!sportId && !!sportName && genero !== undefined, // Solo ejecutar si tenemos sportId, sportName y género seleccionado
     // staleTime y gcTime se heredan de la configuración global
   });
 

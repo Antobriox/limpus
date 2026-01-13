@@ -53,6 +53,7 @@ export default function ProgramarPartidosPage() {
     referee: "",
     assistant: "",
     cancha: "",
+    genero: "",
   });
   const [filters, setFilters] = useState({
     disciplina: "",
@@ -797,9 +798,31 @@ export default function ProgramarPartidosPage() {
       const tournamentId = tournamentsData[0].id;
 
       // Convertir la fecha/hora a formato ISO para Supabase
-      const scheduledAtISO = newMatchForm.scheduled_at
-        ? new Date(newMatchForm.scheduled_at).toISOString()
-        : null;
+      // El input datetime-local devuelve "YYYY-MM-DDTHH:mm" sin zona horaria
+      // Necesitamos preservar la hora local sin convertir a UTC
+      let scheduledAtISO: string | null = null;
+      if (newMatchForm.scheduled_at) {
+        // Crear una fecha desde el string (se interpreta como hora local)
+        const localDate = new Date(newMatchForm.scheduled_at);
+        
+        // Obtener componentes en hora local (no UTC)
+        const year = localDate.getFullYear();
+        const month = String(localDate.getMonth() + 1).padStart(2, '0');
+        const day = String(localDate.getDate()).padStart(2, '0');
+        const hours = String(localDate.getHours()).padStart(2, '0');
+        const minutes = String(localDate.getMinutes()).padStart(2, '0');
+        
+        // Obtener el offset de zona horaria
+        // getTimezoneOffset() devuelve minutos (positivo = al oeste de UTC)
+        const offsetMinutes = localDate.getTimezoneOffset();
+        const offsetHours = Math.floor(Math.abs(offsetMinutes) / 60);
+        const offsetMins = Math.abs(offsetMinutes) % 60;
+        // En formato ISO, el signo es opuesto al de getTimezoneOffset
+        const offsetSign = offsetMinutes > 0 ? '-' : '+';
+        
+        // Construir el string ISO con zona horaria local
+        scheduledAtISO = `${year}-${month}-${day}T${hours}:${minutes}:00${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMins).padStart(2, '0')}`;
+      }
 
       const matchData: any = {
         tournament_id: tournamentId,
@@ -825,6 +848,11 @@ export default function ProgramarPartidosPage() {
       // Solo incluir field (cancha) si tiene valor (no string vacío)
       if (newMatchForm.cancha && newMatchForm.cancha.trim() !== "") {
         matchData.field = newMatchForm.cancha;
+      }
+
+      // Solo incluir genero si tiene valor (no string vacío)
+      if (newMatchForm.genero && newMatchForm.genero.trim() !== "") {
+        matchData.genero = newMatchForm.genero;
       }
 
       // Determinar el estado automáticamente:
@@ -1394,6 +1422,7 @@ export default function ProgramarPartidosPage() {
                     referee: "",
                     assistant: "",
                     cancha: "",
+                    genero: "",
                   });
                 }}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
@@ -1422,6 +1451,24 @@ export default function ProgramarPartidosPage() {
                       {sport.name}
                     </option>
                   ))}
+                </select>
+              </div>
+
+              {/* Género */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Género
+                </label>
+                <select
+                  value={newMatchForm.genero}
+                  onChange={(e) =>
+                    setNewMatchForm({ ...newMatchForm, genero: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                >
+                  <option value="">Seleccionar género</option>
+                  <option value="masculino">Masculino</option>
+                  <option value="femenino">Femenino</option>
                 </select>
               </div>
 
@@ -1657,6 +1704,7 @@ export default function ProgramarPartidosPage() {
                     referee: "",
                     assistant: "",
                     cancha: "",
+                    genero: "",
                   });
                 }}
                 className="px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"

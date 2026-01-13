@@ -458,6 +458,10 @@ export default function ResultadosPage() {
                         <span>{match.sportName || "Sin disciplina"}</span>
                       </div>
                       <div className="flex items-center gap-2">
+                        <span className="font-medium">Género:</span>
+                        <span className="capitalize">{match.genero || "No asignado"}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <span className="font-medium">Asistente:</span>
                         <span>{match.assistantName || "Sin asignar"}</span>
                       </div>

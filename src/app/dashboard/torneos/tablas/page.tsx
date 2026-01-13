@@ -14,11 +14,14 @@ export default function TablasPage() {
   const [sports, setSports] = useState<{ id: number; name: string }[]>([]);
   const [selectedSport, setSelectedSport] = useState<number | null>(null);
   const [selectedSportName, setSelectedSportName] = useState<string>("");
+  const [selectedGenero, setSelectedGenero] = useState<string | null>(null);
 
   // Usar el hook con TanStack Query - los datos se cargan automáticamente y se cachean
   const { bomboStandings, loading, error } = useStandings(
     selectedSport,
-    selectedSportName
+    selectedSportName,
+    undefined,
+    selectedGenero
   );
 
   useEffect(() => {
@@ -73,23 +76,44 @@ export default function TablasPage() {
         </div>
       </div>
 
-      {/* Selector de disciplina */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Seleccionar Disciplina
-        </label>
-        <select
-          value={selectedSport || ""}
-          onChange={(e) => setSelectedSport(e.target.value ? parseInt(e.target.value) : null)}
-          className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
-        >
-          <option value="">Seleccionar disciplina...</option>
-          {sports.map((sport) => (
-            <option key={sport.id} value={sport.id}>
-              {sport.name}
-            </option>
-          ))}
-        </select>
+      {/* Selectores de disciplina y género */}
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Seleccionar Disciplina
+          </label>
+          <select
+            value={selectedSport || ""}
+            onChange={(e) => {
+              setSelectedSport(e.target.value ? parseInt(e.target.value) : null);
+              setSelectedGenero(null); // Reset género al cambiar disciplina
+            }}
+            className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+          >
+            <option value="">Seleccionar disciplina...</option>
+            {sports.map((sport) => (
+              <option key={sport.id} value={sport.id}>
+                {sport.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        {selectedSport && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Seleccionar Género
+            </label>
+            <select
+              value={selectedGenero || ""}
+              onChange={(e) => setSelectedGenero(e.target.value || null)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+            >
+              <option value="">Selecciona un género</option>
+              <option value="masculino">Masculino</option>
+              <option value="femenino">Femenino</option>
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Información de reglas */}
@@ -113,8 +137,15 @@ export default function TablasPage() {
         </div>
       )}
 
-      {/* Tabla de posiciones */}
-      {loading ? (
+      {/* Tabla de posiciones - Solo mostrar si hay género seleccionado */}
+      {!selectedGenero && selectedSport ? (
+        <div className="text-center py-12 bg-gray-50 dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700">
+          <Trophy className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">
+            Selecciona un género para ver las tablas de posiciones
+          </p>
+        </div>
+      ) : loading ? (
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
           <p className="mt-2 text-gray-600 dark:text-gray-400">Cargando tabla de posiciones...</p>
@@ -123,11 +154,11 @@ export default function TablasPage() {
         <div className="text-center py-12 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900">
           <p className="text-red-600 dark:text-red-400">{error}</p>
         </div>
-      ) : bomboStandings.length === 0 && selectedSport ? (
+      ) : bomboStandings.length === 0 && selectedSport && selectedGenero ? (
         <div className="text-center py-12 bg-gray-50 dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700">
           <Trophy className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-400">
-            No hay equipos registrados para esta disciplina. Genera brackets primero.
+            No hay equipos registrados para esta disciplina y género. Genera brackets primero.
           </p>
         </div>
       ) : bomboStandings.length > 0 ? (

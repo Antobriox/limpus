@@ -275,15 +275,15 @@ export default function BracketsPage() {
             {bombos.map((bombo, bomboIndex) => (
               <div
                 key={bomboIndex}
-                className="border border-gray-200 dark:border-neutral-800 rounded-lg p-4 bg-gray-50 dark:bg-neutral-800 min-h-[200px]"
-                onDragOver={(e) => {
+                className={`border border-gray-200 dark:border-neutral-800 rounded-lg p-4 bg-gray-50 dark:bg-neutral-800 min-h-[200px] ${savedDrawId ? '' : ''}`}
+                onDragOver={savedDrawId ? undefined : (e) => {
                   e.preventDefault();
                   e.currentTarget.classList.add("bg-blue-50", "dark:bg-blue-950/20");
                 }}
-                onDragLeave={(e) => {
+                onDragLeave={savedDrawId ? undefined : (e) => {
                   e.currentTarget.classList.remove("bg-blue-50", "dark:bg-blue-950/20");
                 }}
-                onDrop={(e) => {
+                onDrop={savedDrawId ? undefined : (e) => {
                   e.preventDefault();
                   e.currentTarget.classList.remove("bg-blue-50", "dark:bg-blue-950/20");
                   
@@ -323,16 +323,20 @@ export default function BracketsPage() {
                   {bombo.map((team, teamIndex) => (
                     <div
                       key={team.id}
-                      draggable
-                      onDragStart={(e) => {
+                      draggable={!savedDrawId}
+                      onDragStart={savedDrawId ? undefined : (e) => {
                         e.dataTransfer.setData("teamId", team.id.toString());
                         e.dataTransfer.setData("sourceBomboIndex", bomboIndex.toString());
                         e.currentTarget.style.opacity = "0.5";
                       }}
-                      onDragEnd={(e) => {
+                      onDragEnd={savedDrawId ? undefined : (e) => {
                         e.currentTarget.style.opacity = "1";
                       }}
-                      className="p-2 bg-white dark:bg-neutral-900 rounded border border-gray-200 dark:border-neutral-700 cursor-move hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
+                      className={`p-2 bg-white dark:bg-neutral-900 rounded border border-gray-200 dark:border-neutral-700 transition-colors ${
+                        savedDrawId 
+                          ? "cursor-default" 
+                          : "cursor-move hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:border-blue-300 dark:hover:border-blue-700"
+                      }`}
                     >
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
                         {team.name}

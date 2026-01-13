@@ -13,6 +13,7 @@ export default function ClasificacionViewersPage() {
   const { sports, loading: loadingSports } = useSports();
   const [selectedSport, setSelectedSport] = useState<number | null>(null);
   const [selectedSportName, setSelectedSportName] = useState<string>("");
+  const [selectedGenero, setSelectedGenero] = useState<string | null>(null);
 
   // Seleccionar el primer deporte por defecto cuando se cargan los deportes
   useEffect(() => {
@@ -34,7 +35,9 @@ export default function ClasificacionViewersPage() {
   // Usar el hook con TanStack Query para cargar standings
   const { bomboStandings, loading: loadingStandings, error, isFetching } = useStandings(
     selectedSport,
-    selectedSportName
+    selectedSportName,
+    undefined,
+    selectedGenero
   );
 
   const rules = selectedSportName ? getDisciplineRulesByName(selectedSportName) : null;
@@ -82,23 +85,44 @@ export default function ClasificacionViewersPage() {
           </p>
         </div>
 
-        {/* Selector de Disciplina */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Selecciona una disciplina
-          </label>
-          <select
-            value={selectedSport || ""}
-            onChange={(e) => setSelectedSport(Number(e.target.value) || null)}
-            className="w-full md:w-64 px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Selecciona una disciplina</option>
-            {sports.map((sport) => (
-              <option key={sport.id} value={sport.id}>
-                {sport.name}
-              </option>
-            ))}
-          </select>
+        {/* Selectores de Disciplina y Género */}
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Selecciona una disciplina
+            </label>
+            <select
+              value={selectedSport || ""}
+              onChange={(e) => {
+                setSelectedSport(Number(e.target.value) || null);
+                setSelectedGenero(null); // Reset género al cambiar disciplina
+              }}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Selecciona una disciplina</option>
+              {sports.map((sport) => (
+                <option key={sport.id} value={sport.id}>
+                  {sport.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {selectedSport && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Selecciona un género
+              </label>
+              <select
+                value={selectedGenero || ""}
+                onChange={(e) => setSelectedGenero(e.target.value || null)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+              <option value="">Selecciona un género</option>
+              <option value="masculino">Masculino</option>
+              <option value="femenino">Femenino</option>
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Error State */}
@@ -120,8 +144,18 @@ export default function ClasificacionViewersPage() {
           </div>
         )}
 
+        {/* Mensaje si no hay género seleccionado */}
+        {selectedSport && !selectedGenero && (
+          <div className="text-center py-12 bg-gray-50 dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700">
+            <Trophy className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">
+              Selecciona un género para ver las tablas de posiciones
+            </p>
+          </div>
+        )}
+
         {/* Standings Tables - Mostrar datos del caché inmediatamente, incluso si está refetching */}
-        {!error && bomboStandings && bomboStandings.length > 0 && (
+        {!error && selectedGenero && bomboStandings && bomboStandings.length > 0 && (
           <div className="space-y-8">
             {bomboStandings.map((bomboStanding, index) => (
               <div key={index} className="bg-white dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700 overflow-hidden">
@@ -293,11 +327,11 @@ export default function ClasificacionViewersPage() {
         )}
 
         {/* Empty State */}
-        {!loadingStandings && !error && (!bomboStandings || bomboStandings.length === 0) && selectedSport && (
+        {!loadingStandings && !error && (!bomboStandings || bomboStandings.length === 0) && selectedSport && selectedGenero && (
           <div className="bg-white dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700 p-8 text-center">
             <Trophy className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
             <p className="text-gray-600 dark:text-gray-400">
-              No hay equipos registrados para esta disciplina. Genera brackets primero.
+              No hay equipos registrados para esta disciplina y género. Genera brackets primero.
             </p>
           </div>
         )}

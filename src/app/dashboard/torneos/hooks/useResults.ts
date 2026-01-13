@@ -56,7 +56,8 @@ const loadScheduledMatchesQuery = async (): Promise<Match[]> => {
       referee,
       assistant,
       tournament_id,
-      field
+      field,
+      genero
     `)
     .not("scheduled_at", "is", null)
     .gte("scheduled_at", todayStart)
@@ -146,6 +147,7 @@ const loadScheduledMatchesQuery = async (): Promise<Match[]> => {
       assistantName: profilesMap.get(match.assistant) || null,
       sportName: sportName,
       field: match.field || null,
+      genero: match.genero || null,
     };
   });
 
