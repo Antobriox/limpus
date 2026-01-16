@@ -6,8 +6,8 @@ import { Match, Tournament } from "../types";
 export type MatchResultForm = {
   score_team_a: number;
   score_team_b: number;
-  goals_team_a: Array<{ player_id: number; minute: number }>;
-  goals_team_b: Array<{ player_id: number; minute: number }>;
+  goals_team_a: Array<{ player_id: number; minute: number; points?: number }>;
+  goals_team_b: Array<{ player_id: number; minute: number; points?: number }>;
   yellow_cards_team_a: Array<{ player_id: number; minute: number }>;
   yellow_cards_team_b: Array<{ player_id: number; minute: number }>;
   red_cards_team_a: Array<{ player_id: number; minute: number }>;
@@ -222,26 +222,53 @@ export const useResults = (tournament: Tournament | null) => {
       // Guardar eventos del partido (goles, tarjetas)
       const events: any[] = [];
 
-      // Goles del equipo A
+      // Determinar si es básquet para guardar correctamente los puntos
+      const { data: tournamentData } = await supabase
+        .from("matches")
+        .select(`
+          tournaments!inner (
+            sports!inner (
+              name
+            )
+          )
+        `)
+        .eq("id", matchId)
+        .single();
+      
+      const sportName = tournamentData?.tournaments?.sports?.name || "";
+      const isBasketball = sportName.toLowerCase().includes("basket") || 
+                          sportName.toLowerCase().includes("básquet");
+
+      // Goles/Puntos del equipo A
       form.goals_team_a.forEach((goal) => {
+        // Para básquet: value = puntos * 1000 + minuto (para poder extraer ambos)
+        // Para fútbol: value = minuto
+        const eventValue = isBasketball 
+          ? ((goal.points || 1) * 1000 + goal.minute)
+          : goal.minute;
         events.push({
           match_id: matchId,
           event_type: "goal",
           team_id: match.team_a,
           player_id: goal.player_id,
-          value: goal.minute,
+          value: eventValue,
           created_by: user.id,
         });
       });
 
-      // Goles del equipo B
+      // Goles/Puntos del equipo B
       form.goals_team_b.forEach((goal) => {
+        // Para básquet: value = puntos * 1000 + minuto (para poder extraer ambos)
+        // Para fútbol: value = minuto
+        const eventValue = isBasketball 
+          ? ((goal.points || 1) * 1000 + goal.minute)
+          : goal.minute;
         events.push({
           match_id: matchId,
           event_type: "goal",
           team_id: match.team_b,
           player_id: goal.player_id,
-          value: goal.minute,
+          value: eventValue,
           created_by: user.id,
         });
       });
@@ -350,6 +377,7 @@ export const useResults = (tournament: Tournament | null) => {
       queryClient.invalidateQueries({ queryKey: SCHEDULED_MATCHES_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["standings"] });
+      queryClient.invalidateQueries({ queryKey: ["teamMatches"] }); // Invalidar para actualizar vista del líder
     },
   });
 
@@ -379,6 +407,7 @@ export const useResults = (tournament: Tournament | null) => {
       queryClient.invalidateQueries({ queryKey: SCHEDULED_MATCHES_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["standings"] });
+      queryClient.invalidateQueries({ queryKey: ["teamMatches"] }); // Invalidar para actualizar vista del líder
     },
   });
 
@@ -421,11 +450,11 @@ export const useResults = (tournament: Tournament | null) => {
   const saveMatchResult = async (matchId: number, form: MatchResultForm) => {
     try {
       await saveMatchResultMutation.mutateAsync({ matchId, form });
-      alert("Resultado guardado correctamente");
+      // Resultado guardado correctamente
       return true;
     } catch (error: any) {
       console.error("Error:", error);
-      alert(`Error: ${error.message}`);
+      console.error(`Error: ${error.message}`);
       return false;
     }
   };
@@ -436,7 +465,7 @@ export const useResults = (tournament: Tournament | null) => {
       return true;
     } catch (error: any) {
       console.error("Error:", error);
-      alert(`Error: ${error.message}`);
+      console.error(`Error: ${error.message}`);
       return false;
     }
   };

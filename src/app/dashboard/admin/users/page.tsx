@@ -8,7 +8,7 @@ export default function AdminUsersPage() {
 
   const createUser = async () => {
     // ⚠️ Esto se hará vía API route con service_role
-    alert("Esto se implementa vía API segura (siguiente paso)");
+    // Funcionalidad pendiente
   };
 
   return (

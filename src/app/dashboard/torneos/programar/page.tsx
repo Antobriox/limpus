@@ -514,7 +514,7 @@ export default function ProgramarPartidosPage() {
   // Función para exportar calendario a PDF
   const exportCalendarToPDF = () => {
     if (scheduledMatches.length === 0) {
-      alert("No hay partidos programados para exportar");
+      return;
       return;
     }
 
@@ -713,9 +713,7 @@ export default function ProgramarPartidosPage() {
   };
 
   const handleDeleteMatch = async (matchId: number) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar este partido?")) {
-      return;
-    }
+    // Confirmación eliminada
 
     try {
       const { error } = await supabase
@@ -731,11 +729,11 @@ export default function ProgramarPartidosPage() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["scheduledMatches"] });
       
-      alert("Partido eliminado correctamente");
+      // Partido eliminado correctamente
       await loadAllMatches();
     } catch (error: any) {
       console.error("Error eliminando partido:", error);
-      alert(error.message || "Error al eliminar el partido");
+      console.error(error.message || "Error al eliminar el partido");
     }
   };
 
@@ -756,22 +754,22 @@ export default function ProgramarPartidosPage() {
 
   const handleCreateMatch = async () => {
     if (!newMatchForm.disciplina) {
-      alert("Debes seleccionar una disciplina");
+      return;
       return;
     }
 
     if (!newMatchForm.bombo) {
-      alert("Debes seleccionar un bombo");
+      return;
       return;
     }
 
     if (!newMatchForm.team_a || !newMatchForm.team_b) {
-      alert("Debes seleccionar ambos equipos");
+      return;
       return;
     }
 
     if (newMatchForm.team_a === newMatchForm.team_b) {
-      alert("Los equipos deben ser diferentes");
+      return;
       return;
     }
 
@@ -790,7 +788,7 @@ export default function ProgramarPartidosPage() {
       }
 
       if (!tournamentsData || tournamentsData.length === 0) {
-        alert("No se encontró un torneo para la disciplina seleccionada");
+        return;
         setCreatingMatch(false);
         return;
       }
@@ -856,22 +854,18 @@ export default function ProgramarPartidosPage() {
       }
 
       // Determinar el estado automáticamente:
-      // Si falta algún campo opcional (scheduled_at, referee, assistant, cancha), estado = "pending"
-      // Si todos los campos opcionales están llenos, usar el estado seleccionado o "scheduled" por defecto
-      const hasAllOptionalFields = scheduledAtISO && 
-                                   newMatchForm.referee && newMatchForm.referee.trim() !== "" &&
-                                   newMatchForm.assistant && newMatchForm.assistant.trim() !== "" &&
-                                   newMatchForm.cancha && newMatchForm.cancha.trim() !== "";
+      // Si todos los campos están completos (fecha, árbitro, asistente, cancha), el estado es "scheduled"
+      // Si falta algún campo, el estado es "pending"
+      const hasAllFields = scheduledAtISO && 
+                           newMatchForm.referee && newMatchForm.referee.trim() !== "" &&
+                           newMatchForm.assistant && newMatchForm.assistant.trim() !== "" &&
+                           newMatchForm.cancha && newMatchForm.cancha.trim() !== "";
 
-      if (hasAllOptionalFields) {
-        // Si todos los campos opcionales están llenos, usar el estado seleccionado o "scheduled" por defecto
-        if (newMatchForm.status && newMatchForm.status.trim() !== "") {
-          matchData.status = newMatchForm.status;
-        } else {
-          matchData.status = "scheduled";
-        }
+      if (hasAllFields) {
+        // Si todos los campos están completos, el estado es automáticamente "scheduled"
+        matchData.status = "scheduled";
       } else {
-        // Si falta algún campo opcional, el estado debe ser "pending"
+        // Si falta algún campo, el estado es "pending"
         matchData.status = "pending";
       }
 
@@ -894,7 +888,7 @@ export default function ProgramarPartidosPage() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["scheduledMatches"] });
       
-      alert("Partido creado correctamente");
+      // Partido creado correctamente
       setShowNewMatchModal(false);
       setNewMatchForm({
         disciplina: "",
@@ -910,7 +904,7 @@ export default function ProgramarPartidosPage() {
       await loadAllMatches();
     } catch (error: any) {
       console.error("Error creando partido:", error);
-      alert(error.message || "Error al crear el partido");
+      console.error(error.message || "Error al crear el partido");
     } finally {
       setCreatingMatch(false);
     }
@@ -1649,7 +1643,14 @@ export default function ProgramarPartidosPage() {
                   Estado
                 </label>
                 <select
-                  value={newMatchForm.status}
+                  value={
+                    newMatchForm.scheduled_at &&
+                    newMatchForm.referee &&
+                    newMatchForm.assistant &&
+                    newMatchForm.cancha
+                      ? "scheduled"
+                      : newMatchForm.status || "pending"
+                  }
                   onChange={(e) =>
                     setNewMatchForm({ ...newMatchForm, status: e.target.value })
                   }
@@ -1661,25 +1662,9 @@ export default function ProgramarPartidosPage() {
                     !newMatchForm.cancha
                   }
                 >
-                  <option value="">
-                    {!newMatchForm.scheduled_at ||
-                    !newMatchForm.referee ||
-                    !newMatchForm.assistant ||
-                    !newMatchForm.cancha
-                      ? "Pendiente (faltan campos)"
-                      : "Seleccionar estado"}
-                  </option>
                   <option value="pending">Pendiente</option>
                   <option value="scheduled">Programado</option>
                 </select>
-                {(!newMatchForm.scheduled_at ||
-                  !newMatchForm.referee ||
-                  !newMatchForm.assistant ||
-                  !newMatchForm.cancha) && (
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Completa todos los campos opcionales para poder seleccionar "Programado"
-                  </p>
-                )}
               </div>
             </div>
 

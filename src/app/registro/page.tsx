@@ -60,7 +60,7 @@ export default function RegistroPage() {
       }
 
       // Registro exitoso, redirigir al login
-      alert("Cuenta creada exitosamente. Por favor inicia sesión.");
+      // Cuenta creada exitosamente
       router.push("/login");
     } catch (err: any) {
       setError("Error al crear la cuenta. Intenta nuevamente.");

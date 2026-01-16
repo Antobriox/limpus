@@ -31,14 +31,14 @@ export default function NuevoUsuarioPage() {
     setLoading(false);
 
     if (!res.ok) {
-      alert(data.error);
+      // alert eliminadadata.error);
       return;
     }
 
     // Invalidar la query de usuarios para que se actualice la lista
     queryClient.invalidateQueries({ queryKey: ["users"] });
     
-    alert("Usuario creado correctamente");
+    // alert eliminada"Usuario creado correctamente");
     router.push("/dashboard/usuarios");
   };
 

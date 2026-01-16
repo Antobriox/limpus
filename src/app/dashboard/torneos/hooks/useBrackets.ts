@@ -24,7 +24,6 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
 
       if (teamsError) {
         console.error("Error cargando equipos:", teamsError);
-        alert("Error al cargar los equipos");
         return;
       }
 
@@ -33,7 +32,6 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
       setSelectedTeams(new Set());
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cargar los equipos");
     }
   };
 
@@ -176,7 +174,7 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
     const teamsToUse = allTeams.filter(team => selectedTeams.has(team.id));
     
     if (teamsToUse.length === 0) {
-      alert("Debes seleccionar al menos un equipo para generar los brackets");
+      return;
       return;
     }
 
@@ -202,12 +200,10 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
 
   const saveBrackets = async (onSuccess?: () => void) => {
     if (bombos.length === 0) {
-      alert("Primero debes generar los brackets");
       return;
     }
 
     if (!tournament || tournament.id === 0) {
-      alert("No hay un torneo activo");
       return;
     }
 
@@ -215,7 +211,6 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        alert("Debes estar autenticado para generar brackets");
         return;
       }
 
@@ -240,7 +235,6 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
 
       if (drawError || !draw) {
         console.error("Error creando draw:", drawError);
-        alert("Error al crear el sorteo");
         return;
       }
 
@@ -261,7 +255,6 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
 
       if (resultsError) {
         console.error("Error guardando resultados:", resultsError);
-        alert("Error al guardar los resultados del sorteo");
         return;
       }
 
@@ -291,12 +284,11 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
       queryClient.invalidateQueries({ queryKey: ["standings"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       
-      alert("Brackets generados y guardados correctamente");
+      // Brackets generados y guardados correctamente
       setSavedDrawId(draw.id);
       if (onSuccess) onSuccess();
     } catch (error: any) {
       console.error("Error:", error);
-      alert(`Error: ${error.message}`);
     } finally {
       setGenerating(false);
     }
@@ -318,7 +310,6 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
 
       if (resultsError) {
         console.error("Error eliminando resultados:", resultsError);
-        alert("Error al eliminar los resultados");
         return;
       }
 
@@ -330,7 +321,6 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
 
       if (drawError) {
         console.error("Error eliminando draw:", drawError);
-        alert("Error al eliminar el sorteo");
         return;
       }
 
@@ -342,10 +332,8 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
       queryClient.invalidateQueries({ queryKey: ["standings"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       
-      alert("Brackets eliminados correctamente");
     } catch (error: any) {
       console.error("Error:", error);
-      alert(`Error: ${error.message}`);
     }
   };
 

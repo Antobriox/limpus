@@ -70,8 +70,24 @@ const loadTeamStats = async (teamId: number): Promise<TeamStats> => {
 
   matchesData.forEach((m: any) => {
     const sportName = m.tournaments?.sports?.name || "Desconocido";
-    const scoreA = m.match_results?.[0]?.score_team_a || 0;
-    const scoreB = m.match_results?.[0]?.score_team_b || 0;
+    
+    // Obtener los resultados del partido (puede ser un array o un objeto)
+    let scoreA = null;
+    let scoreB = null;
+    
+    if (m.match_results) {
+      // Si es un array, tomar el primer elemento
+      const result = Array.isArray(m.match_results) ? m.match_results[0] : m.match_results;
+      if (result) {
+        scoreA = result.score_team_a ?? null;
+        scoreB = result.score_team_b ?? null;
+      }
+    }
+
+    // Solo procesar si hay resultados válidos (no null)
+    if (scoreA === null || scoreB === null) {
+      return; // Saltar este partido si no tiene resultados
+    }
 
     const isTeamA = m.team_a === teamId;
     const teamScore = isTeamA ? scoreA : scoreB;

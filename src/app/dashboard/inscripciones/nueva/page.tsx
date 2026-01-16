@@ -43,17 +43,17 @@ export default function NuevaInscripcionPage() {
 
   const createInscripcion = async () => {
     if (!form.name) {
-      alert("El nombre del formulario es requerido");
+      // alert eliminada"El nombre del formulario es requerido");
       return;
     }
 
     if (!form.sport_id) {
-      alert("Debes seleccionar un deporte");
+      // alert eliminada"Debes seleccionar un deporte");
       return;
     }
 
     if (form.min_players > form.max_players) {
-      alert("El mínimo no puede ser mayor al máximo");
+      // alert eliminada"El mínimo no puede ser mayor al máximo");
       return;
     }
 
@@ -78,7 +78,7 @@ export default function NuevaInscripcionPage() {
     setLoading(false);
 
     if (error) {
-      alert(error.message);
+      // alert eliminadaerror.message);
       return;
     }
 

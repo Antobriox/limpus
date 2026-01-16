@@ -51,7 +51,6 @@ export const useDocuments = (tournament: Tournament | null) => {
 
   const uploadFile = async (file: File) => {
     if (file.type !== "application/pdf") {
-      alert("Solo se permiten archivos PDF");
       return false;
     }
 
@@ -73,7 +72,7 @@ export const useDocuments = (tournament: Tournament | null) => {
         
         // Manejar error específico de bucket no encontrado
         if (error.message?.includes("Bucket not found") || error.message?.includes("not found")) {
-          alert(
+          console.error(
             "El bucket de almacenamiento 'documents' no existe.\n\n" +
             "Por favor, crea el bucket en Supabase:\n" +
             "1. Ve a tu proyecto en Supabase\n" +
@@ -85,7 +84,7 @@ export const useDocuments = (tournament: Tournament | null) => {
             "Después de crear el bucket, intenta subir el archivo nuevamente."
           );
         } else if (error.message?.includes("row-level security") || error.message?.includes("RLS")) {
-          alert(
+          console.error(
             "Error de permisos: Las políticas de seguridad (RLS) no están configuradas.\n\n" +
             "Por favor, ejecuta el SQL en Supabase:\n" +
             "1. Ve a SQL Editor en Supabase\n" +
@@ -94,7 +93,7 @@ export const useDocuments = (tournament: Tournament | null) => {
             "O configura las políticas manualmente en Storage > Policies del bucket 'documents'."
           );
         } else {
-          alert(`Error al subir el archivo: ${error.message}`);
+          console.error(`Error al subir el archivo: ${error.message}`);
         }
         return false;
       }
@@ -107,12 +106,12 @@ export const useDocuments = (tournament: Tournament | null) => {
         ...prev,
         { name: file.name, url: urlData.publicUrl, path: filePath },
       ]);
-      alert("PDF subido correctamente");
+      // PDF subido correctamente
       await loadDocuments(); // Recargar lista
       return true;
     } catch (error: any) {
       console.error("Error:", error);
-      alert(`Error: ${error.message}`);
+      console.error(`Error: ${error.message}`);
       return false;
     } finally {
       setUploading(false);
@@ -121,7 +120,6 @@ export const useDocuments = (tournament: Tournament | null) => {
 
   const updateFile = async (filePath: string, newFile: File) => {
     if (newFile.type !== "application/pdf") {
-      alert("Solo se permiten archivos PDF");
       return false;
     }
 
@@ -136,16 +134,16 @@ export const useDocuments = (tournament: Tournament | null) => {
 
       if (error) {
         console.error("Error actualizando archivo:", error);
-        alert(`Error al actualizar el archivo: ${error.message}`);
+        console.error(`Error al actualizar el archivo: ${error.message}`);
         return false;
       }
 
-      alert("PDF actualizado correctamente");
+      // PDF actualizado correctamente
       await loadDocuments(); // Recargar lista
       return true;
     } catch (error: any) {
       console.error("Error:", error);
-      alert(`Error: ${error.message}`);
+      console.error(`Error: ${error.message}`);
       return false;
     } finally {
       setUploading(false);
@@ -153,9 +151,7 @@ export const useDocuments = (tournament: Tournament | null) => {
   };
 
   const deleteFile = async (filePath: string, fileName: string) => {
-    if (!confirm(`¿Estás seguro de que quieres eliminar "${fileName}"?`)) {
-      return false;
-    }
+    // Confirmación eliminada
 
     try {
       const { error } = await supabase.storage
@@ -164,16 +160,16 @@ export const useDocuments = (tournament: Tournament | null) => {
 
       if (error) {
         console.error("Error eliminando archivo:", error);
-        alert(`Error al eliminar el archivo: ${error.message}`);
+        console.error(`Error al eliminar el archivo: ${error.message}`);
         return false;
       }
 
-      alert("Archivo eliminado correctamente");
+      // Archivo eliminado correctamente
       await loadDocuments(); // Recargar lista
       return true;
     } catch (error: any) {
       console.error("Error:", error);
-      alert(`Error: ${error.message}`);
+      console.error(`Error: ${error.message}`);
       return false;
     }
   };

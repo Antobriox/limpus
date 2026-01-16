@@ -51,7 +51,7 @@ export default function ClasificacionViewersPage() {
             {/* Navigation Links - Centrados */}
             <div className="flex items-center gap-8">
               <a
-                href="/dashboard/viewers"
+                href="/"
                 className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition"
               >
                 Home
@@ -71,7 +71,7 @@ export default function ClasificacionViewersPage() {
         {/* Header */}
         <div className="mb-6">
           <button
-            onClick={() => router.push("/dashboard/viewers")}
+            onClick={() => router.push("/")}
             className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition"
           >
             <ArrowLeft className="w-5 h-5" />

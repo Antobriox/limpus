@@ -5,7 +5,7 @@ import { useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
 import { useUser } from "../../hooks/useUser";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "../../lib/queryClient";
@@ -17,19 +17,36 @@ export default function DashboardLayout({
 }) {
   const { user, roles, loading } = useUser();
   const router = useRouter();
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Rutas públicas que no requieren autenticación
+  const publicRoutes = ["/dashboard/viewers/clasificacion"];
+  const isPublicRoute = publicRoutes.includes(pathname);
+
   useEffect(() => {
-    if (!loading && !user) {
+    // No redirigir a login si es una ruta pública
+    if (!loading && !user && !isPublicRoute) {
       router.replace("/login");
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, isPublicRoute]);
 
   // Si es viewer, mostrar sin sidebar ni topbar (no mostrar loader innecesario)
   const isViewer = roles.includes("viewers") || (!roles.includes("administrador") && !roles.includes("lider_equipo") && !roles.includes("arbitro"));
   
   // Si es líder de equipo, también mostrar sin sidebar/topbar (tiene su propia UI)
   const isLeader = roles.includes("lider_equipo");
+
+  // Si es una ruta pública, mostrar sin autenticación
+  if (isPublicRoute) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <div className="min-h-screen bg-white dark:bg-neutral-900">
+          {children}
+        </div>
+      </QueryClientProvider>
+    );
+  }
 
   // Solo mostrar loader si está cargando Y no es viewer ni líder (para evitar flash innecesario)
   if (loading && !isViewer && !isLeader) {

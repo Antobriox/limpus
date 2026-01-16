@@ -6,9 +6,10 @@ import { useUser } from "../../../hooks/useUser";
 import { useTeamLeader } from "./hooks/useTeamLeader";
 import { useTeamMatches } from "./hooks/useTeamMatches";
 import { useTeamStats } from "./hooks/useTeamStats";
-import { Calendar, Clock, MapPin, Trophy, Users, TrendingUp, Award, Target, FileText } from "lucide-react";
+import { Calendar, Clock, MapPin, Trophy, Users, TrendingUp, Award, Target, FileText, Eye } from "lucide-react";
 import { useState } from "react";
 import RegistrationModal from "./components/RegistrationModal";
+import MatchDetailsModal from "./components/MatchDetailsModal";
 
 export default function LeaderPage() {
   const router = useRouter();
@@ -17,6 +18,14 @@ export default function LeaderPage() {
   const { upcomingMatches, liveMatches, pastMatches, loading: loadingMatches } = useTeamMatches(teamInfo?.id || null);
   const { stats, loading: loadingStats } = useTeamStats(teamInfo?.id || null);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [selectedMatchForDetails, setSelectedMatchForDetails] = useState<{
+    id: number;
+    teamAId: number;
+    teamBId: number;
+    teamAName: string;
+    teamBName: string;
+    sportName: string;
+  } | null>(null);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -248,12 +257,25 @@ export default function LeaderPage() {
                   className="bg-white dark:bg-neutral-800 rounded-lg p-6 border border-gray-200 dark:border-neutral-700"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">
-                      {match.sport_name}
-                    </span>
-                    <span className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold">
-                      EN VIVO
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                        {match.sport_name}
+                      </span>
+                      {match.genero && (
+                        <span className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 font-medium">
+                          {match.genero === "masculino" ? "Masculino" : match.genero === "femenino" ? "Femenino" : match.genero}
+                        </span>
+                      )}
+                    </div>
+                    {match.status === "suspended" ? (
+                      <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                        ENTRETIEMPO
+                      </span>
+                    ) : (
+                      <span className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                        EN VIVO
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex-1">
@@ -271,11 +293,27 @@ export default function LeaderPage() {
                     </div>
                   </div>
                   {match.field && (
-                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-3">
                       <MapPin className="w-4 h-4" />
                       <span>{match.field}</span>
                     </div>
                   )}
+                  <button
+                    onClick={() =>
+                      setSelectedMatchForDetails({
+                        id: match.id,
+                        teamAId: match.team_a_id,
+                        teamBId: match.team_b_id,
+                        teamAName: match.team_a_name,
+                        teamBName: match.team_b_name,
+                        sportName: match.sport_name,
+                      })
+                    }
+                    className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Ver Detalles
+                  </button>
                 </div>
               ))}
             </div>
@@ -303,9 +341,16 @@ export default function LeaderPage() {
                   className="bg-white dark:bg-neutral-800 rounded-lg p-6 border border-gray-200 dark:border-neutral-700"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">
-                      {match.sport_name}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                        {match.sport_name}
+                      </span>
+                      {match.genero && (
+                        <span className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 font-medium">
+                          {match.genero === "masculino" ? "Masculino" : match.genero === "femenino" ? "Femenino" : match.genero}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex-1">
@@ -363,10 +408,12 @@ export default function LeaderPage() {
           ) : (
             <div className="space-y-4">
               {pastMatches.slice(0, 10).map((match) => {
-                const isWin = match.team_a_id === teamInfo.id
-                  ? (match.score_a ?? 0) > (match.score_b ?? 0)
-                  : (match.score_b ?? 0) > (match.score_a ?? 0);
-                const isDraw = (match.score_a ?? 0) === (match.score_b ?? 0);
+                // Solo calcular resultado si hay scores (no null)
+                const hasResult = match.score_a !== null && match.score_b !== null;
+                const isWin = hasResult && (match.team_a_id === teamInfo.id
+                  ? match.score_a! > match.score_b!
+                  : match.score_b! > match.score_a!);
+                const isDraw = hasResult && match.score_a === match.score_b;
 
                 return (
                   <div
@@ -385,17 +432,22 @@ export default function LeaderPage() {
                           <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                             {match.sport_name}
                           </span>
-                          {isWin && (
+                          {match.genero && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 font-medium">
+                              {match.genero === "masculino" ? "Masculino" : match.genero === "femenino" ? "Femenino" : match.genero}
+                            </span>
+                          )}
+                          {hasResult && isWin && (
                             <span className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-0.5 rounded text-xs font-semibold">
                               Victoria
                             </span>
                           )}
-                          {isDraw && (
+                          {hasResult && isDraw && (
                             <span className="bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-0.5 rounded text-xs font-semibold">
                               Empate
                             </span>
                           )}
-                          {!isWin && !isDraw && (
+                          {hasResult && !isWin && !isDraw && (
                             <span className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-2 py-0.5 rounded text-xs font-semibold">
                               Derrota
                             </span>
@@ -411,13 +463,31 @@ export default function LeaderPage() {
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
+                        <div className="text-right">
                         <div className="text-2xl font-black text-gray-900 dark:text-white">
-                          {match.score_a ?? 0} - {match.score_b ?? 0}
+                          {match.score_a !== null && match.score_b !== null 
+                            ? `${match.score_a} - ${match.score_b}`
+                            : "Sin resultado"}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           {formatDate(match.scheduled_at)} {formatTime(match.scheduled_at)}
                         </div>
+                        <button
+                          onClick={() =>
+                            setSelectedMatchForDetails({
+                              id: match.id,
+                              teamAId: match.team_a_id,
+                              teamBId: match.team_b_id,
+                              teamAName: match.team_a_name,
+                              teamBName: match.team_b_name,
+                              sportName: match.sport_name,
+                            })
+                          }
+                          className="mt-2 flex items-center justify-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-xs"
+                        >
+                          <Eye className="w-3 h-3" />
+                          Ver
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -433,6 +503,19 @@ export default function LeaderPage() {
         <RegistrationModal
           teamId={teamInfo.id}
           onClose={() => setShowRegistrationModal(false)}
+        />
+      )}
+
+      {/* Modal de Detalles del Partido */}
+      {selectedMatchForDetails && (
+        <MatchDetailsModal
+          matchId={selectedMatchForDetails.id}
+          teamAId={selectedMatchForDetails.teamAId}
+          teamBId={selectedMatchForDetails.teamBId}
+          teamAName={selectedMatchForDetails.teamAName}
+          teamBName={selectedMatchForDetails.teamBName}
+          sportName={selectedMatchForDetails.sportName}
+          onClose={() => setSelectedMatchForDetails(null)}
         />
       )}
     </div>

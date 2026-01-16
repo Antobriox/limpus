@@ -234,12 +234,12 @@ export default function NuevoEquipoPage() {
 
   const createTeam = async () => {
     if (!form.name.trim()) {
-      alert("El nombre del equipo es requerido");
+      // alert eliminada"El nombre del equipo es requerido");
       return;
     }
 
     if (careers.length === 0) {
-      alert("Debes agregar al menos una carrera");
+      // alert eliminada"Debes agregar al menos una carrera");
       return;
     }
 
@@ -345,7 +345,7 @@ export default function NuevoEquipoPage() {
       router.push("/dashboard/equipos");
     } catch (error: any) {
       console.error("Error creando equipo:", error);
-      alert(error.message || "Error al crear el equipo");
+      // alert eliminadaerror.message || "Error al crear el equipo");
     } finally {
       setLoading(false);
     }

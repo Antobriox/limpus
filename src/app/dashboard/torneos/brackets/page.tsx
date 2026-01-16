@@ -362,7 +362,8 @@ export default function BracketsPage() {
             // Si hay brackets guardados, solo mostrar "Limpiar" (eliminar)
             <button
               onClick={async () => {
-                if (confirm("¿Estás seguro de que quieres eliminar los brackets guardados?")) {
+                // Confirmación eliminada
+                {
                   await deleteSavedBrackets();
                   // Recargar para verificar que se eliminaron
                   if (tournament && tournament.id !== 0) {

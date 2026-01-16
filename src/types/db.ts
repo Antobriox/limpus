@@ -40,6 +40,7 @@ export type Player = {
   semester: number | null;
   jersey_number: number | null;
   is_captain: boolean;
+  team_registration_id: number | null; // -> team_registrations.id
   created_at: string | null;
 };
 

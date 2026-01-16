@@ -33,7 +33,7 @@ export default function EditarUsuarioPage() {
         .single();
 
       if (error || !data) {
-        alert("Usuario no encontrado");
+        // alert eliminada"Usuario no encontrado");
         router.replace("/dashboard/usuarios");
         return;
       }
@@ -65,20 +65,20 @@ export default function EditarUsuarioPage() {
 
     if (!res.ok) {
       const data = await res.json();
-      alert(data.error);
+      // alert eliminadadata.error);
       return;
     }
 
     // Invalidar la query de usuarios para que se actualice la lista
     queryClient.invalidateQueries({ queryKey: ["users"] });
     
-    alert("Usuario actualizado");
+    // alert eliminada"Usuario actualizado");
     router.push("/dashboard/usuarios");
   };
 
   // 🗑️ Eliminar usuario
   const deleteUser = async () => {
-    if (!confirm("¿Eliminar este usuario definitivamente?")) return;
+    // Confirmación eliminada
 
     await fetch("/api/admin/delete-user", {
       method: "DELETE",

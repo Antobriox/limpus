@@ -79,17 +79,17 @@ export const useRegistrationForms = () => {
     try {
       await toggleStatusMutation.mutateAsync({ id, locked });
     } catch (error: any) {
-      alert("Error al cambiar estado: " + error.message);
+      // alert eliminada"Error al cambiar estado: " + error.message);
     }
   };
 
   const deleteForm = async (id: number) => {
-    if (!confirm("¿Eliminar este formulario? Esta acción no se puede deshacer.")) return;
+    // Confirmación eliminada
 
     try {
       await deleteFormMutation.mutateAsync(id);
     } catch (error: any) {
-      alert("Error al eliminar formulario: " + error.message);
+      // alert eliminada"Error al eliminar formulario: " + error.message);
     }
   };
 

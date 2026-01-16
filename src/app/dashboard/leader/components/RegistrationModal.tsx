@@ -98,7 +98,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
       });
       setTeamRegistrationId(registrationId.id);
     } catch (error: any) {
-      alert("Error al crear inscripción: " + error.message);
+      // alert eliminada"Error al crear inscripción: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -108,7 +108,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
     if (!selectedForm) return;
 
     if (players.length >= selectedForm.max_players) {
-      alert(`No puedes agregar más de ${selectedForm.max_players} jugadores`);
+      // alert eliminada`No puedes agregar más de ${selectedForm.max_players} jugadores`);
       return;
     }
 
@@ -147,28 +147,28 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
 
   const handleSavePlayers = async () => {
     if (!selectedForm || !teamRegistrationId) {
-      alert("Primero debes crear la inscripción");
+      // alert eliminada"Primero debes crear la inscripción");
       return;
     }
 
     if (players.length < selectedForm.min_players) {
-      alert(`Debes agregar al menos ${selectedForm.min_players} jugadores`);
+      // alert eliminada`Debes agregar al menos ${selectedForm.min_players} jugadores`);
       return;
     }
 
     if (players.length > selectedForm.max_players) {
-      alert(`No puedes tener más de ${selectedForm.max_players} jugadores`);
+      // alert eliminada`No puedes tener más de ${selectedForm.max_players} jugadores`);
       return;
     }
 
     // Validar que todos los campos requeridos estén llenos
     for (const player of players) {
       if (!player.full_name.trim()) {
-        alert("Todos los jugadores deben tener un nombre");
+        // alert eliminada"Todos los jugadores deben tener un nombre");
         return;
       }
       if (!player.career_id) {
-        alert("Todos los jugadores deben tener una carrera asignada");
+        // alert eliminada"Todos los jugadores deben tener una carrera asignada");
         return;
       }
     }
@@ -177,10 +177,15 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
 
     try {
       // Eliminar jugadores existentes
-      await supabase
+      const { error: deleteError } = await supabase
         .from("players")
         .delete()
         .eq("team_registration_id", teamRegistrationId);
+
+      if (deleteError) {
+        console.error("Error eliminando jugadores existentes:", deleteError);
+        throw new Error(`Error al eliminar jugadores existentes: ${deleteError.message}`);
+      }
 
       // Insertar nuevos jugadores
       const playersToInsert = players.map((p) => ({
@@ -195,16 +200,20 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
         team_registration_id: teamRegistrationId,
       }));
 
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from("players")
         .insert(playersToInsert);
 
-      if (error) throw error;
+      if (insertError) {
+        console.error("Error insertando jugadores:", insertError);
+        throw new Error(`Error al guardar jugadores: ${insertError.message}`);
+      }
 
-      alert("Jugadores guardados exitosamente");
+      // alert eliminada"Jugadores guardados exitosamente");
       onClose();
     } catch (error: any) {
-      alert("Error al guardar jugadores: " + error.message);
+      console.error("Error al guardar jugadores:", error);
+      // alert eliminada"Error al guardar jugadores: " + error.message);
     } finally {
       setSaving(false);
     }

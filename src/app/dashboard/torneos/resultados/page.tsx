@@ -8,9 +8,11 @@ import { Tournament, Match } from "../types";
 import { useResults, MatchResultForm, Player } from "../hooks/useResults";
 import { getDisciplineRulesByName } from "../config/disciplineRules";
 import { supabase } from "../../../../lib/supabaseClient";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function ResultadosPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const {
     scheduledMatches,
@@ -81,14 +83,16 @@ export default function ResultadosPage() {
 
   const handleStartMatch = async (matchId: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("¿Deseas comenzar este partido?")) {
+    // Confirmación eliminada
+    {
       await updateMatchStatus(matchId, "in_progress");
     }
   };
 
   const handleHalfTime = async (matchId: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("¿Deseas pausar el partido para el entretiempo?")) {
+    // Confirmación eliminada
+    {
       await updateMatchStatus(matchId, "suspended");
     }
   };
@@ -99,7 +103,7 @@ export default function ResultadosPage() {
     // Buscar el partido para verificar su estado actual
     const match = scheduledMatches.find((m: any) => m.id === matchId);
     if (match?.status === "finished") {
-      alert("No se puede cambiar el estado de un partido finalizado");
+      return;
       e.target.value = match.status; // Restaurar el valor anterior
       return;
     }
@@ -110,7 +114,7 @@ export default function ResultadosPage() {
   const handleOpenResultModal = async (match: Match) => {
     // Solo permitir abrir el modal si el partido está en progreso, suspendido o finalizado
     if (match.status !== "in_progress" && match.status !== "suspended" && match.status !== "finished") {
-      alert("Debes comenzar el partido antes de publicar resultados");
+      return;
       return;
     }
 
@@ -149,12 +153,30 @@ export default function ResultadosPage() {
     const redCardsB: Array<{ player_id: number; minute: number }> = [];
     const sets: Array<{ set_number: number; score_team_a: number; score_team_b: number }> = [];
 
+    // Determinar si es básquet para manejar los puntos correctamente
+    const isBasketball = match.sportName?.toLowerCase().includes("basket") || 
+                         match.sportName?.toLowerCase().includes("básquet");
+    
     events.forEach((event: any) => {
       if (event.event_type === "goal") {
         if (event.team_id === match.team_a) {
-          goalsA.push({ player_id: event.player_id, minute: event.value });
+          // Para básquet: value = puntos * 1000 + minuto, extraer ambos
+          // Para fútbol: value contiene el minuto
+          if (isBasketball) {
+            const points = Math.floor(event.value / 1000);
+            const minute = event.value % 1000;
+            goalsA.push({ player_id: event.player_id, minute, points });
+          } else {
+            goalsA.push({ player_id: event.player_id, minute: event.value });
+          }
         } else {
-          goalsB.push({ player_id: event.player_id, minute: event.value });
+          if (isBasketball) {
+            const points = Math.floor(event.value / 1000);
+            const minute = event.value % 1000;
+            goalsB.push({ player_id: event.player_id, minute, points });
+          } else {
+            goalsB.push({ player_id: event.player_id, minute: event.value });
+          }
         }
       } else if (event.event_type === "yellow_card") {
         if (event.team_id === match.team_a) {
@@ -220,60 +242,212 @@ export default function ResultadosPage() {
     setLoadingPlayers(false);
   };
 
-  const [showGoalForm, setShowGoalForm] = useState<{ team: "a" | "b" | null; playerId: string; minute: string }>({
+  const [showGoalForm, setShowGoalForm] = useState<{ team: "a" | "b" | null; playerId: string; minute: string; points: string }>({
     team: null,
     playerId: "",
     minute: "",
+    points: "2", // Por defecto 2 puntos en básquet
   });
 
-  const handleAddGoal = (team: "a" | "b", playerId: number, minute: number) => {
+  const handleAddGoal = async (team: "a" | "b", playerId: number, minute: number, points: number = 1) => {
     if (selectedMatch?.status === "finished") {
-      alert("No se pueden agregar goles a un partido finalizado");
+      // alert eliminada"No se pueden agregar goles a un partido finalizado");
       return;
     }
+    
+    if (!selectedMatch) return;
+    
+    // Obtener el usuario actual para guardar el evento
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error("Usuario no autenticado");
+      return;
+    }
+    
+    let newScoreA = resultForm.score_team_a;
+    let newScoreB = resultForm.score_team_b;
+    const teamId = team === "a" ? selectedMatch.team_a : selectedMatch.team_b;
+    
     if (team === "a") {
+      newScoreA = resultForm.score_team_a + points;
       setResultForm({
         ...resultForm,
-        goals_team_a: [...resultForm.goals_team_a, { player_id: playerId, minute }],
-        score_team_a: resultForm.score_team_a + 1,
+        goals_team_a: [...resultForm.goals_team_a, { player_id: playerId, minute, points }],
+        score_team_a: newScoreA,
       });
     } else {
+      newScoreB = resultForm.score_team_b + points;
       setResultForm({
         ...resultForm,
-        goals_team_b: [...resultForm.goals_team_b, { player_id: playerId, minute }],
-        score_team_b: resultForm.score_team_b + 1,
+        goals_team_b: [...resultForm.goals_team_b, { player_id: playerId, minute, points }],
+        score_team_b: newScoreB,
       });
     }
-    setShowGoalForm({ team: null, playerId: "", minute: "" });
+    
+    // Guardar el evento (gol/punto) en match_events inmediatamente
+    try {
+      // Guardar el evento con el valor de puntos en el campo value
+      // Para básquet: value = puntos * 1000 + minuto (para poder extraer ambos)
+      // Para fútbol: value = minute (como antes)
+      const isBasketball = selectedMatch.sportName?.toLowerCase().includes("basket") || 
+                          selectedMatch.sportName?.toLowerCase().includes("básquet");
+      const eventValue = isBasketball ? (points * 1000 + minute) : minute;
+      
+      const { error: eventError } = await supabase
+        .from("match_events")
+        .insert({
+          match_id: selectedMatch.id,
+          event_type: "goal",
+          team_id: teamId,
+          player_id: playerId,
+          value: eventValue, // Para básquet: puntos, para fútbol: minuto
+          created_by: user.id,
+        });
+
+      if (eventError) {
+        console.error("Error guardando evento:", eventError);
+        // Revertir el cambio en el estado si falla
+        if (team === "a") {
+          setResultForm({
+            ...resultForm,
+            goals_team_a: resultForm.goals_team_a,
+            score_team_a: resultForm.score_team_a,
+          });
+        } else {
+          setResultForm({
+            ...resultForm,
+            goals_team_b: resultForm.goals_team_b,
+            score_team_b: resultForm.score_team_b,
+          });
+        }
+        return;
+      }
+    } catch (error) {
+      console.error("Error al guardar evento:", error);
+      return;
+    }
+    
+    // Guardar el marcador actualizado en match_results inmediatamente
+    try {
+      const { error: updateError } = await supabase
+        .from("match_results")
+        .upsert({
+          match_id: selectedMatch.id,
+          score_team_a: newScoreA,
+          score_team_b: newScoreB,
+        }, {
+          onConflict: "match_id",
+        });
+
+      if (updateError) {
+        console.error("Error actualizando marcador:", updateError);
+      } else {
+        // Invalidar las queries para que se actualicen las vistas
+        queryClient.invalidateQueries({ queryKey: ["teamMatches"] });
+        queryClient.invalidateQueries({ queryKey: ["scheduledMatches"] });
+      }
+    } catch (error) {
+      console.error("Error al guardar marcador:", error);
+    }
+    
+    setShowGoalForm({ team: null, playerId: "", minute: "", points: "2" });
   };
 
   const handleOpenGoalForm = (team: "a" | "b") => {
     if (selectedMatch?.status === "finished") {
-      alert("No se pueden agregar goles a un partido finalizado");
+      // alert eliminada"No se pueden agregar goles a un partido finalizado");
       return;
     }
     setShowGoalForm({ team, playerId: "", minute: "" });
   };
 
-  const handleRemoveGoal = (team: "a" | "b", index: number) => {
+  const handleRemoveGoal = async (team: "a" | "b", index: number) => {
     if (selectedMatch?.status === "finished") {
-      alert("No se pueden eliminar goles de un partido finalizado");
+      // alert eliminada"No se pueden eliminar goles de un partido finalizado");
       return;
     }
+    
+    if (!selectedMatch) return;
+    
+    let goalToRemove: { player_id: number; minute: number; points?: number } | null = null;
+    let newScoreA = resultForm.score_team_a;
+    let newScoreB = resultForm.score_team_b;
+    
+    // Determinar si es básquet para calcular correctamente los puntos
+    const isBasketball = selectedMatch?.sportName?.toLowerCase().includes("basket") || 
+                         selectedMatch?.sportName?.toLowerCase().includes("básquet");
+    
     if (team === "a") {
+      goalToRemove = resultForm.goals_team_a[index];
+      const pointsToRemove = isBasketball ? (goalToRemove.points || 1) : 1;
       const newGoals = resultForm.goals_team_a.filter((_, i) => i !== index);
+      newScoreA = isBasketball 
+        ? resultForm.score_team_a - pointsToRemove
+        : newGoals.length;
       setResultForm({
         ...resultForm,
         goals_team_a: newGoals,
-        score_team_a: newGoals.length,
+        score_team_a: newScoreA,
       });
     } else {
+      goalToRemove = resultForm.goals_team_b[index];
+      const pointsToRemove = isBasketball ? (goalToRemove.points || 1) : 1;
       const newGoals = resultForm.goals_team_b.filter((_, i) => i !== index);
+      newScoreB = isBasketball 
+        ? resultForm.score_team_b - pointsToRemove
+        : newGoals.length;
       setResultForm({
         ...resultForm,
         goals_team_b: newGoals,
-        score_team_b: newGoals.length,
+        score_team_b: newScoreB,
       });
+    }
+    
+    // Eliminar el evento de la base de datos
+    if (goalToRemove) {
+      try {
+        // Para básquet: value = puntos * 1000 + minuto, para fútbol: value = minuto
+        const valueToMatch = isBasketball 
+          ? ((goalToRemove.points || 1) * 1000 + goalToRemove.minute)
+          : goalToRemove.minute;
+        
+        const { error: deleteError } = await supabase
+          .from("match_events")
+          .delete()
+          .eq("match_id", selectedMatch.id)
+          .eq("event_type", "goal")
+          .eq("player_id", goalToRemove.player_id)
+          .eq("value", valueToMatch);
+
+        if (deleteError) {
+          console.error("Error eliminando evento:", deleteError);
+        }
+      } catch (error) {
+        console.error("Error al eliminar evento:", error);
+      }
+    }
+    
+    // Actualizar el marcador en match_results
+    try {
+      const { error: updateError } = await supabase
+        .from("match_results")
+        .upsert({
+          match_id: selectedMatch.id,
+          score_team_a: newScoreA,
+          score_team_b: newScoreB,
+        }, {
+          onConflict: "match_id",
+        });
+
+      if (updateError) {
+        console.error("Error actualizando marcador:", updateError);
+      } else {
+        // Invalidar las queries para que se actualicen las vistas
+        queryClient.invalidateQueries({ queryKey: ["teamMatches"] });
+        queryClient.invalidateQueries({ queryKey: ["scheduledMatches"] });
+      }
+    } catch (error) {
+      console.error("Error al actualizar marcador:", error);
     }
   };
 
@@ -286,7 +460,7 @@ export default function ResultadosPage() {
 
   const handleOpenCardForm = (team: "a" | "b", type: "yellow" | "red") => {
     if (selectedMatch?.status === "finished") {
-      alert("No se pueden agregar tarjetas a un partido finalizado");
+      // alert eliminada"No se pueden agregar tarjetas a un partido finalizado");
       return;
     }
     setShowCardForm({ team, type, playerId: "", minute: "" });
@@ -294,7 +468,7 @@ export default function ResultadosPage() {
 
   const handleAddCard = (team: "a" | "b", type: "yellow" | "red", playerId: number, minute: number) => {
     if (selectedMatch?.status === "finished") {
-      alert("No se pueden agregar tarjetas a un partido finalizado");
+      // alert eliminada"No se pueden agregar tarjetas a un partido finalizado");
       return;
     }
     if (type === "yellow") {
@@ -326,7 +500,7 @@ export default function ResultadosPage() {
 
   const handleRemoveCard = (team: "a" | "b", type: "yellow" | "red", index: number) => {
     if (selectedMatch?.status === "finished") {
-      alert("No se pueden eliminar tarjetas de un partido finalizado");
+      // alert eliminada"No se pueden eliminar tarjetas de un partido finalizado");
       return;
     }
     if (type === "yellow") {
@@ -360,7 +534,7 @@ export default function ResultadosPage() {
     if (!selectedMatch) return;
     
     if (selectedMatch.status === "finished") {
-      alert("No se pueden modificar los resultados de un partido finalizado");
+      // alert eliminada"No se pueden modificar los resultados de un partido finalizado");
       return;
     }
 
@@ -985,7 +1159,10 @@ export default function ResultadosPage() {
                       {resultForm.goals_team_a.map((goal, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
                           <span className="text-sm text-gray-700 dark:text-gray-300">
-                            {getPlayerName(goal.player_id, "a")} - Minuto {goal.minute}'
+                            {getPlayerName(goal.player_id, "a")} 
+                            {scoreLabel === "Puntos" && goal.points 
+                              ? ` - ${goal.points} ${goal.points === 1 ? 'punto' : 'puntos'}${goal.minute > 0 ? ` (Minuto ${goal.minute}')` : ''}` 
+                              : ` - Minuto ${goal.minute}'`}
                           </span>
                           <button
                             onClick={() => handleRemoveGoal("a", index)}
@@ -1007,7 +1184,7 @@ export default function ResultadosPage() {
                       )}
                       {showGoalForm.team === "a" && !isFinished && (
                         <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-900">
-                          <div className="grid grid-cols-2 gap-3 mb-3">
+                          <div className={`grid gap-3 mb-3 ${scoreLabel === "Puntos" ? "grid-cols-3" : "grid-cols-2"}`}>
                             <div>
                               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
                                 Jugador
@@ -1025,16 +1202,32 @@ export default function ResultadosPage() {
                                 ))}
                               </select>
                             </div>
+                            {scoreLabel === "Puntos" && (
+                              <div>
+                                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                                  Puntos
+                                </label>
+                                <select
+                                  value={showGoalForm.points}
+                                  onChange={(e) => setShowGoalForm({ ...showGoalForm, points: e.target.value })}
+                                  className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                                >
+                                  <option value="1">1 punto</option>
+                                  <option value="2">2 puntos</option>
+                                  <option value="3">3 puntos</option>
+                                </select>
+                              </div>
+                            )}
                             <div>
                               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
-                                Minuto
+                                {scoreLabel === "Puntos" ? "Tiempo" : "Minuto"}
                               </label>
                               <input
                                 type="number"
                                 value={showGoalForm.minute}
                                 onChange={(e) => setShowGoalForm({ ...showGoalForm, minute: e.target.value })}
                                 className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
-                                placeholder="Minuto"
+                                placeholder={scoreLabel === "Puntos" ? "Tiempo" : "Minuto"}
                                 min="1"
                                 max="120"
                               />
@@ -1044,7 +1237,8 @@ export default function ResultadosPage() {
                             <button
                               onClick={() => {
                                 if (showGoalForm.playerId && showGoalForm.minute) {
-                                  handleAddGoal("a", parseInt(showGoalForm.playerId), parseInt(showGoalForm.minute));
+                                  const points = scoreLabel === "Puntos" ? parseInt(showGoalForm.points || "2") : 1;
+                                  handleAddGoal("a", parseInt(showGoalForm.playerId), parseInt(showGoalForm.minute), points);
                                 }
                               }}
                               className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
@@ -1052,7 +1246,7 @@ export default function ResultadosPage() {
                               Agregar
                             </button>
                             <button
-                              onClick={() => setShowGoalForm({ team: null, playerId: "", minute: "" })}
+                              onClick={() => setShowGoalForm({ team: null, playerId: "", minute: "", points: "2" })}
                               className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
                             >
                               Cancelar
@@ -1087,7 +1281,10 @@ export default function ResultadosPage() {
                       {resultForm.goals_team_b.map((goal, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
                           <span className="text-sm text-gray-700 dark:text-gray-300">
-                            {getPlayerName(goal.player_id, "b")} - Minuto {goal.minute}'
+                            {getPlayerName(goal.player_id, "b")} 
+                            {scoreLabel === "Puntos" && goal.points 
+                              ? ` - ${goal.points} ${goal.points === 1 ? 'punto' : 'puntos'}${goal.minute > 0 ? ` (Minuto ${goal.minute}')` : ''}` 
+                              : ` - Minuto ${goal.minute}'`}
                           </span>
                           <button
                             onClick={() => handleRemoveGoal("b", index)}
@@ -1109,7 +1306,7 @@ export default function ResultadosPage() {
                       )}
                       {showGoalForm.team === "b" && !isFinished && (
                         <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-900">
-                          <div className="grid grid-cols-2 gap-3 mb-3">
+                          <div className={`grid gap-3 mb-3 ${scoreLabel === "Puntos" ? "grid-cols-3" : "grid-cols-2"}`}>
                             <div>
                               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
                                 Jugador
@@ -1127,16 +1324,32 @@ export default function ResultadosPage() {
                                 ))}
                               </select>
                             </div>
+                            {scoreLabel === "Puntos" && (
+                              <div>
+                                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                                  Puntos
+                                </label>
+                                <select
+                                  value={showGoalForm.points}
+                                  onChange={(e) => setShowGoalForm({ ...showGoalForm, points: e.target.value })}
+                                  className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                                >
+                                  <option value="1">1 punto</option>
+                                  <option value="2">2 puntos</option>
+                                  <option value="3">3 puntos</option>
+                                </select>
+                              </div>
+                            )}
                             <div>
                               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
-                                Minuto
+                                {scoreLabel === "Puntos" ? "Tiempo" : "Minuto"}
                               </label>
                               <input
                                 type="number"
                                 value={showGoalForm.minute}
                                 onChange={(e) => setShowGoalForm({ ...showGoalForm, minute: e.target.value })}
                                 className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
-                                placeholder="Minuto"
+                                placeholder={scoreLabel === "Puntos" ? "Tiempo" : "Minuto"}
                                 min="1"
                                 max="120"
                               />
@@ -1146,7 +1359,8 @@ export default function ResultadosPage() {
                             <button
                               onClick={() => {
                                 if (showGoalForm.playerId && showGoalForm.minute) {
-                                  handleAddGoal("b", parseInt(showGoalForm.playerId), parseInt(showGoalForm.minute));
+                                  const points = scoreLabel === "Puntos" ? parseInt(showGoalForm.points || "2") : 1;
+                                  handleAddGoal("b", parseInt(showGoalForm.playerId), parseInt(showGoalForm.minute), points);
                                 }
                               }}
                               className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
@@ -1154,7 +1368,7 @@ export default function ResultadosPage() {
                               Agregar
                             </button>
                             <button
-                              onClick={() => setShowGoalForm({ team: null, playerId: "", minute: "" })}
+                              onClick={() => setShowGoalForm({ team: null, playerId: "", minute: "", points: "2" })}
                               className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
                             >
                               Cancelar

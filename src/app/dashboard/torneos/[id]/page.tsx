@@ -33,7 +33,7 @@ export default function EditarTorneoPage() {
           .single();
 
         if (tournamentError || !tournament) {
-          alert("Torneo no encontrado");
+          // alert eliminada"Torneo no encontrado");
           router.replace("/dashboard/torneos");
           return;
         }
@@ -60,7 +60,7 @@ export default function EditarTorneoPage() {
         setLoading(false);
       } catch (error) {
         console.error("Error cargando torneo:", error);
-        alert("Error al cargar el torneo");
+        // alert eliminada"Error al cargar el torneo");
         router.replace("/dashboard/torneos");
       }
     };
@@ -73,17 +73,17 @@ export default function EditarTorneoPage() {
 
   const updateTournament = async () => {
     if (!form.name.trim()) {
-      alert("El nombre del torneo es requerido");
+      // alert eliminada"El nombre del torneo es requerido");
       return;
     }
 
     if (!form.start_date || !form.end_date) {
-      alert("Debes ingresar las fechas de inicio y fin");
+      // alert eliminada"Debes ingresar las fechas de inicio y fin");
       return;
     }
 
     if (new Date(form.start_date) > new Date(form.end_date)) {
-      alert("La fecha de inicio no puede ser posterior a la fecha de fin");
+      // alert eliminada"La fecha de inicio no puede ser posterior a la fecha de fin");
       return;
     }
 
@@ -107,11 +107,11 @@ export default function EditarTorneoPage() {
       }
 
       // NO crear ni eliminar matches. Solo actualizar datos del torneo.
-      alert("Torneo actualizado correctamente");
+      // alert eliminada"Torneo actualizado correctamente");
       router.push("/dashboard/torneos");
     } catch (error: any) {
       console.error("Error actualizando torneo:", error);
-      alert(error.message || "Error al actualizar el torneo");
+      // alert eliminadaerror.message || "Error al actualizar el torneo");
     } finally {
       setSaving(false);
     }

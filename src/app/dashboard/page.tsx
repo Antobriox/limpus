@@ -22,7 +22,7 @@ export default function DashboardPage() {
     } else if (roles.includes("lider_equipo")) {
       router.replace("/dashboard/leader");
     } else if (roles.includes("arbitro")) {
-      router.replace("/dashboard/referee");
+      router.replace("/dashboard/general");
     } else if (roles.includes("viewers")) {
       router.replace("/dashboard/viewers");
     } else {

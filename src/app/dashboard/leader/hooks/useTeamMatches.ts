@@ -15,6 +15,7 @@ export type TeamMatch = {
   score_b: number | null;
   referee: string | null;
   assistant: string | null;
+  genero: string | null;
 };
 
 const TEAM_MATCHES_QUERY_KEY = ["teamMatches"];
@@ -41,6 +42,7 @@ const loadTeamMatches = async (teamId: number): Promise<{
           name
         )
       ),
+      genero,
       match_results (
         score_team_a,
         score_team_b
@@ -49,7 +51,12 @@ const loadTeamMatches = async (teamId: number): Promise<{
     .or(`team_a.eq.${teamId},team_b.eq.${teamId}`)
     .order("scheduled_at", { ascending: false });
 
-  if (matchesError || !matchesData) {
+  if (matchesError) {
+    console.error("Error cargando partidos:", matchesError);
+    return { upcoming: [], live: [], past: [] };
+  }
+
+  if (!matchesData) {
     return { upcoming: [], live: [], past: [] };
   }
 
@@ -109,6 +116,19 @@ const loadTeamMatches = async (teamId: number): Promise<{
   const past: TeamMatch[] = [];
 
   matchesData.forEach((m: any) => {
+    // Obtener el resultado del partido (puede ser un array o un objeto)
+    let scoreA = null;
+    let scoreB = null;
+    
+    if (m.match_results) {
+      // Si es un array, tomar el primer elemento
+      const result = Array.isArray(m.match_results) ? m.match_results[0] : m.match_results;
+      if (result) {
+        scoreA = result.score_team_a ?? null;
+        scoreB = result.score_team_b ?? null;
+      }
+    }
+    
     const match: TeamMatch = {
       id: m.id,
       team_a_id: m.team_a,
@@ -119,18 +139,25 @@ const loadTeamMatches = async (teamId: number): Promise<{
       field: m.field,
       status: m.status,
       sport_name: m.tournaments?.sports?.name || "Deporte",
-      score_a: m.match_results?.[0]?.score_team_a || null,
-      score_b: m.match_results?.[0]?.score_team_b || null,
+      score_a: scoreA,
+      score_b: scoreB,
       referee: m.referee ? refereesMap.get(m.referee) || null : null,
       assistant: m.assistant ? assistantsMap.get(m.assistant) || null : null,
+      genero: m.genero || null,
     };
 
-    if (m.status === "in_progress") {
+    if (m.status === "in_progress" || m.status === "suspended") {
+      // Partidos en curso o en entretiempo van a partidos en vivo
       live.push(match);
     } else if (m.status === "scheduled" && m.scheduled_at && m.scheduled_at >= now) {
       upcoming.push(match);
-    } else if (m.status === "finished" || (m.scheduled_at && m.scheduled_at < now)) {
+    } else if (m.status === "finished") {
+      // Solo partidos finalizados van al historial
       past.push(match);
+    } else if (m.status === "scheduled" && m.scheduled_at && m.scheduled_at < now) {
+      // Partidos programados cuya fecha ya pasó pero no se han jugado, van a próximos
+      // (pueden haberse pospuesto o cancelado)
+      upcoming.push(match);
     }
   });
 

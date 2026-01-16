@@ -226,7 +226,7 @@ export const useMatches = (tournament: Tournament | null) => {
 
   const scheduleMatch = async (matchId: number, form: ScheduleForm) => {
     if (!form.scheduled_at) {
-      alert("Debes ingresar la fecha y hora del partido");
+      // alert eliminada"Debes ingresar la fecha y hora del partido");
       return false;
     }
 
@@ -240,15 +240,20 @@ export const useMatches = (tournament: Tournament | null) => {
       if (form.assistant) updateData.assistant = form.assistant;
       if (form.field) updateData.field = form.field;
       
-      // Manejar el estado: los valores válidos según el constraint de la base de datos
-      // Valores válidos: "pending", "scheduled", "in_progress", "finished", "cancelled", "postponed", "suspended"
-      const validStatuses = ["pending", "scheduled", "in_progress", "finished", "cancelled", "postponed", "suspended"];
-      if (form.status && form.status.trim() !== "" && validStatuses.includes(form.status.toLowerCase())) {
-        updateData.status = form.status.toLowerCase();
+      // Determinar el estado automáticamente:
+      // Si todos los campos están completos (fecha, árbitro, asistente, cancha), el estado es "scheduled"
+      // Si falta algún campo, el estado es "pending"
+      const hasAllFields = form.scheduled_at && 
+                           form.referee && form.referee.trim() !== "" &&
+                           form.assistant && form.assistant.trim() !== "" &&
+                           form.field && form.field.trim() !== "";
+
+      if (hasAllFields) {
+        // Si todos los campos están completos, el estado es automáticamente "scheduled"
+        updateData.status = "scheduled";
       } else {
-        // Si el estado no es válido o está vacío, establecerlo como null
-        // Esto evita errores del check constraint si el partido tenía un estado inválido anterior
-        updateData.status = null;
+        // Si falta algún campo, el estado es "pending"
+        updateData.status = "pending";
       }
 
       console.log("Actualizando partido con datos:", JSON.stringify(updateData, null, 2));
@@ -261,16 +266,16 @@ export const useMatches = (tournament: Tournament | null) => {
       if (error) {
         console.error("Error programando partido:", error);
         console.error("Detalles del error:", error.message, error.details);
-        alert(`Error al programar el partido: ${error.message}`);
+        // alert eliminada`Error al programar el partido: ${error.message}`);
         return false;
       }
 
-      alert("Partido programado correctamente");
+      // alert eliminada"Partido programado correctamente");
       await loadMatches();
       return true;
     } catch (error: any) {
       console.error("Error:", error);
-      alert(`Error: ${error.message}`);
+      // alert eliminada`Error: ${error.message}`);
       return false;
     } finally {
       setSavingSchedule(false);

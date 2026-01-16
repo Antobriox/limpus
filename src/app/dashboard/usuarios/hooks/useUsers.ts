@@ -66,12 +66,12 @@ export const useUsers = () => {
   });
 
   const deleteUser = async (id: string) => {
-    if (!confirm("¿Eliminar este usuario? Esta acción no se puede deshacer.")) return;
+    // Confirmación eliminada
 
     try {
       await deleteUserMutation.mutateAsync(id);
     } catch (error: any) {
-      alert(error.message || "Error al eliminar usuario");
+      console.error(error.message || "Error al eliminar usuario");
     }
   };
 

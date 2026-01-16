@@ -180,12 +180,12 @@ export const useTeams = () => {
   });
 
   const deleteTeam = async (id: number) => {
-    if (!confirm("¿Eliminar este equipo? Esta acción no se puede deshacer.")) return;
+    // Confirmación eliminada
 
     try {
       await deleteTeamMutation.mutateAsync(id);
     } catch (error: any) {
-      alert("Error al eliminar equipo: " + error.message);
+      console.error("Error al eliminar equipo: " + error.message);
     }
   };
 

@@ -42,7 +42,7 @@ const loadTeamLeader = async (userId: string): Promise<TeamInfo | null> => {
   // 3. Cargar carreras del equipo
   const { data: careersData } = await supabase
     .from("careers")
-    .select("name")
+    .select("id, name")
     .eq("team_id", teamId);
 
   const careers = careersData?.map((c: any) => c.name) || [];
@@ -69,16 +69,26 @@ const loadTeamLeader = async (userId: string): Promise<TeamInfo | null> => {
   const faculty = careers.length > 0 ? careers[0] : "Sin facultad";
 
   // 6. Obtener capitán (si existe)
+  // El capitán se obtiene de la tabla players donde is_captain = true
+  // y está asociado a una carrera del equipo
   let captain: string | null = null;
-  if (teamData.id) {
-    const { data: captainData } = await supabase
-      .from("teams")
-      .select("captain_id, profiles!teams_captain_id_fkey(full_name)")
-      .eq("id", teamData.id)
-      .single();
+  if (careersData && careersData.length > 0) {
+    const careerIds = careersData
+      .map((c: any) => c.id)
+      .filter((id: any): id is number => id !== null && id !== undefined && typeof id === 'number');
+    
+    if (careerIds.length > 0) {
+      const { data: captainData, error: captainError } = await supabase
+        .from("players")
+        .select("full_name")
+        .in("career_id", careerIds)
+        .eq("is_captain", true)
+        .limit(1)
+        .maybeSingle(); // Usar maybeSingle en lugar de single para evitar error si no hay resultados
 
-    if (captainData && (captainData as any).profiles) {
-      captain = (captainData as any).profiles.full_name || null;
+      if (!captainError && captainData) {
+        captain = captainData.full_name || null;
+      }
     }
   }
 

@@ -43,7 +43,7 @@ export default function EditarEquipoPage() {
           .single();
 
         if (teamError || !teamData) {
-          alert("Equipo no encontrado");
+          // alert eliminada"Equipo no encontrado");
           router.replace("/dashboard/equipos");
           return;
         }
@@ -76,7 +76,7 @@ export default function EditarEquipoPage() {
         setLoading(false);
       } catch (error) {
         console.error("Error cargando equipo:", error);
-        alert("Error al cargar el equipo");
+        // alert eliminada"Error al cargar el equipo");
         router.replace("/dashboard/equipos");
       }
     };
@@ -254,12 +254,12 @@ export default function EditarEquipoPage() {
 
   const updateTeam = async () => {
     if (!form.name.trim()) {
-      alert("El nombre del equipo es requerido");
+      // alert eliminada"El nombre del equipo es requerido");
       return;
     }
 
     if (careers.length === 0) {
-      alert("Debes agregar al menos una carrera");
+      // alert eliminada"Debes agregar al menos una carrera");
       return;
     }
 
@@ -335,7 +335,7 @@ export default function EditarEquipoPage() {
       router.push("/dashboard/equipos");
     } catch (error: any) {
       console.error("Error actualizando equipo:", error);
-      alert(error.message || "Error al actualizar el equipo");
+      // alert eliminadaerror.message || "Error al actualizar el equipo");
     } finally {
       setSaving(false);
     }
