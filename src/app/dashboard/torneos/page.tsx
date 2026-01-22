@@ -1,7 +1,7 @@
 // Página principal de torneos - Refactorizada y organizada
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AdvancedStatCard from "../../../components/AdvancedStatCard";
@@ -21,7 +21,7 @@ import {
   MoreVertical,
   X,
 } from "lucide-react";
-import { Tournament, Team, RecentResult, TournamentStats } from "./types";
+import { Team, RecentResult } from "./types";
 import DocumentsModal from "./components/DocumentsModal";
 import { useDashboard } from "./hooks/useDashboard";
 
@@ -75,10 +75,23 @@ export default function TorneosPage() {
         `)
         .order("created_at", { ascending: false });
 
+      type TeamWithCareers = {
+        id: number;
+        name: string;
+        created_at: string;
+        careers?: Array<{
+          id: number;
+          name: string;
+        }>;
+      };
+      type CaptainData = {
+        career_id: number;
+        full_name: string;
+      };
       if (allTeamsData && allTeamsData.length > 0) {
-        const careerIds = allTeamsData
-          .flatMap((team: any) => team.careers || [])
-          .map((career: any) => career.id)
+        const careerIds = (allTeamsData as TeamWithCareers[])
+          .flatMap((team: TeamWithCareers) => team.careers || [])
+          .map((career) => career.id)
           .filter((id: number) => id);
 
         const { data: captainsData } = await supabase
@@ -88,10 +101,10 @@ export default function TorneosPage() {
           .eq("is_captain", true);
 
         const captainsMap = new Map(
-          captainsData?.map((c: any) => [c.career_id, c.full_name]) || []
+          (captainsData as CaptainData[] | null)?.map((c: CaptainData) => [c.career_id, c.full_name]) || []
         );
 
-        const teamsWithDetails = allTeamsData.map((team: any) => {
+        const teamsWithDetails = (allTeamsData as TeamWithCareers[]).map((team: TeamWithCareers) => {
           const faculty = team.careers && team.careers.length > 0 
             ? team.careers[0].name 
             : "Sin facultad";
@@ -147,9 +160,37 @@ export default function TorneosPage() {
         .eq("status", "finished")
         .order("ended_at", { ascending: false, nullsFirst: false });
 
-      let matchResultsData: any[] = [];
+      type FinishedMatch = {
+        id: number;
+        team_a: number | null;
+        team_b: number | null;
+        scheduled_at: string | null;
+        ended_at: string | null;
+        status: string;
+        tournaments: {
+          id: number;
+          name: string;
+          sports: {
+            name: string;
+          };
+        };
+      };
+      type MatchResult = {
+        match_id: number;
+        score_team_a: number | null;
+        score_team_b: number | null;
+        confirmed_at: string | null;
+      };
+      type MatchResultData = {
+        match_id: number;
+        score_team_a: number;
+        score_team_b: number;
+        confirmed_at: string | null;
+        matches: FinishedMatch;
+      };
+      let matchResultsData: MatchResultData[] = [];
       if (finishedMatches && finishedMatches.length > 0) {
-        const matchIds = finishedMatches.map((m: any) => m.id);
+        const matchIds = (finishedMatches as FinishedMatch[]).map((m: FinishedMatch) => m.id);
         const { data: resultsData } = await supabase
           .from("match_results")
           .select(`
@@ -160,8 +201,8 @@ export default function TorneosPage() {
           `)
           .in("match_id", matchIds);
 
-        matchResultsData = finishedMatches.map((match: any) => {
-          const result = resultsData?.find((r: any) => r.match_id === match.id);
+        matchResultsData = (finishedMatches as FinishedMatch[]).map((match: FinishedMatch) => {
+          const result = (resultsData as MatchResult[] | null)?.find((r: MatchResult) => r.match_id === match.id);
           return {
             match_id: match.id,
             score_team_a: result?.score_team_a || 0,
@@ -176,8 +217,8 @@ export default function TorneosPage() {
 
       if (matchResultsData && matchResultsData.length > 0) {
         const allTeamIds = [
-          ...matchResultsData.map((mr: any) => mr.matches?.team_a),
-          ...matchResultsData.map((mr: any) => mr.matches?.team_b),
+          ...matchResultsData.map((mr: MatchResultData) => mr.matches?.team_a),
+          ...matchResultsData.map((mr: MatchResultData) => mr.matches?.team_b),
         ];
         const teamIds = Array.from(new Set(allTeamIds)).filter(
           (id): id is number => id !== undefined && typeof id === "number"
@@ -188,11 +229,15 @@ export default function TorneosPage() {
           .select("id, name")
           .in("id", teamIds);
 
+        type TeamData = {
+          id: number;
+          name: string;
+        };
         const teamsMap = new Map(
-          teamsForResults?.map((t: any) => [t.id, t.name]) || []
+          (teamsForResults as TeamData[] | null)?.map((t: TeamData) => [t.id, t.name]) || []
         );
 
-        results = matchResultsData.map((mr: any) => {
+        results = matchResultsData.map((mr: MatchResultData) => {
           const match = mr.matches;
           const scheduledAt = match?.scheduled_at
             ? new Date(match.scheduled_at)

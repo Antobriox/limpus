@@ -27,7 +27,7 @@ export default function NuevoUsuarioPage() {
       }),
     });
 
-    const data = await res.json();
+    await res.json();
     setLoading(false);
 
     if (!res.ok) {

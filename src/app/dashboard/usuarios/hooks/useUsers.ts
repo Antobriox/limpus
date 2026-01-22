@@ -24,12 +24,22 @@ const loadUsersQuery = async (): Promise<UserRow[]> => {
     `)
     .order("full_name", { ascending: true });
 
+  type SupabaseProfile = {
+    id: string;
+    full_name: string | null;
+    email: string | null;
+    user_roles: Array<{
+      roles: {
+        name: string;
+      } | null;
+    }>;
+  };
   const formatted =
-    data?.map((u: any) => ({
+    (data as SupabaseProfile[] | null)?.map((u: SupabaseProfile) => ({
       id: u.id,
       full_name: u.full_name,
       email: u.email,
-      roles: u.user_roles.map((r: any) => r.roles),
+      roles: u.user_roles.map((r) => r.roles).filter((role): role is { name: string } => role !== null),
     })) ?? [];
 
   return formatted;
@@ -41,7 +51,6 @@ export const useUsers = () => {
   const {
     data: users = [],
     isLoading,
-    isFetching,
   } = useQuery({
     queryKey: USERS_QUERY_KEY,
     queryFn: loadUsersQuery,
@@ -70,8 +79,9 @@ export const useUsers = () => {
 
     try {
       await deleteUserMutation.mutateAsync(id);
-    } catch (error: any) {
-      console.error(error.message || "Error al eliminar usuario");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Error al eliminar usuario";
+      console.error(errorMessage);
     }
   };
 

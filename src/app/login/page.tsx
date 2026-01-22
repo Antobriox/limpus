@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { supabase } from "../../lib/supabaseClient";
 import { Eye, EyeOff, GraduationCap, Mail } from "lucide-react";
 
@@ -39,9 +40,10 @@ export default function LoginPage() {
       {/* LEFT PANEL */}
       <div className="relative hidden md:flex flex-col justify-center bg-[#0d0f15] p-10 text-white">
         <div className="absolute inset-0">
-          <img
-            src="img/login-bg.png" // pon tu imagen aquí
-            className="h-full w-full object-cover opacity-20"
+          <Image
+            src="/img/login-bg.png"
+            fill
+            className="object-cover opacity-20"
             alt="Olimpiadas Universitarias"
           />
         </div>

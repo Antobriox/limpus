@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Printer, Plus, Search, Calendar, ChevronDown, X } from "lucide-react";
+import { Printer, Plus, Search, Calendar, ChevronDown, X, Clock } from "lucide-react";
 
 // Tipos para datos de Supabase
 type SupabaseDrawResult = {
@@ -81,7 +81,6 @@ export default function ProgramarPartidosPage() {
   const [showNewMatchModal, setShowNewMatchModal] = useState(false);
   const [showEditMatchModal, setShowEditMatchModal] = useState(false);
   const [creatingMatch, setCreatingMatch] = useState(false);
-  const [loadingTeams, setLoadingTeams] = useState(false);
   const [newMatchForm, setNewMatchForm] = useState({
     disciplina: "",
     bombo: "",
@@ -104,7 +103,7 @@ export default function ProgramarPartidosPage() {
   // Recargar partidos cuando cambien los filtros
   useEffect(() => {
     loadAllMatches();
-  }, [filters]);
+  }, [loadAllMatches]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -274,7 +273,7 @@ export default function ProgramarPartidosPage() {
   };
 
   // Cargar equipos del bombo seleccionado
-  const loadTeamsFromBombo = (bomboNumber: string) => {
+  const loadTeamsFromBombo = useCallback((bomboNumber: string) => {
     if (!bomboNumber || bomboNumber === "") {
       setTeams([]);
       return;
@@ -288,7 +287,7 @@ export default function ProgramarPartidosPage() {
     } else {
       setTeams([]);
     }
-  };
+  }, [bombos]);
 
   // Efecto para cargar bombos cuando cambia la disciplina o el género
   useEffect(() => {
@@ -335,18 +334,8 @@ export default function ProgramarPartidosPage() {
     }
   };
 
-  useEffect(() => {
-    const initializeMatches = async () => {
-      await loadReferees();
-      await loadAdministrators();
-      await loadAllMatches();
-      await checkValidStatuses();
-    };
-    initializeMatches();
-  }, [loadReferees, loadAdministrators, loadAllMatches, checkValidStatuses]);
-
   // Función para verificar qué estados válidos hay en la base de datos
-  const checkValidStatuses = async () => {
+  const checkValidStatuses = useCallback(async () => {
     try {
       // Consultar partidos existentes para ver qué valores de status tienen
       const { data: matches, error } = await supabase
@@ -380,10 +369,10 @@ export default function ProgramarPartidosPage() {
     } catch (error) {
       console.error("Error verificando estados:", error);
     }
-  };
+  }, []);
 
   // Función para cargar TODOS los partidos de TODOS los torneos
-  const loadAllMatches = async () => {
+  const loadAllMatches = useCallback(async () => {
     try {
       // Cargar todos los partidos sin filtrar por torneo
       const { data: matches, error } = await supabase
@@ -562,7 +551,17 @@ export default function ProgramarPartidosPage() {
     } catch (error) {
       console.error("Error:", error);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    const initializeMatches = async () => {
+      await loadReferees();
+      await loadAdministrators();
+      await loadAllMatches();
+      await checkValidStatuses();
+    };
+    initializeMatches();
+  }, [loadReferees, loadAdministrators, loadAllMatches, checkValidStatuses]);
 
   // Función para exportar calendario a PDF
   const exportCalendarToPDF = () => {
@@ -601,8 +600,20 @@ export default function ProgramarPartidosPage() {
     currentY += 15;
 
     // Agrupar partidos por fecha
-    const matchesByDate = new Map<string, { dateKey: string; date: Date; matches: Array<SupabaseMatch & { teams?: { name?: string }; teams1?: { name?: string }; refereeName?: string | null; assistantName?: string | null; sportName?: string | null }> }>>();
-    scheduledMatches.forEach((match: SupabaseMatch & { teams?: { name?: string }; teams1?: { name?: string }; refereeName?: string | null; assistantName?: string | null; sportName?: string | null }) => {
+    type EnrichedMatch = SupabaseMatch & {
+      teams?: { name?: string };
+      teams1?: { name?: string };
+      refereeName?: string | null;
+      assistantName?: string | null;
+      sportName?: string | null;
+    };
+    type MatchGroup = {
+      dateKey: string;
+      date: Date;
+      matches: EnrichedMatch[];
+    };
+    const matchesByDate = new Map<string, MatchGroup>();
+    scheduledMatches.forEach((match: EnrichedMatch) => {
       if (match.scheduled_at) {
         const date = new Date(match.scheduled_at);
         // Usar fecha sin hora para agrupar
@@ -1321,9 +1332,7 @@ export default function ProgramarPartidosPage() {
                   ? new Date(match.ended_at)
                   : null;
 
-                // Determinar el estado del partido (variables no usadas pero necesarias para lógica)
-                const _matchStatusText = "";
-                const _matchStatusColor = "";
+                // Determinar el estado del partido
                 if (endedDate) {
                   matchStatusText = "Finalizado";
                   matchStatusColor = "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300";

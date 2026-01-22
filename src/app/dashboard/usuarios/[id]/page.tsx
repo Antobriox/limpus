@@ -64,7 +64,7 @@ export default function EditarUsuarioPage() {
     setSaving(false);
 
     if (!res.ok) {
-      const data = await res.json();
+      await res.json();
       // alert eliminadadata.error);
       return;
     }

@@ -111,6 +111,7 @@ const loadStandingsQuery = async (
 
   // Buscar brackets guardados para esta disciplina
   const allTeamIds = new Set<number>();
+  let bomboMap: Map<number, Set<number>> | undefined;
   
   // Obtener TODOS los torneos
   const { data: tournaments } = await supabase
@@ -180,17 +181,15 @@ const loadStandingsQuery = async (
         if (drawResults && drawResults.length > 0) {
           console.log(`${drawResults.length} equipos encontrados en brackets`);
           
-          const bomboMap = new Map<number, Set<number>>();
+          bomboMap = new Map<number, Set<number>>();
           drawResults.forEach((dr: SupabaseDrawResult) => {
             const bombo = dr.result_order || 1;
-            if (!bomboMap.has(bombo)) {
-              bomboMap.set(bombo, new Set());
+            if (!bomboMap!.has(bombo)) {
+              bomboMap!.set(bombo, new Set());
             }
-            bomboMap.get(bombo)!.add(dr.team_id);
+            bomboMap!.get(bombo)!.add(dr.team_id);
             allTeamIds.add(dr.team_id);
           });
-          
-          (allTeamIds as any).bomboMap = bomboMap;
         }
       } else {
         console.log(`No se encontraron brackets para ${disciplineName}. Draws disponibles:`, draws?.map(d => d.name));
@@ -219,9 +218,6 @@ const loadStandingsQuery = async (
   const teamMap: TeamMap = new Map(
     (allTeams as SupabaseTeam[] | null)?.map((t: SupabaseTeam) => [t.id, t.name]) || []
   );
-
-  // Obtener información de bombos si está disponible
-  const bomboMap = (allTeamIds as any).bomboMap as Map<number, Set<number>> | undefined;
 
   // Si no hay partidos finalizados, retornar todos los equipos con estadísticas en 0
   if (!matches || matches.length === 0) {

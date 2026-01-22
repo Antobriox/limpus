@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
+import { User } from "@supabase/supabase-js";
+
 export function useUser() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,10 +27,15 @@ export function useUser() {
         .select("roles(name)")
         .eq("user_id", authUser.id);
 
+      type UserRoleRow = {
+        roles: {
+          name: string;
+        } | null;
+      };
       if (!error && data) {
-        const roleNames = data
-          .map((row: any) => row.roles?.name)
-          .filter(Boolean);
+        const roleNames = (data as UserRoleRow[])
+          .map((row: UserRoleRow) => row.roles?.name)
+          .filter((name): name is string => Boolean(name));
 
         setRoles(roleNames);
       } else {

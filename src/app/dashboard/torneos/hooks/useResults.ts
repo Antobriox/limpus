@@ -1,7 +1,7 @@
 // Hook para manejar la lógica de resultados de partidos con TanStack Query
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../../../lib/supabaseClient";
-import { Match, Tournament } from "../types";
+import { Match } from "../types";
 
 export type MatchResultForm = {
   score_team_a: number;
@@ -75,7 +75,14 @@ const loadScheduledMatchesQuery = async (): Promise<Match[]> => {
     return [];
   }
 
-  const teamIds = [...matches.map((m: any) => m.team_a), ...matches.map((m: any) => m.team_b)];
+  type SupabaseMatch = {
+    team_a: number | null;
+    team_b: number | null;
+    referee: string | null;
+    assistant: string | null;
+    tournament_id: number | null;
+  };
+  const teamIds = [...(matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.team_a), ...(matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.team_b)];
   const uniqueTeamIds = Array.from(new Set(teamIds)).filter((id): id is number => id !== undefined && typeof id === "number");
 
   const { data: teamsData } = await supabase
@@ -83,13 +90,17 @@ const loadScheduledMatchesQuery = async (): Promise<Match[]> => {
     .select("id, name")
     .in("id", uniqueTeamIds);
 
-  const teamsMap = new Map(teamsData?.map((t: any) => [t.id, { id: t.id, name: t.name }]) || []);
+  type TeamData = {
+    id: number;
+    name: string;
+  };
+  const teamsMap = new Map((teamsData as TeamData[] | null)?.map((t: TeamData) => [t.id, { id: t.id, name: t.name }]) || []);
 
   // Obtener IDs de árbitros y asistentes
   const userIds = [
-    ...matches.map((m: any) => m.referee),
-    ...matches.map((m: any) => m.assistant),
-  ].filter(Boolean);
+    ...(matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.referee),
+    ...(matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.assistant),
+  ].filter((id): id is string => id !== null && id !== undefined);
   const uniqueUserIds = Array.from(new Set(userIds));
 
   let profilesMap = new Map<string, string>();
@@ -98,11 +109,15 @@ const loadScheduledMatchesQuery = async (): Promise<Match[]> => {
       .from("profiles")
       .select("id, full_name")
       .in("id", uniqueUserIds);
-    profilesMap = new Map(profilesData?.map((p: any) => [p.id, p.full_name]) || []);
+    type ProfileData = {
+      id: string;
+      full_name: string | null;
+    };
+    profilesMap = new Map((profilesData as ProfileData[] | null)?.map((p: ProfileData) => [p.id, p.full_name || ""]) || []);
   }
 
   // Obtener información del torneo para la disciplina
-  const tournamentIds = Array.from(new Set(matches.map((m: any) => m.tournament_id).filter(Boolean)));
+  const tournamentIds = Array.from(new Set((matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.tournament_id).filter((id): id is number => id !== null && id !== undefined)));
   const tournamentsMap = new Map<number, number>(); // tournament_id -> sport_id
   
   if (tournamentIds.length > 0) {
@@ -111,8 +126,12 @@ const loadScheduledMatchesQuery = async (): Promise<Match[]> => {
       .select("id, sport_id")
       .in("id", tournamentIds);
     
+    type SupabaseTournament = {
+      id: number;
+      sport_id: number;
+    };
     if (tournamentsData) {
-      tournamentsData.forEach((t: any) => {
+      (tournamentsData as SupabaseTournament[]).forEach((t: SupabaseTournament) => {
         tournamentsMap.set(t.id, t.sport_id);
       });
     }
@@ -128,14 +147,28 @@ const loadScheduledMatchesQuery = async (): Promise<Match[]> => {
       .select("id, name")
       .in("id", sportIds);
     
+    type SupabaseSport = {
+      id: number;
+      name: string;
+    };
     if (sportsData) {
-      sportsData.forEach((s: any) => {
+      (sportsData as SupabaseSport[]).forEach((s: SupabaseSport) => {
         sportsMap.set(s.id, s.name);
       });
     }
   }
 
-  const enrichedMatches = matches.map((match: any) => {
+  type EnrichedMatch = SupabaseMatch & {
+    teams?: { id: number; name: string };
+    teams1?: { id: number; name: string };
+    refereeName?: string | null;
+    assistantName?: string | null;
+    sportName?: string | null;
+    field?: string | null;
+    genero?: string | null;
+    scheduled_at?: string | null;
+  };
+  const enrichedMatches = matches.map((match: SupabaseMatch): EnrichedMatch => {
     const tournamentSportId = tournamentsMap.get(match.tournament_id);
     const sportName = tournamentSportId ? (sportsMap.get(tournamentSportId) || null) : null;
     
@@ -154,14 +187,13 @@ const loadScheduledMatchesQuery = async (): Promise<Match[]> => {
   return enrichedMatches;
 };
 
-export const useResults = (tournament: Tournament | null) => {
+export const useResults = () => {
   const queryClient = useQueryClient();
 
   // Query para partidos programados - usa caché automáticamente
   const {
     data: scheduledMatches = [],
     isLoading,
-    isFetching,
   } = useQuery({
     queryKey: SCHEDULED_MATCHES_QUERY_KEY,
     queryFn: loadScheduledMatchesQuery,
@@ -220,7 +252,15 @@ export const useResults = (tournament: Tournament | null) => {
       }
 
       // Guardar eventos del partido (goles, tarjetas)
-      const events: any[] = [];
+      type MatchEvent = {
+        match_id: number;
+        event_type: string;
+        team_id: number;
+        player_id: number | null;
+        value: number;
+        created_by: string;
+      };
+      const events: MatchEvent[] = [];
 
       // Determinar si es básquet para guardar correctamente los puntos
       const { data: tournamentData } = await supabase
@@ -384,7 +424,12 @@ export const useResults = (tournament: Tournament | null) => {
   // Mutación para actualizar estado del partido
   const updateMatchStatusMutation = useMutation({
     mutationFn: async ({ matchId, status }: { matchId: number; status: string }) => {
-      const updateData: any = { status };
+      type UpdateData = {
+        status: string;
+        started_at?: string;
+        ended_at?: string;
+      };
+      const updateData: UpdateData = { status };
       
       if (status === "in_progress") {
         updateData.started_at = new Date().toISOString();
@@ -457,7 +502,12 @@ export const useResults = (tournament: Tournament | null) => {
           }
 
           console.log(`Jugadores encontrados: ${players?.length || 0} para inscripción ${registrationId}`);
-          return (players || []).map((p: any) => ({
+          type SupabasePlayer = {
+            id: number;
+            full_name: string;
+            jersey_number: number | null;
+          };
+          return ((players as SupabasePlayer[] | null) || []).map((p: SupabasePlayer) => ({
             id: p.id,
             full_name: p.full_name,
             jersey_number: p.jersey_number,
@@ -492,7 +542,12 @@ export const useResults = (tournament: Tournament | null) => {
         return [];
       }
 
-      return players.map((p: any) => ({
+      type SupabasePlayer = {
+        id: number;
+        full_name: string;
+        jersey_number: number | null;
+      };
+      return (players as SupabasePlayer[]).map((p: SupabasePlayer) => ({
         id: p.id,
         full_name: p.full_name,
         jersey_number: p.jersey_number,
@@ -508,9 +563,11 @@ export const useResults = (tournament: Tournament | null) => {
       await saveMatchResultMutation.mutateAsync({ matchId, form });
       // Resultado guardado correctamente
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error:", error);
-      console.error(`Error: ${error.message}`);
+      if (error instanceof Error) {
+        console.error(`Error: ${error.message}`);
+      }
       return false;
     }
   };
@@ -519,9 +576,11 @@ export const useResults = (tournament: Tournament | null) => {
     try {
       await updateMatchStatusMutation.mutateAsync({ matchId, status });
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error:", error);
-      console.error(`Error: ${error.message}`);
+      if (error instanceof Error) {
+        console.error(`Error: ${error.message}`);
+      }
       return false;
     }
   };

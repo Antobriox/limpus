@@ -53,7 +53,6 @@ export default function NuevoTorneoPage() {
       let yPosition = 20;
       const pageHeight = doc.internal.pageSize.height;
       const margin = 20;
-      const lineHeight = 7;
 
       // Título
       doc.setFontSize(18);
@@ -92,10 +91,19 @@ export default function NuevoTorneoPage() {
         `)
         .order("id", { ascending: false });
 
+      type SupabaseTournament = {
+        id: number;
+        name: string;
+        start_date: string | null;
+        end_date: string | null;
+        sports: {
+          name: string;
+        };
+      };
       if (tournaments && tournaments.length > 0) {
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        tournaments.forEach((tournament: any) => {
+        (tournaments as SupabaseTournament[]).forEach((tournament: SupabaseTournament) => {
           checkPageBreak(10);
           doc.text(`• ${tournament.name} (${tournament.sports?.name || "N/A"})`, margin + 5, yPosition);
           yPosition += 6;
@@ -122,10 +130,14 @@ export default function NuevoTorneoPage() {
         .select("id, name")
         .order("name", { ascending: true });
 
+      type SupabaseTeam = {
+        id: number;
+        name: string;
+      };
       if (teams && teams.length > 0) {
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        teams.forEach((team: any) => {
+        (teams as SupabaseTeam[]).forEach((team: SupabaseTeam) => {
           checkPageBreak(6);
           doc.text(`• ${team.name}`, margin + 5, yPosition);
           yPosition += 6;
@@ -157,10 +169,18 @@ export default function NuevoTorneoPage() {
         `)
         .order("created_at", { ascending: false });
 
+      type SupabaseRegistrationForm = {
+        id: number;
+        name: string;
+        genero: string | null;
+        sports: {
+          name: string;
+        };
+      };
       if (registrationForms && registrationForms.length > 0) {
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        registrationForms.forEach((form: any) => {
+        (registrationForms as SupabaseRegistrationForm[]).forEach((form: SupabaseRegistrationForm) => {
           checkPageBreak(10);
           doc.text(`• ${form.name} - ${form.sports?.name || "N/A"} (${form.genero || "N/A"})`, margin + 5, yPosition);
           yPosition += 6;
@@ -187,10 +207,15 @@ export default function NuevoTorneoPage() {
         .select("id, name, created_at")
         .order("created_at", { ascending: false });
 
+      type SupabaseDraw = {
+        id: number;
+        name: string;
+        created_at: string | null;
+      };
       if (draws && draws.length > 0) {
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        draws.forEach((draw: any) => {
+        (draws as SupabaseDraw[]).forEach((draw: SupabaseDraw) => {
           checkPageBreak(8);
           doc.text(`• ${draw.name}`, margin + 5, yPosition);
           yPosition += 6;
@@ -230,10 +255,18 @@ export default function NuevoTorneoPage() {
         .limit(100); // Limitar a 100 para no hacer el PDF muy largo
 
       // Obtener nombres de equipos
+      type SupabaseMatchForNames = {
+        team_a: number | null;
+        team_b: number | null;
+      };
+      type TeamData = {
+        id: number;
+        name: string;
+      };
       const teamNamesMap: Record<number, string> = {};
       if (matches && matches.length > 0) {
         const teamIds = new Set<number>();
-        matches.forEach((match: any) => {
+        (matches as SupabaseMatchForNames[]).forEach((match: SupabaseMatchForNames) => {
           if (match.team_a) teamIds.add(match.team_a);
           if (match.team_b) teamIds.add(match.team_b);
         });
@@ -245,7 +278,7 @@ export default function NuevoTorneoPage() {
             .in("id", Array.from(teamIds));
 
           if (teamsData) {
-            teamsData.forEach((team: any) => {
+            (teamsData as TeamData[]).forEach((team: TeamData) => {
               teamNamesMap[team.id] = team.name;
             });
           }
@@ -258,7 +291,20 @@ export default function NuevoTorneoPage() {
         doc.text(`Mostrando ${matches.length} partidos (máximo 100)`, margin + 5, yPosition);
         yPosition += 8;
         
-        matches.forEach((match: any) => {
+        type SupabaseMatch = {
+          id: number;
+          team_a: number | null;
+          team_b: number | null;
+          scheduled_at: string | null;
+          status: string;
+          genero: string | null;
+          tournaments?: {
+            sports?: {
+              name: string;
+            };
+          };
+        };
+        (matches as SupabaseMatch[]).forEach((match: SupabaseMatch) => {
           checkPageBreak(12);
           const teamA = teamNamesMap[match.team_a] || `Equipo ${match.team_a}`;
           const teamB = teamNamesMap[match.team_b] || `Equipo ${match.team_b}`;
@@ -313,7 +359,7 @@ export default function NuevoTorneoPage() {
       const pdfBlob = doc.output("blob");
       console.log("PDF del historial generado exitosamente");
       return pdfBlob;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error generando PDF del historial:", error);
       return null;
     }
@@ -343,7 +389,7 @@ export default function NuevoTorneoPage() {
 
       console.log(`PDF del historial guardado en: ${filePath}`);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error subiendo PDF del historial:", error);
       return false;
     }
@@ -496,7 +542,7 @@ export default function NuevoTorneoPage() {
             console.warn("Algunos errores al eliminar usuarios:", result.errors);
           }
         }
-      } catch (usersError: any) {
+      } catch (usersError: unknown) {
         console.error("Error en la eliminación de usuarios:", usersError);
         // No crítico, continuar
         console.warn("Advertencia: No se pudieron eliminar algunos usuarios");
@@ -504,7 +550,7 @@ export default function NuevoTorneoPage() {
 
       console.log("Limpieza completada exitosamente");
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error en la limpieza:", error);
       throw error;
     }
@@ -602,10 +648,11 @@ export default function NuevoTorneoPage() {
       setTimeout(() => {
         router.push("/dashboard/torneos");
       }, 2000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creando torneo:", error);
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
       showAlert(
-        `Error al crear el torneo: ${error.message}\n\nPor favor, verifica la consola para más detalles.`,
+        `Error al crear el torneo: ${errorMessage}\n\nPor favor, verifica la consola para más detalles.`,
         "error"
       );
     } finally {

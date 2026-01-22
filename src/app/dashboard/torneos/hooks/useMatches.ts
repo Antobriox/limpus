@@ -103,8 +103,12 @@ export const useMatches = (tournament: Tournament | null) => {
             .select("id, sport_id")
             .in("id", tournamentIds);
           
+          type SupabaseTournament = {
+            id: number;
+            sport_id: number;
+          };
           if (tournamentsData) {
-            tournamentsData.forEach((t: any) => {
+            (tournamentsData as SupabaseTournament[]).forEach((t: SupabaseTournament) => {
               tournamentsMap.set(t.id, t.sport_id);
             });
           }
@@ -120,15 +124,28 @@ export const useMatches = (tournament: Tournament | null) => {
             .select("id, name")
             .in("id", sportIds);
           
+          type SupabaseSport = {
+            id: number;
+            name: string;
+          };
           if (sportsData) {
-            sportsData.forEach((s: any) => {
+            (sportsData as SupabaseSport[]).forEach((s: SupabaseSport) => {
               sportsMap.set(s.id, s.name);
             });
           }
         }
 
         // Enriquecer los partidos con los nombres de los equipos, árbitros, asistentes, disciplinas y canchas
-        const enrichedMatches = matches.map((match: any) => {
+        type EnrichedMatch = SupabaseMatch & {
+          teams?: { id: number; name: string };
+          teams1?: { id: number; name: string };
+          refereeName?: string | null;
+          assistantName?: string | null;
+          sportName?: string | null;
+          field?: string | null;
+          scheduled_at?: string | null;
+        };
+        const enrichedMatches = matches.map((match: SupabaseMatch): EnrichedMatch => {
           const tournamentSportId = tournamentsMap.get(match.tournament_id);
           const sportName = tournamentSportId ? (sportsMap.get(tournamentSportId) || null) : null;
           
@@ -143,8 +160,8 @@ export const useMatches = (tournament: Tournament | null) => {
           };
         });
 
-        const pending = enrichedMatches.filter((m: any) => !m.scheduled_at);
-        const scheduled = enrichedMatches.filter((m: any) => m.scheduled_at);
+        const pending = enrichedMatches.filter((m: EnrichedMatch) => !m.scheduled_at);
+        const scheduled = enrichedMatches.filter((m: EnrichedMatch) => m.scheduled_at);
         setPendingMatches(pending);
         setScheduledMatches(scheduled);
       } else {
@@ -162,8 +179,12 @@ export const useMatches = (tournament: Tournament | null) => {
         .from("roles")
         .select("id, name");
 
+      type SupabaseRole = {
+        id: number;
+        name: string;
+      };
       const refereeRole = rolesData?.find(
-        (r: any) =>
+        (r: SupabaseRole) =>
           r.name.toLowerCase().includes("arbitro") ||
           r.name.toLowerCase().includes("árbitro") ||
           r.name.toLowerCase() === "arbitro"
@@ -183,8 +204,11 @@ export const useMatches = (tournament: Tournament | null) => {
         .select("user_id")
         .eq("role_id", refereeRole.id);
 
+      type SupabaseUserRole = {
+        user_id: string;
+      };
       if (userRoles && userRoles.length > 0) {
-        const userIds = userRoles.map((ur: any) => ur.user_id);
+        const userIds = (userRoles as SupabaseUserRole[]).map((ur: SupabaseUserRole) => ur.user_id);
         const { data: profiles } = await supabase
           .from("profiles")
           .select("id, full_name, email")
@@ -209,8 +233,12 @@ export const useMatches = (tournament: Tournament | null) => {
         .from("roles")
         .select("id, name");
 
+      type SupabaseRole = {
+        id: number;
+        name: string;
+      };
       const adminRole = rolesData?.find(
-        (r: any) =>
+        (r: SupabaseRole) =>
           r.name.toLowerCase().includes("admin") ||
           r.name.toLowerCase().includes("administrador") ||
           r.name.toLowerCase() === "admin"
@@ -227,8 +255,11 @@ export const useMatches = (tournament: Tournament | null) => {
         .select("user_id")
         .eq("role_id", adminRole.id);
 
+      type SupabaseUserRole = {
+        user_id: string;
+      };
       if (userRoles && userRoles.length > 0) {
-        const userIds = userRoles.map((ur: any) => ur.user_id);
+        const userIds = (userRoles as SupabaseUserRole[]).map((ur: SupabaseUserRole) => ur.user_id);
         const { data: profiles } = await supabase
           .from("profiles")
           .select("id, full_name, email")
@@ -252,8 +283,17 @@ export const useMatches = (tournament: Tournament | null) => {
 
     setSavingSchedule(true);
     try {
-      const updateData: any = {
+      type UpdateData = {
+        scheduled_at: string;
+        referee?: string;
+        assistant?: string;
+        field?: string;
+        genero?: string;
+        status: string;
+      };
+      const updateData: UpdateData = {
         scheduled_at: form.scheduled_at,
+        status: "",
       };
 
       if (form.referee) updateData.referee = form.referee;
@@ -294,9 +334,11 @@ export const useMatches = (tournament: Tournament | null) => {
       // alert eliminada"Partido programado correctamente");
       await loadMatches();
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error:", error);
-      // alert eliminada`Error: ${error.message}`);
+      if (error instanceof Error) {
+        // alert eliminada`Error: ${error.message}`);
+      }
       return false;
     } finally {
       setSavingSchedule(false);

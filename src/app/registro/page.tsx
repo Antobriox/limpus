@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Eye, EyeOff, GraduationCap, Mail, User } from "lucide-react";
 
 export default function RegistroPage() {
@@ -62,7 +63,7 @@ export default function RegistroPage() {
       // Registro exitoso, redirigir al login
       // Cuenta creada exitosamente
       router.push("/login");
-    } catch (err: any) {
+    } catch {
       setError("Error al crear la cuenta. Intenta nuevamente.");
       setLoading(false);
     }
@@ -73,9 +74,10 @@ export default function RegistroPage() {
       {/* LEFT PANEL */}
       <div className="relative hidden md:flex flex-col justify-center bg-[#0d0f15] p-10 text-white">
         <div className="absolute inset-0">
-          <img
-            src="img/login-bg.png"
-            className="h-full w-full object-cover opacity-20"
+          <Image
+            src="/img/login-bg.png"
+            fill
+            className="object-cover opacity-20"
             alt="Olimpiadas Universitarias"
           />
         </div>

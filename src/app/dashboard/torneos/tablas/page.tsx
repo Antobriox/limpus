@@ -3,10 +3,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Trophy, TrendingUp } from "lucide-react";
+import { ArrowLeft, Trophy } from "lucide-react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useStandings } from "../hooks/useStandings";
-import { BomboStandings } from "../types/standings";
 import { getDisciplineRulesByName } from "../config/disciplineRules";
 
 export default function TablasPage() {

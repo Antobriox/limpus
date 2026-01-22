@@ -24,8 +24,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       : "light";
     const initialTheme = savedTheme || systemTheme;
     
-    setTheme(initialTheme);
-    setMounted(true);
+    // Usar setTimeout para evitar setState sincrónico en efecto
+    setTimeout(() => {
+      setTheme(initialTheme);
+      setMounted(true);
+    }, 0);
     
     // Aplicar el tema inicial al DOM
     const root = document.documentElement;

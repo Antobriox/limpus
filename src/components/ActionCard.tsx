@@ -15,7 +15,6 @@ export default function ActionCard({
   title,
   description,
   onClick,
-  variant = "default",
 }: ActionCardProps) {
   return (
     <button

@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 export default function ClasificacionViewersPage() {
   const router = useRouter();
   // Usar el hook con TanStack Query para cargar deportes
-  const { sports, loading: loadingSports } = useSports();
+  const { sports } = useSports();
   const [selectedSport, setSelectedSport] = useState<number | null>(null);
   const [selectedSportName, setSelectedSportName] = useState<string>("");
   const [selectedGenero, setSelectedGenero] = useState<string | null>(null);
@@ -20,13 +20,16 @@ export default function ClasificacionViewersPage() {
   useEffect(() => {
     if (sports.length > 0 && !selectedSport) {
       const firstSport = sports[0];
-      setSelectedSport(firstSport.id);
-      setSelectedSportName(firstSport.name);
+      // Usar setTimeout para evitar setState sincrónico en efecto
+      setTimeout(() => {
+        setSelectedSport(firstSport.id);
+        setSelectedSportName(firstSport.name);
+      }, 0);
     }
   }, [sports, selectedSport]);
 
   // Usar el hook con TanStack Query para cargar standings
-  const { bomboStandings, loading: loadingStandings, error, isFetching } = useStandings(
+  const { bomboStandings, loading: loadingStandings, error } = useStandings(
     selectedSport,
     selectedSportName,
     undefined,

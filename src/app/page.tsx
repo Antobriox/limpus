@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 import { useUser } from "../hooks/useUser";
-import { useViewersData, Sport, LiveMatch, UpcomingMatch } from "./dashboard/viewers/hooks/useViewersData";
-import { Calendar, Clock, MapPin, Trophy, Play, Star, X } from "lucide-react";
+import { useViewersData, LiveMatch, UpcomingMatch } from "./dashboard/viewers/hooks/useViewersData";
+import { Calendar, Clock, MapPin, X } from "lucide-react";
 
 // Función para obtener el icono según el deporte
 const getSportIcon = (sportName: string) => {

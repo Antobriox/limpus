@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Clock, Trophy, Users, Calendar } from "lucide-react";
+import { ArrowLeft, Trophy, Calendar } from "lucide-react";
 import { Tournament, Match } from "../types";
 import { useResults, MatchResultForm, Player } from "../hooks/useResults";
 import { getDisciplineRulesByName } from "../config/disciplineRules";
@@ -171,7 +171,13 @@ export default function ResultadosPage() {
     const isBasketball = match.sportName?.toLowerCase().includes("basket") || 
                          match.sportName?.toLowerCase().includes("básquet");
     
-    events.forEach((event: any) => {
+    type SupabaseMatchEvent = {
+      event_type: string;
+      team_id: number | null;
+      player_id: number | null;
+      value: number | null;
+    };
+    events.forEach((event: SupabaseMatchEvent) => {
       if (event.event_type === "goal") {
         if (event.team_id === match.team_a) {
           // Para básquet: value = puntos * 1000 + minuto, extraer ambos
@@ -610,7 +616,18 @@ export default function ResultadosPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {scheduledMatches.map((match: any) => {
+          {(() => {
+            type ScheduledMatch = {
+              id: number;
+              scheduled_at: string | null;
+              teams?: { name?: string };
+              teams1?: { name?: string };
+              sportName?: string | null;
+              genero?: string | null;
+              field?: string | null;
+              status?: string;
+            };
+            return scheduledMatches.map((match: ScheduledMatch) => {
             const scheduledDate = match.scheduled_at ? new Date(match.scheduled_at) : null;
             return (
               <div
@@ -735,7 +752,8 @@ export default function ResultadosPage() {
                 </div>
               </div>
             );
-          })}
+          });
+          })()}
         </div>
       )}
 
