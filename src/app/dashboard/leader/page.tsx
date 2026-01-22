@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
-import { useUser } from "../../../hooks/useUser";
 import { useTeamLeader } from "./hooks/useTeamLeader";
 import { useTeamMatches } from "./hooks/useTeamMatches";
 import { useTeamStats } from "./hooks/useTeamStats";
@@ -13,7 +12,6 @@ import MatchDetailsModal from "./components/MatchDetailsModal";
 
 export default function LeaderPage() {
   const router = useRouter();
-  const { user } = useUser();
   const { teamInfo, loading: loadingTeam } = useTeamLeader();
   const { upcomingMatches, liveMatches, pastMatches, loading: loadingMatches } = useTeamMatches(teamInfo?.id || null);
   const { stats, loading: loadingStats } = useTeamStats(teamInfo?.id || null);
@@ -25,6 +23,7 @@ export default function LeaderPage() {
     teamAName: string;
     teamBName: string;
     sportName: string;
+    genero?: string | null;
   } | null>(null);
 
   const handleLogout = async () => {
@@ -307,6 +306,7 @@ export default function LeaderPage() {
                         teamAName: match.team_a_name,
                         teamBName: match.team_b_name,
                         sportName: match.sport_name,
+                        genero: match.genero,
                       })
                     }
                     className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
@@ -515,6 +515,7 @@ export default function LeaderPage() {
           teamAName={selectedMatchForDetails.teamAName}
           teamBName={selectedMatchForDetails.teamBName}
           sportName={selectedMatchForDetails.sportName}
+          genero={selectedMatchForDetails.genero}
           onClose={() => setSelectedMatchForDetails(null)}
         />
       )}

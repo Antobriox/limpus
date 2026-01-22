@@ -60,7 +60,7 @@ export const useDocuments = (tournament: Tournament | null) => {
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `torneos/${tournament?.id || "general"}/${fileName}`;
 
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from("documents")
         .upload(filePath, file, {
           contentType: "application/pdf",
@@ -109,9 +109,9 @@ export const useDocuments = (tournament: Tournament | null) => {
       // PDF subido correctamente
       await loadDocuments(); // Recargar lista
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error:", error);
-      console.error(`Error: ${error.message}`);
+      console.error(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
       return false;
     } finally {
       setUploading(false);
@@ -141,16 +141,16 @@ export const useDocuments = (tournament: Tournament | null) => {
       // PDF actualizado correctamente
       await loadDocuments(); // Recargar lista
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error:", error);
-      console.error(`Error: ${error.message}`);
+      console.error(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
       return false;
     } finally {
       setUploading(false);
     }
   };
 
-  const deleteFile = async (filePath: string, fileName: string) => {
+  const deleteFile = async (filePath: string) => {
     // Confirmación eliminada
 
     try {
@@ -167,9 +167,9 @@ export const useDocuments = (tournament: Tournament | null) => {
       // Archivo eliminado correctamente
       await loadDocuments(); // Recargar lista
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error:", error);
-      console.error(`Error: ${error.message}`);
+      console.error(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
       return false;
     }
   };

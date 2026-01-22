@@ -6,6 +6,27 @@ import { useRouter, useParams } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
+// Tipos para datos de Supabase
+type SupabaseRole = {
+  id: number;
+  name: string;
+};
+
+type SupabaseUserRole = {
+  user_id: string;
+};
+
+type SupabaseProfile = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+};
+
+type SupabaseOccupiedLeader = {
+  user_id: string;
+  team_id: number;
+};
+
 type Leader = {
   id: string;
   full_name: string;
@@ -48,7 +69,7 @@ export default function EditarEquipoPage() {
           return;
         }
 
-        setForm({ ...form, name: teamData.name });
+        setForm((prev) => ({ ...prev, name: teamData.name }));
 
         // Cargar carreras del equipo
         const { data: careersData } = await supabase
@@ -57,7 +78,7 @@ export default function EditarEquipoPage() {
           .eq("team_id", teamId);
 
         if (careersData) {
-          setCareers(careersData.map((c: any) => c.name));
+          setCareers((careersData as Array<{ name: string }>).map((c) => c.name));
         }
 
         // Cargar líderes del equipo
@@ -69,7 +90,7 @@ export default function EditarEquipoPage() {
         if (teamLeadersData) {
           setForm((prev) => ({
             ...prev,
-            selectedLeaders: teamLeadersData.map((tl: any) => tl.user_id),
+            selectedLeaders: (teamLeadersData as Array<{ user_id: string }>).map((tl) => tl.user_id),
           }));
         }
 
@@ -102,8 +123,8 @@ export default function EditarEquipoPage() {
         }
 
         // Buscar el rol que sea "lider_equipo" o contenga "líder" o "lider"
-        const leaderRole = rolesData?.find(
-          (r: any) => {
+        const leaderRole = (rolesData as SupabaseRole[] | null)?.find(
+          (r: SupabaseRole) => {
             const nameLower = r.name.toLowerCase();
             return (
               nameLower === "lider_equipo" ||
@@ -157,7 +178,7 @@ export default function EditarEquipoPage() {
             return;
           }
 
-          const userIds = userRolesData.map((ur: any) => ur.user_id);
+          const userIds = (userRolesData as SupabaseUserRole[]).map((ur: SupabaseUserRole) => ur.user_id);
           const { data: profilesData2, error: profilesError2 } = await supabase
             .from("profiles")
             .select("id, full_name, email")
@@ -171,13 +192,13 @@ export default function EditarEquipoPage() {
           }
 
           if (profilesData2 && profilesData2.length > 0) {
-            const leadersList = profilesData2.map((profile: any) => ({
+            const leadersList = (profilesData2 as SupabaseProfile[]).map((profile: SupabaseProfile) => ({
               id: profile.id,
               full_name:
                 profile.full_name ||
                 profile.email?.split("@")[0] ||
                 "Sin nombre",
-              email: profile.email,
+              email: profile.email || "",
             }));
             setLeaders(leadersList);
           }
@@ -185,13 +206,13 @@ export default function EditarEquipoPage() {
         }
 
         if (profilesData && profilesData.length > 0) {
-          const leadersList = profilesData.map((profile: any) => ({
+          const leadersList = (profilesData as SupabaseProfile[]).map((profile: SupabaseProfile) => ({
             id: profile.id,
             full_name:
               profile.full_name ||
               profile.email?.split("@")[0] ||
               "Sin nombre",
-            email: profile.email,
+            email: profile.email || "",
           }));
           setLeaders(leadersList);
           
@@ -205,7 +226,7 @@ export default function EditarEquipoPage() {
               .neq("team_id", parseInt(teamId));
             
             if (!occupiedError && occupiedLeadersData) {
-              const occupiedSet = new Set(occupiedLeadersData.map((ol: any) => ol.user_id));
+              const occupiedSet = new Set((occupiedLeadersData as SupabaseOccupiedLeader[]).map((ol: SupabaseOccupiedLeader) => ol.user_id));
               setOccupiedLeaders(occupiedSet);
             }
           }
@@ -333,9 +354,9 @@ export default function EditarEquipoPage() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       
       router.push("/dashboard/equipos");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error actualizando equipo:", error);
-      // alert eliminadaerror.message || "Error al actualizar el equipo");
+      // alert eliminada(error instanceof Error ? error.message : "Error al actualizar el equipo");
     } finally {
       setSaving(false);
     }

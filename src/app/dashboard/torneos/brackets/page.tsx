@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Network } from "lucide-react";
-import { Tournament, Team } from "../types";
+import { Tournament } from "../types";
 import { useBrackets } from "../hooks/useBrackets";
 import { supabase } from "../../../../lib/supabaseClient";
 
@@ -13,6 +13,7 @@ export default function BracketsPage() {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [sports, setSports] = useState<{ id: number; name: string }[]>([]);
   const [selectedSport, setSelectedSport] = useState<number | null>(null);
+  const [selectedGenero, setSelectedGenero] = useState<string | null>(null);
   const {
     allTeams,
     selectedTeams,
@@ -29,7 +30,7 @@ export default function BracketsPage() {
     toggleTeamSelection,
     selectAllTeams,
     deselectAllTeams,
-  } = useBrackets(tournament, selectedSport);
+  } = useBrackets(tournament, selectedSport, selectedGenero);
 
   useEffect(() => {
     const initialize = async () => {
@@ -42,7 +43,7 @@ export default function BracketsPage() {
   useEffect(() => {
     // Cargar todos los equipos disponibles (sin importar la disciplina)
     loadTeams();
-  }, []);
+  }, [loadTeams]);
 
   const loadSports = async () => {
     try {
@@ -59,11 +60,14 @@ export default function BracketsPage() {
   };
 
   useEffect(() => {
-    // Cargar brackets guardados cuando el torneo y disciplina estén disponibles
-    if (tournament && tournament.id !== 0 && selectedSport) {
+    // Cargar brackets guardados cuando el torneo, disciplina y género estén disponibles
+    if (tournament && tournament.id !== 0 && selectedSport && selectedGenero) {
       loadSavedBrackets();
+    } else {
+      // Si no hay género seleccionado, limpiar los brackets
+      setBombos([]);
     }
-  }, [tournament?.id, selectedSport]);
+  }, [tournament, selectedSport, selectedGenero, loadSavedBrackets, setBombos]);
 
   const loadTournament = async () => {
     try {
@@ -107,6 +111,7 @@ export default function BracketsPage() {
     });
   };
 
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
@@ -124,36 +129,60 @@ export default function BracketsPage() {
               Generar Brackets
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Crear llaves de eliminación automática - Fases de Grupo
+              Crear llaves de eliminación automática - Fases de Grupo (Bombos)
             </p>
           </div>
         </div>
       </div>
 
-      {/* Selector de disciplina */}
+      {/* Selector de disciplina y género */}
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Seleccionar Disciplina (para identificar los brackets guardados)
-        </label>
-        <select
-          value={selectedSport || ""}
-          onChange={(e) => {
-            const sportId = e.target.value ? parseInt(e.target.value) : null;
-            setSelectedSport(sportId);
-            setBombos([]); // Limpiar brackets al cambiar disciplina
-            // Los brackets guardados se cargarán automáticamente en el useEffect
-          }}
-          className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
-        >
-          <option value="">Seleccionar disciplina...</option>
-          {sports.map((sport) => (
-            <option key={sport.id} value={sport.id}>
-              {sport.name}
-            </option>
-          ))}
-        </select>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Seleccionar Disciplina (para identificar los brackets guardados)
+            </label>
+            <select
+              value={selectedSport || ""}
+              onChange={(e) => {
+                const sportId = e.target.value ? parseInt(e.target.value) : null;
+                setSelectedSport(sportId);
+                setBombos([]); // Limpiar brackets al cambiar disciplina
+                setSelectedGenero(null); // Limpiar género al cambiar disciplina
+                // Los brackets guardados se cargarán automáticamente en el useEffect
+              }}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+            >
+              <option value="">Seleccionar disciplina...</option>
+              {sports.map((sport) => (
+                <option key={sport.id} value={sport.id}>
+                  {sport.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Seleccionar Género <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedGenero || ""}
+              onChange={(e) => {
+                const genero = e.target.value || null;
+                setSelectedGenero(genero);
+                setBombos([]); // Limpiar brackets al cambiar género
+              }}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+            >
+              <option value="">Seleccionar género...</option>
+              <option value="masculino">Masculino</option>
+              <option value="femenino">Femenino</option>
+            </select>
+          </div>
+        </div>
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          Nota: Los brackets se generan con los equipos que selecciones manualmente, no por inscripciones.
+          Nota: Los brackets se generan con los equipos que selecciones manualmente, filtrados por género.
         </p>
       </div>
 
@@ -166,6 +195,11 @@ export default function BracketsPage() {
           <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
             <strong>Disciplina:</strong> {sports.find(s => s.id === selectedSport)?.name || "N/A"}
           </p>
+          {selectedGenero && (
+            <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+              <strong>Género:</strong> {selectedGenero === "masculino" ? "Masculino" : "Femenino"}
+            </p>
+          )}
           <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
             <strong>Equipos disponibles:</strong> {allTeams.length}
           </p>
@@ -234,14 +268,19 @@ export default function BracketsPage() {
           </div>
           <div className="mt-4 text-center">
             <button
-              onClick={generateBombos}
-              disabled={selectedTeams.size === 0}
+              onClick={() => generateBombos("bombo")}
+              disabled={selectedTeams.size === 0 || !selectedGenero}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2 mx-auto"
             >
               <Network className="w-5 h-5" />
               Generar Brackets
             </button>
-            {selectedTeams.size === 0 && (
+            {!selectedGenero && (
+              <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                Debes seleccionar un género para generar los brackets
+              </p>
+            )}
+            {selectedGenero && selectedTeams.size === 0 && (
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                 Selecciona al menos un equipo para generar los brackets
               </p>
@@ -320,7 +359,7 @@ export default function BracketsPage() {
                   </p>
                 </div>
                 <div className="space-y-2">
-                  {bombo.map((team, teamIndex) => (
+                  {bombo.map((team) => (
                     <div
                       key={team.id}
                       draggable={!savedDrawId}
@@ -379,14 +418,15 @@ export default function BracketsPage() {
             // Si no hay brackets guardados, mostrar opciones para generar nuevos
             <>
               <button
-                onClick={generateBombos}
-                className="px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                onClick={() => generateBombos("bombo")}
+                disabled={!selectedGenero}
+                className="px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Regenerar
               </button>
               <button
                 onClick={handleSave}
-                disabled={generating}
+                disabled={generating || !selectedGenero}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {generating ? "Guardando..." : "Guardar Brackets"}

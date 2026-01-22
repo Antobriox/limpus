@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const userIds = [...new Set(userRoles.map((ur: any) => ur.user_id))];
+    const userIds = [...new Set(userRoles.map((ur: { user_id: string }) => ur.user_id))];
     console.log(`Eliminando ${userIds.length} usuarios con roles: ${role_ids.join(", ")}`);
 
     // 2. Eliminar user_roles
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
 
     // 4. Eliminar usuarios de Auth
     let deletedCount = 0;
-    let errors: string[] = [];
+    const errors: string[] = [];
 
     for (const userId of userIds) {
       const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);

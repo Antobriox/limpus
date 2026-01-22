@@ -23,7 +23,7 @@ export default function DocumentsModal({
     if (isOpen && tournament) {
       loadDocuments();
     }
-  }, [isOpen, tournament]);
+  }, [isOpen, tournament, loadDocuments]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -32,7 +32,7 @@ export default function DocumentsModal({
     e.target.value = "";
   };
 
-  const handleUpdateFile = async (filePath: string, fileName: string) => {
+  const handleUpdateFile = async (filePath: string) => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".pdf";

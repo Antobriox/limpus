@@ -12,8 +12,12 @@ export default function EditarTorneoPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [tournamentData, setTournamentData] = useState<any>(null);
-  const [allTournamentsWithSameName, setAllTournamentsWithSameName] = useState<any[]>([]);
+  const [allTournamentsWithSameName, setAllTournamentsWithSameName] = useState<Array<{
+    id: number;
+    name: string;
+    start_date: string | null;
+    end_date: string | null;
+  }>>([]);
 
   const [form, setForm] = useState({
     name: "",
@@ -38,7 +42,7 @@ export default function EditarTorneoPage() {
           return;
         }
 
-        setTournamentData(tournament);
+        // tournamentData no se usa, solo se necesita para cargar allTournamentsWithSameName
 
         // Cargar todos los torneos con el mismo nombre (mismo torneo, diferentes disciplinas)
         const { data: allTournaments } = await supabase
@@ -109,9 +113,9 @@ export default function EditarTorneoPage() {
       // NO crear ni eliminar matches. Solo actualizar datos del torneo.
       // alert eliminada"Torneo actualizado correctamente");
       router.push("/dashboard/torneos");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error actualizando torneo:", error);
-      // alert eliminadaerror.message || "Error al actualizar el torneo");
+      // alert eliminada(error instanceof Error ? error.message : "Error al actualizar el torneo");
     } finally {
       setSaving(false);
     }

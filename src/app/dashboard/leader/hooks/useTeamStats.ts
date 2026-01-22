@@ -1,6 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../../../../lib/supabaseClient";
 
+// Tipos para datos de Supabase
+type SupabaseMatch = {
+  tournaments?: {
+    sports?: {
+      name: string;
+    };
+  };
+  match_results?: {
+    score_team_a: number | null;
+    score_team_b: number | null;
+  } | Array<{
+    score_team_a: number | null;
+    score_team_b: number | null;
+  }>;
+};
+
 export type TeamStats = {
   totalMatches: number;
   wins: number;
@@ -68,7 +84,7 @@ const loadTeamStats = async (teamId: number): Promise<TeamStats> => {
     points: number;
   }> = {};
 
-  matchesData.forEach((m: any) => {
+  (matchesData as SupabaseMatch[]).forEach((m: SupabaseMatch) => {
     const sportName = m.tournaments?.sports?.name || "Desconocido";
     
     // Obtener los resultados del partido (puede ser un array o un objeto)

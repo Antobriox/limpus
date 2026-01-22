@@ -2,6 +2,34 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../../../lib/supabaseClient";
 
+// Tipos para datos de Supabase
+type SupabaseTeam = {
+  id: number;
+  name: string;
+  created_at: string | null;
+};
+
+type SupabaseCareer = {
+  id: number;
+  name: string;
+  team_id: number;
+};
+
+type SupabasePlayer = {
+  career_id: number;
+  full_name: string;
+};
+
+type SupabaseTeamLeader = {
+  user_id: string;
+  team_id: number;
+};
+
+type SupabaseProfile = {
+  id: string;
+  full_name: string | null;
+};
+
 export type TeamRow = {
   id: number;
   name: string;
@@ -28,7 +56,7 @@ const loadTeamsQuery = async (): Promise<TeamRow[]> => {
   }
 
   // Mapear equipos básicos primero (sin carreras)
-  const teamsWithDetails = teamsData.map((team: any) => ({
+  const teamsWithDetails = teamsData.map((team: SupabaseTeam) => ({
     id: team.id,
     name: team.name,
     faculty: "Sin facultad",
@@ -46,8 +74,8 @@ const loadTeamsQuery = async (): Promise<TeamRow[]> => {
 
     if (careersData && careersData.length > 0) {
       // Crear un mapa de team_id -> carreras
-      const careersMap = new Map<number, any[]>();
-      careersData.forEach((career) => {
+      const careersMap = new Map<number, SupabaseCareer[]>();
+      (careersData as SupabaseCareer[]).forEach((career) => {
         if (!careersMap.has(career.team_id)) {
           careersMap.set(career.team_id, []);
         }
@@ -58,7 +86,7 @@ const loadTeamsQuery = async (): Promise<TeamRow[]> => {
       teamsWithDetails.forEach((team) => {
         const teamCareers = careersMap.get(team.id) || [];
         if (teamCareers.length > 0) {
-          team.faculty = teamCareers.map((c: any) => c.name).join(", ");
+          team.faculty = teamCareers.map((c: SupabaseCareer) => c.name).join(", ");
         }
       });
 
@@ -73,7 +101,7 @@ const loadTeamsQuery = async (): Promise<TeamRow[]> => {
 
         if (captainsData && captainsData.length > 0) {
           const captainsMap = new Map(
-            captainsData.map((c: any) => [c.career_id, c.full_name])
+            (captainsData as SupabasePlayer[]).map((c: SupabasePlayer) => [c.career_id, c.full_name])
           );
 
           // Actualizar equipos con capitanes
@@ -106,7 +134,7 @@ const loadTeamsQuery = async (): Promise<TeamRow[]> => {
 
     if (!teamLeadersError && teamLeadersData && teamLeadersData.length > 0) {
       // Obtener todos los user_ids únicos
-      const userIds = [...new Set(teamLeadersData.map((tl: any) => tl.user_id))];
+      const userIds = [...new Set((teamLeadersData as SupabaseTeamLeader[]).map((tl: SupabaseTeamLeader) => tl.user_id))];
       
       // Obtener los perfiles de esos usuarios
       const { data: profilesData } = await supabase
@@ -117,12 +145,12 @@ const loadTeamsQuery = async (): Promise<TeamRow[]> => {
       if (profilesData) {
         // Crear un mapa de user_id -> nombre
         const profilesMap = new Map(
-          profilesData.map((p: any) => [p.id, p.full_name || "Sin nombre"])
+          (profilesData as SupabaseProfile[]).map((p: SupabaseProfile) => [p.id, p.full_name || "Sin nombre"])
         );
 
         // Crear un mapa de team_id -> líderes
         const leadersMap = new Map<number, string[]>();
-        teamLeadersData.forEach((tl: any) => {
+        (teamLeadersData as SupabaseTeamLeader[]).forEach((tl: SupabaseTeamLeader) => {
           const teamId = tl.team_id;
           const leaderName = profilesMap.get(tl.user_id);
           if (leaderName) {
@@ -156,7 +184,6 @@ export const useTeams = () => {
   const {
     data: teams = [],
     isLoading,
-    isFetching,
   } = useQuery({
     queryKey: TEAMS_QUERY_KEY,
     queryFn: loadTeamsQuery,
@@ -184,8 +211,8 @@ export const useTeams = () => {
 
     try {
       await deleteTeamMutation.mutateAsync(id);
-    } catch (error: any) {
-      console.error("Error al eliminar equipo: " + error.message);
+    } catch (error: unknown) {
+      console.error("Error al eliminar equipo: " + (error instanceof Error ? error.message : String(error)));
     }
   };
 

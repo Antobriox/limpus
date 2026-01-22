@@ -1,6 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
+
+// Tipos para datos de Supabase
+type SupabasePlayer = {
+  id: number;
+  full_name: string;
+  email: string | null;
+  cedula: string | null;
+  phone: string | null;
+  career_id: number;
+  semester: number | null;
+  jersey_number: number | null;
+  is_captain: boolean;
+  team_registration_id: number | null;
+};
 import { supabase } from "../../../../lib/supabaseClient";
 import { X, Plus, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
 import { useTeamRegistrations, RegistrationForm } from "../hooks/useTeamRegistrations";
@@ -23,7 +37,7 @@ type RegistrationModalProps = {
 };
 
 export default function RegistrationModal({ teamId, onClose }: RegistrationModalProps) {
-  const { forms, registrations, loadingForms, loadingRegistrations, createRegistration, isCreating } = useTeamRegistrations(teamId);
+  const { forms, registrations, loadingForms, createRegistration, isCreating } = useTeamRegistrations(teamId);
   const [selectedForm, setSelectedForm] = useState<RegistrationForm | null>(null);
   const [teamRegistrationId, setTeamRegistrationId] = useState<number | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -61,15 +75,25 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
     const existing = getExistingRegistration(form.id);
     if (existing) {
       setTeamRegistrationId(existing.id);
-      // Cargar jugadores existentes
-      const { data: playersData } = await supabase
+      // Cargar jugadores existentes SOLO de esta inscripción específica
+      const { data: playersData, error: playersError } = await supabase
         .from("players")
         .select("*")
         .eq("team_registration_id", existing.id)
         .order("full_name");
 
+      if (playersError) {
+        console.error("Error cargando jugadores:", playersError);
+      }
+
       if (playersData) {
-        setPlayers(playersData.map((p: any) => ({
+        console.log(`Cargando jugadores para inscripción ID: ${existing.id}, Form ID: ${form.id}, Deporte: ${form.sport_name}, Género: ${form.genero}`);
+        console.log(`Jugadores encontrados: ${playersData.length}`);
+        
+        // Filtrar solo los jugadores que pertenecen a esta inscripción específica
+        const filteredPlayers = (playersData as SupabasePlayer[]).filter((p: SupabasePlayer) => p.team_registration_id === existing.id);
+        
+        setPlayers(filteredPlayers.map((p: SupabasePlayer) => ({
           id: p.id,
           full_name: p.full_name,
           email: p.email || "",
@@ -80,6 +104,8 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
           jersey_number: p.jersey_number || null,
           is_captain: p.is_captain || false,
         })));
+      } else {
+        setPlayers([]);
       }
     } else {
       setTeamRegistrationId(null);
@@ -97,8 +123,8 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
         teamId,
       });
       setTeamRegistrationId(registrationId.id);
-    } catch (error: any) {
-      // alert eliminada"Error al crear inscripción: " + error.message);
+    } catch {
+      // alert eliminada"Error al crear inscripción: " + (error instanceof Error ? error.message : String(error)));
     } finally {
       setLoading(false);
     }
@@ -131,7 +157,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
     setPlayers(players.filter((_, i) => i !== index));
   };
 
-  const updatePlayer = (index: number, field: keyof Player, value: any) => {
+  const updatePlayer = (index: number, field: keyof Player, value: string | number | boolean | null) => {
     const updated = [...players];
     updated[index] = { ...updated[index], [field]: value };
     
@@ -176,7 +202,9 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
     setSaving(true);
 
     try {
-      // Eliminar jugadores existentes
+      console.log(`Guardando jugadores para inscripción ID: ${teamRegistrationId}, Form ID: ${selectedForm.id}, Deporte: ${selectedForm.sport_name}, Género: ${selectedForm.genero}`);
+      
+      // Eliminar jugadores existentes SOLO de esta inscripción específica
       const { error: deleteError } = await supabase
         .from("players")
         .delete()
@@ -187,7 +215,24 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
         throw new Error(`Error al eliminar jugadores existentes: ${deleteError.message}`);
       }
 
-      // Insertar nuevos jugadores
+      // Validar que teamRegistrationId existe y corresponde al formulario seleccionado
+      if (!teamRegistrationId) {
+        throw new Error("No se pudo obtener el ID de la inscripción");
+      }
+
+      // Verificar que la inscripción existe y corresponde al formulario
+      const { data: registrationCheck } = await supabase
+        .from("team_registrations")
+        .select("id, form_id")
+        .eq("id", teamRegistrationId)
+        .eq("form_id", selectedForm.id)
+        .single();
+
+      if (!registrationCheck) {
+        throw new Error("La inscripción no corresponde al formulario seleccionado");
+      }
+
+      // Insertar nuevos jugadores con el team_registration_id correcto
       const playersToInsert = players.map((p) => ({
         full_name: p.full_name.trim(),
         email: p.email.trim() || null,
@@ -197,8 +242,10 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
         semester: p.semester,
         jersey_number: p.jersey_number || null,
         is_captain: p.is_captain,
-        team_registration_id: teamRegistrationId,
+        team_registration_id: teamRegistrationId, // Asegurar que se use el ID correcto
       }));
+
+      console.log(`Insertando ${playersToInsert.length} jugadores con team_registration_id: ${teamRegistrationId} para formulario ID: ${selectedForm.id} (${selectedForm.sport_name} - ${selectedForm.genero})`);
 
       const { error: insertError } = await supabase
         .from("players")
@@ -211,7 +258,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
 
       // alert eliminada"Jugadores guardados exitosamente");
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error al guardar jugadores:", error);
       // alert eliminada"Error al guardar jugadores: " + error.message);
     } finally {
@@ -272,6 +319,11 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                             {form.sport_name}
                           </p>
+                          {form.genero && (
+                            <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">
+                              {form.genero === "masculino" ? "Masculino" : form.genero === "femenino" ? "Femenino" : form.genero}
+                            </p>
+                          )}
                           <p className="text-xs text-gray-500 dark:text-gray-500">
                             {form.min_players} - {form.max_players} jugadores
                           </p>
@@ -448,7 +500,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                   {players.length === 0 && (
                     <div className="text-center py-8 bg-gray-50 dark:bg-neutral-900 rounded-lg border border-gray-200 dark:border-neutral-700">
                       <p className="text-gray-500 dark:text-gray-400">
-                        No hay jugadores agregados. Haz clic en "Agregar Jugador" para comenzar.
+                        No hay jugadores agregados. Haz clic en &quot;Agregar Jugador&quot; para comenzar.
                       </p>
                     </div>
                   )}

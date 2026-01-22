@@ -1,9 +1,49 @@
 // Página para programar partidos
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Clock, ArrowLeft, Printer, Plus, Search, Calendar, ChevronDown, X } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Printer, Plus, Search, Calendar, ChevronDown, X } from "lucide-react";
+
+// Tipos para datos de Supabase
+type SupabaseDrawResult = {
+  result_order: number | null;
+  team_id: number;
+};
+
+type SupabaseTeam = {
+  id: number;
+  name: string;
+};
+
+type SupabaseMatch = {
+  team_a: number | null;
+  team_b: number | null;
+  referee: string | null;
+  assistant: string | null;
+  tournament_id: number | null;
+  scheduled_at: string | null;
+  status: string;
+  field: string | null;
+  teams?: { id: number; name: string };
+  teams1?: { id: number; name: string };
+  sportName?: string | null;
+};
+
+type SupabaseTournament = {
+  id: number;
+  sport_id: number | null;
+};
+
+type SupabaseSport = {
+  id: number;
+  name: string;
+};
+
+type SupabaseProfile = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+};
 import { Tournament, Match, ScheduleForm } from "../types";
 import { useMatches } from "../hooks/useMatches";
 import { supabase } from "../../../../lib/supabaseClient";
@@ -11,7 +51,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import jsPDF from "jspdf";
 
 export default function ProgramarPartidosPage() {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const {
@@ -75,10 +114,17 @@ export default function ProgramarPartidosPage() {
     initializeData();
   }, []);
 
-  // Cargar bombos disponibles para una disciplina
-  const loadBombos = async (sportId: number) => {
+  // Cargar bombos disponibles para una disciplina y género
+  const loadBombos = async (sportId: number, genero?: string) => {
     setLoadingBombos(true);
     try {
+      // Si no hay género seleccionado, no cargar bombos
+      if (!genero || genero === "") {
+        setBombos([]);
+        setLoadingBombos(false);
+        return;
+      }
+
       // Obtener el nombre del deporte
       const { data: sportData } = await supabase
         .from("sports")
@@ -121,9 +167,10 @@ export default function ProgramarPartidosPage() {
         return;
       }
 
-      // Filtrar draws que contengan el nombre del deporte
+      // Filtrar draws que contengan el nombre del deporte y el género
       // Usar el mismo mapeo de nombres que en useStandings para mayor compatibilidad
       const sportNameLower = sportName.toLowerCase();
+      const generoText = genero === "masculino" ? "masculino" : "femenino";
       
       const normalizedNames: Record<string, string[]> = {
         "fútbol": ["futbol", "football", "fútbol"],
@@ -146,12 +193,18 @@ export default function ProgramarPartidosPage() {
           .normalize("NFD")
           .replace(/[\u0300-\u036f]/g, "");
         
-        return searchTerms.some((term) => {
+        // Verificar que incluya el nombre del deporte
+        const matchesDiscipline = searchTerms.some((term) => {
           const normalizedTerm = term
             .normalize("NFD")
             .replace(/[\u0300-\u036f]/g, "");
           return drawName.includes(normalizedTerm);
         });
+
+        if (!matchesDiscipline) return false;
+
+        // Verificar que incluya el género
+        return drawName.includes(generoText);
       });
 
       if (filteredDraws.length === 0) {
@@ -178,7 +231,7 @@ export default function ProgramarPartidosPage() {
 
       // Agrupar equipos por bombo (result_order)
       const bomboMap = new Map<number, number[]>();
-      drawResults.forEach((dr: any) => {
+      drawResults.forEach((dr: SupabaseDrawResult) => {
         const bombo = dr.result_order || 1;
         if (!bomboMap.has(bombo)) {
           bomboMap.set(bombo, []);
@@ -187,7 +240,7 @@ export default function ProgramarPartidosPage() {
       });
 
       // Obtener nombres de equipos
-      const allTeamIds = Array.from(new Set(drawResults.map((dr: any) => dr.team_id)));
+      const allTeamIds = Array.from(new Set(drawResults.map((dr: SupabaseDrawResult) => dr.team_id)));
       const { data: teamsData } = await supabase
         .from("teams")
         .select("id, name")
@@ -199,7 +252,7 @@ export default function ProgramarPartidosPage() {
         return;
       }
 
-      const teamsMap = new Map(teamsData.map((t: any) => [t.id, t]));
+      const teamsMap = new Map((teamsData as SupabaseTeam[]).map((t: SupabaseTeam) => [t.id, t]));
 
       // Crear array de bombos con sus equipos
       const bombosArray = Array.from(bomboMap.entries())
@@ -237,11 +290,11 @@ export default function ProgramarPartidosPage() {
     }
   };
 
-  // Efecto para cargar bombos cuando cambia la disciplina
+  // Efecto para cargar bombos cuando cambia la disciplina o el género
   useEffect(() => {
-    if (newMatchForm.disciplina) {
-      loadBombos(parseInt(newMatchForm.disciplina));
-      // Limpiar selecciones cuando cambia la disciplina
+    if (newMatchForm.disciplina && newMatchForm.genero) {
+      loadBombos(parseInt(newMatchForm.disciplina), newMatchForm.genero);
+      // Limpiar selecciones cuando cambia la disciplina o género
       setNewMatchForm((prev) => ({
         ...prev,
         bombo: "",
@@ -253,7 +306,7 @@ export default function ProgramarPartidosPage() {
       setBombos([]);
       setTeams([]);
     }
-  }, [newMatchForm.disciplina]);
+  }, [newMatchForm.disciplina, newMatchForm.genero]);
 
   // Efecto para cargar equipos cuando cambia el bombo
   useEffect(() => {
@@ -268,7 +321,7 @@ export default function ProgramarPartidosPage() {
     } else {
       setTeams([]);
     }
-  }, [newMatchForm.bombo, bombos]);
+  }, [newMatchForm.bombo, bombos, loadTeamsFromBombo]);
 
   const loadSports = async () => {
     try {
@@ -290,7 +343,7 @@ export default function ProgramarPartidosPage() {
       await checkValidStatuses();
     };
     initializeMatches();
-  }, []);
+  }, [loadReferees, loadAdministrators, loadAllMatches, checkValidStatuses]);
 
   // Función para verificar qué estados válidos hay en la base de datos
   const checkValidStatuses = async () => {
@@ -358,8 +411,8 @@ export default function ProgramarPartidosPage() {
       if (matches && matches.length > 0) {
         // Obtener todos los IDs de equipos únicos
         const teamIds = [
-          ...matches.map((m: any) => m.team_a),
-          ...matches.map((m: any) => m.team_b),
+          ...(matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.team_a),
+          ...(matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.team_b),
         ];
         const uniqueTeamIds = Array.from(new Set(teamIds)).filter(
           (id): id is number => id !== undefined && typeof id === "number"
@@ -373,20 +426,20 @@ export default function ProgramarPartidosPage() {
 
         // Crear un mapa de team_id -> team name
         const teamsMap = new Map(
-          teamsData?.map((t: any) => [t.id, { id: t.id, name: t.name }]) || []
+          (teamsData as SupabaseTeam[] | null)?.map((t: SupabaseTeam) => [t.id, { id: t.id, name: t.name }]) || []
         );
 
         // Obtener todos los IDs de árbitros y asistentes únicos
         const refereeIds = [
-          ...matches.map((m: any) => m.referee).filter((id: any) => id),
-          ...matches.map((m: any) => m.assistant).filter((id: any) => id),
+          ...(matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.referee).filter((id): id is string => id !== null && id !== undefined),
+          ...(matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.assistant).filter((id): id is string => id !== null && id !== undefined),
         ];
         const uniqueRefereeIds = Array.from(new Set(refereeIds)).filter(
           (id): id is string => id !== undefined && typeof id === "string"
         );
 
         // Obtener los nombres de los árbitros/asistentes
-        let refereesMap = new Map();
+        let refereesMap = new Map<string, string>();
         if (uniqueRefereeIds.length > 0) {
           const { data: profilesData } = await supabase
             .from("profiles")
@@ -394,13 +447,13 @@ export default function ProgramarPartidosPage() {
             .in("id", uniqueRefereeIds);
 
           refereesMap = new Map(
-            profilesData?.map((p: any) => [p.id, p.full_name || p.email || "Sin nombre"]) || []
+            (profilesData as SupabaseProfile[] | null)?.map((p: SupabaseProfile) => [p.id, p.full_name || p.email || "Sin nombre"]) || []
           );
         }
 
         // Obtener información de disciplinas de los torneos
-        const tournamentIds = Array.from(new Set(matches.map((m: any) => m.tournament_id).filter(Boolean)));
-        const tournamentsMap = new Map<number, number>(); // tournament_id -> sport_id
+        const tournamentIds = Array.from(new Set((matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.tournament_id).filter(Boolean))) as number[];
+        const tournamentsMap = new Map<number, number | null>(); // tournament_id -> sport_id
         
         if (tournamentIds.length > 0) {
           const { data: tournamentsData } = await supabase
@@ -409,14 +462,14 @@ export default function ProgramarPartidosPage() {
             .in("id", tournamentIds);
           
           if (tournamentsData) {
-            tournamentsData.forEach((t: any) => {
+            (tournamentsData as SupabaseTournament[]).forEach((t: SupabaseTournament) => {
               tournamentsMap.set(t.id, t.sport_id);
             });
           }
         }
 
         // Obtener nombres de deportes
-        const sportIds = Array.from(new Set(Array.from(tournamentsMap.values()).filter(Boolean)));
+        const sportIds = Array.from(new Set(Array.from(tournamentsMap.values()).filter((id): id is number => id !== null && id !== undefined)));
         const sportsMap = new Map<number, string>();
         
         if (sportIds.length > 0) {
@@ -426,14 +479,14 @@ export default function ProgramarPartidosPage() {
             .in("id", sportIds);
           
           if (sportsData) {
-            sportsData.forEach((s: any) => {
+            (sportsData as SupabaseSport[]).forEach((s: SupabaseSport) => {
               sportsMap.set(s.id, s.name);
             });
           }
         }
 
         // Enriquecer los partidos con los nombres de los equipos, árbitros, asistentes, disciplinas y canchas
-        const enrichedMatches = matches.map((match: any) => {
+        const enrichedMatches = (matches as SupabaseMatch[]).map((match: SupabaseMatch) => {
           const tournamentSportId = tournamentsMap.get(match.tournament_id);
           const sportName = tournamentSportId ? (sportsMap.get(tournamentSportId) || null) : null;
           
@@ -459,9 +512,9 @@ export default function ProgramarPartidosPage() {
             .eq("sport_id", parseInt(filters.disciplina));
 
           if (tournamentsData && tournamentsData.length > 0) {
-            const tournamentIds = tournamentsData.map((t: any) => t.id);
-            filteredMatches = filteredMatches.filter((m: any) =>
-              tournamentIds.includes(m.tournament_id)
+            const tournamentIds = (tournamentsData as Array<{ id: number }>).map((t) => t.id);
+            filteredMatches = filteredMatches.filter((m: SupabaseMatch & { teams?: { name?: string }; teams1?: { name?: string } }) =>
+              tournamentIds.includes(m.tournament_id || 0)
             );
           } else {
             filteredMatches = [];
@@ -470,7 +523,7 @@ export default function ProgramarPartidosPage() {
 
         if (filters.estado) {
           filteredMatches = filteredMatches.filter(
-            (m: any) => m.status === filters.estado
+            (m: SupabaseMatch) => m.status === filters.estado
           );
         }
 
@@ -480,7 +533,7 @@ export default function ProgramarPartidosPage() {
           const nextDay = new Date(filterDate);
           nextDay.setDate(nextDay.getDate() + 1);
 
-          filteredMatches = filteredMatches.filter((m: any) => {
+          filteredMatches = filteredMatches.filter((m: SupabaseMatch) => {
             if (!m.scheduled_at) return false;
             const matchDate = new Date(m.scheduled_at);
             return matchDate >= filterDate && matchDate < nextDay;
@@ -489,15 +542,15 @@ export default function ProgramarPartidosPage() {
 
         if (filters.buscar) {
           const searchTerm = filters.buscar.toLowerCase();
-          filteredMatches = filteredMatches.filter((m: any) => {
+          filteredMatches = filteredMatches.filter((m: SupabaseMatch & { teams?: { name?: string }; teams1?: { name?: string } }) => {
             const teamAName = m.teams?.name?.toLowerCase() || "";
             const teamBName = m.teams1?.name?.toLowerCase() || "";
             return teamAName.includes(searchTerm) || teamBName.includes(searchTerm);
           });
         }
 
-        const pending = filteredMatches.filter((m: any) => !m.scheduled_at);
-        const scheduled = filteredMatches.filter((m: any) => m.scheduled_at);
+        const pending = filteredMatches.filter((m: SupabaseMatch) => !m.scheduled_at);
+        const scheduled = filteredMatches.filter((m: SupabaseMatch) => m.scheduled_at);
         
         // Actualizar los estados del hook
         setPendingMatches(pending);
@@ -519,7 +572,6 @@ export default function ProgramarPartidosPage() {
     }
 
     const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 15;
     const startY = 20;
@@ -549,8 +601,8 @@ export default function ProgramarPartidosPage() {
     currentY += 15;
 
     // Agrupar partidos por fecha
-    const matchesByDate = new Map<string, { dateKey: string; date: Date; matches: any[] }>();
-    scheduledMatches.forEach((match: any) => {
+    const matchesByDate = new Map<string, { dateKey: string; date: Date; matches: Array<SupabaseMatch & { teams?: { name?: string }; teams1?: { name?: string }; refereeName?: string | null; assistantName?: string | null; sportName?: string | null }> }>>();
+    scheduledMatches.forEach((match: SupabaseMatch & { teams?: { name?: string }; teams1?: { name?: string }; refereeName?: string | null; assistantName?: string | null; sportName?: string | null }) => {
       if (match.scheduled_at) {
         const date = new Date(match.scheduled_at);
         // Usar fecha sin hora para agrupar
@@ -584,7 +636,7 @@ export default function ProgramarPartidosPage() {
       const matches = dateGroup.matches;
       
       // Ordenar partidos por hora dentro de cada fecha
-      matches.sort((a: any, b: any) => {
+      matches.sort((a: SupabaseMatch, b: SupabaseMatch) => {
         const timeA = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
         const timeB = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
         return timeA - timeB;
@@ -606,7 +658,7 @@ export default function ProgramarPartidosPage() {
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
 
-      matches.forEach((match: any) => {
+      matches.forEach((match: SupabaseMatch & { teams?: { name?: string }; teams1?: { name?: string }; refereeName?: string | null; assistantName?: string | null; sportName?: string | null }) => {
         // Verificar si necesitamos una nueva página
         if (currentY > pageHeight - 40) {
           doc.addPage();
@@ -705,6 +757,7 @@ export default function ProgramarPartidosPage() {
         assistant: "",
         status: "",
         field: "",
+        genero: "",
       });
       setShowEditMatchModal(false);
       // Recargar todos los partidos después de programar
@@ -731,9 +784,9 @@ export default function ProgramarPartidosPage() {
       
       // Partido eliminado correctamente
       await loadAllMatches();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error eliminando partido:", error);
-      console.error(error.message || "Error al eliminar el partido");
+      console.error(error instanceof Error ? error.message : "Error al eliminar el partido");
     }
   };
 
@@ -748,6 +801,7 @@ export default function ProgramarPartidosPage() {
       assistant: match.assistant || "",
       status: match.status || "",
       field: match.field || "",
+      genero: match.genero || "",
     });
     setShowEditMatchModal(true);
   };
@@ -755,21 +809,21 @@ export default function ProgramarPartidosPage() {
   const handleCreateMatch = async () => {
     if (!newMatchForm.disciplina) {
       return;
+    }
+
+    if (!newMatchForm.genero) {
       return;
     }
 
     if (!newMatchForm.bombo) {
       return;
-      return;
     }
 
     if (!newMatchForm.team_a || !newMatchForm.team_b) {
       return;
-      return;
     }
 
     if (newMatchForm.team_a === newMatchForm.team_b) {
-      return;
       return;
     }
 
@@ -822,7 +876,17 @@ export default function ProgramarPartidosPage() {
         scheduledAtISO = `${year}-${month}-${day}T${hours}:${minutes}:00${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMins).padStart(2, '0')}`;
       }
 
-      const matchData: any = {
+      const matchData: {
+        tournament_id: number;
+        team_a: number;
+        team_b: number;
+        scheduled_at?: string;
+        referee?: string;
+        assistant?: string;
+        field?: string;
+        genero?: string;
+        status: string;
+      } = {
         tournament_id: tournamentId,
         team_a: parseInt(newMatchForm.team_a),
         team_b: parseInt(newMatchForm.team_b),
@@ -872,6 +936,11 @@ export default function ProgramarPartidosPage() {
       console.log("Datos del partido a crear:", matchData);
 
       const { error, data } = await supabase.from("matches").insert([matchData]).select();
+      
+      // Invalidar la caché de viewers para que se actualice inmediatamente
+      if (!error && data) {
+        queryClient.invalidateQueries({ queryKey: ["viewersData"] });
+      }
 
       if (error) {
         console.error("Error detallado de Supabase:", error);
@@ -887,6 +956,7 @@ export default function ProgramarPartidosPage() {
       // Invalidar queries relacionadas para actualizar las vistas
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["scheduledMatches"] });
+      queryClient.invalidateQueries({ queryKey: ["viewersData"] }); // Actualizar vista pública de viewers
       
       // Partido creado correctamente
       setShowNewMatchModal(false);
@@ -902,9 +972,9 @@ export default function ProgramarPartidosPage() {
         cancha: "",
       });
       await loadAllMatches();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creando partido:", error);
-      console.error(error.message || "Error al crear el partido");
+      console.error(error instanceof Error ? error.message : "Error al crear el partido");
     } finally {
       setCreatingMatch(false);
     }
@@ -1151,6 +1221,23 @@ export default function ProgramarPartidosPage() {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Género
+                  </label>
+                  <select
+                    value={scheduleForm.genero || ""}
+                    onChange={(e) =>
+                      setScheduleForm({ ...scheduleForm, genero: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Seleccionar género</option>
+                    <option value="masculino">Masculino</option>
+                    <option value="femenino">Femenino</option>
+                  </select>
+                </div>
               </div>
               <div className="flex gap-3 mt-6">
                 <button
@@ -1223,7 +1310,7 @@ export default function ProgramarPartidosPage() {
         <div className="p-4 sm:p-6">
           {scheduledMatches.length > 0 ? (
             <div className="space-y-2">
-              {scheduledMatches.map((match: any) => {
+              {scheduledMatches.map((match: Match) => {
                 const scheduledDate = match.scheduled_at
                   ? new Date(match.scheduled_at)
                   : null;
@@ -1234,9 +1321,9 @@ export default function ProgramarPartidosPage() {
                   ? new Date(match.ended_at)
                   : null;
 
-                // Determinar el estado del partido
-                let matchStatusText = "";
-                let matchStatusColor = "";
+                // Determinar el estado del partido (variables no usadas pero necesarias para lógica)
+                const _matchStatusText = "";
+                const _matchStatusColor = "";
                 if (endedDate) {
                   matchStatusText = "Finalizado";
                   matchStatusColor = "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300";
@@ -1451,14 +1538,21 @@ export default function ProgramarPartidosPage() {
               {/* Género */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Género
+                  Género <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={newMatchForm.genero}
-                  onChange={(e) =>
-                    setNewMatchForm({ ...newMatchForm, genero: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setNewMatchForm({ 
+                      ...newMatchForm, 
+                      genero: e.target.value,
+                      bombo: "", // Limpiar bombo al cambiar género
+                      team_a: "",
+                      team_b: ""
+                    });
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                  required
                 >
                   <option value="">Seleccionar género</option>
                   <option value="masculino">Masculino</option>
@@ -1467,7 +1561,7 @@ export default function ProgramarPartidosPage() {
               </div>
 
               {/* Bombo */}
-              {newMatchForm.disciplina && (
+              {newMatchForm.disciplina && newMatchForm.genero && (
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Bombo *
@@ -1671,7 +1765,7 @@ export default function ProgramarPartidosPage() {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={handleCreateMatch}
-                disabled={creatingMatch || !newMatchForm.disciplina || !newMatchForm.team_a || !newMatchForm.team_b}
+                disabled={creatingMatch || !newMatchForm.disciplina || !newMatchForm.genero || !newMatchForm.team_a || !newMatchForm.team_b}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {creatingMatch ? "Creando..." : "Crear Partido"}

@@ -1,12 +1,31 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState, useMemo } from "react";
+import { Search } from "lucide-react";
 import { useTeams } from "./hooks/useTeams";
 
 export default function EquiposPage() {
   const router = useRouter();
+  const [searchTerm, setSearchTerm] = useState("");
   // Usar el hook con TanStack Query - los datos se cargan automáticamente y se cachean
   const { teams, loading, deleteTeam } = useTeams();
+
+  // Filtrar equipos basándose en el término de búsqueda
+  const filteredTeams = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return teams;
+    }
+
+    const term = searchTerm.toLowerCase().trim();
+    return teams.filter(
+      (team) =>
+        team.name.toLowerCase().includes(term) ||
+        team.faculty.toLowerCase().includes(term) ||
+        team.captain.toLowerCase().includes(term) ||
+        team.leaders.toLowerCase().includes(term)
+    );
+  }, [teams, searchTerm]);
 
   if (loading) {
     return (
@@ -37,6 +56,20 @@ export default function EquiposPage() {
         </button>
       </div>
 
+      {/* Barra de búsqueda */}
+      {teams.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+          <input
+            type="text"
+            placeholder="Buscar..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+      )}
+
       {/* Empty state */}
       {teams.length === 0 && (
         <div className="bg-gray-100 border border-gray-200 dark:bg-neutral-900 dark:border-neutral-800 rounded-lg p-10 text-center text-gray-500 dark:text-gray-400">
@@ -44,8 +77,15 @@ export default function EquiposPage() {
         </div>
       )}
 
+      {/* Empty state para búsqueda */}
+      {teams.length > 0 && filteredTeams.length === 0 && (
+        <div className="bg-gray-100 border border-gray-200 dark:bg-neutral-900 dark:border-neutral-800 rounded-lg p-10 text-center text-gray-500 dark:text-gray-400">
+          No se encontraron equipos que coincidan con &quot;{searchTerm}&quot;.
+        </div>
+      )}
+
       {/* Table */}
-      {teams.length > 0 && (
+      {filteredTeams.length > 0 && (
         <div className="bg-white border border-gray-200 dark:bg-neutral-900 dark:border-neutral-800 rounded-lg overflow-hidden">
           <div className="overflow-x-auto -mx-4 sm:mx-0">
             <table className="w-full text-sm min-w-[640px]">
@@ -60,7 +100,7 @@ export default function EquiposPage() {
               </thead>
 
               <tbody>
-                {teams.map((team) => (
+                {filteredTeams.map((team) => (
                   <tr
                     key={team.id}
                     className="border-t border-gray-200 dark:border-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition"

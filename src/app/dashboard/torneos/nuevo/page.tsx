@@ -5,6 +5,7 @@ import { supabase } from "../../../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import ConfirmModal from "../../../../components/ConfirmModal";
 import AlertModal from "../../../../components/AlertModal";
+import jsPDF from "jspdf";
 
 type Sport = {
   id: number;
@@ -43,6 +44,310 @@ export default function NuevoTorneoPage() {
     loadSports();
   }, []);
 
+
+  const generateHistoryPDF = async (): Promise<Blob | null> => {
+    try {
+      console.log("Generando PDF del historial...");
+      
+      const doc = new jsPDF();
+      let yPosition = 20;
+      const pageHeight = doc.internal.pageSize.height;
+      const margin = 20;
+      const lineHeight = 7;
+
+      // Título
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("HISTORIAL DEL TORNEO", margin, yPosition);
+      yPosition += 15;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Generado el: ${new Date().toLocaleString("es-ES")}`, margin, yPosition);
+      yPosition += 10;
+
+      // Función para agregar nueva página si es necesario
+      const checkPageBreak = (requiredSpace: number) => {
+        if (yPosition + requiredSpace > pageHeight - margin) {
+          doc.addPage();
+          yPosition = margin;
+        }
+      };
+
+      // 1. TORNEOS
+      checkPageBreak(20);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("1. TORNEOS", margin, yPosition);
+      yPosition += 8;
+
+      const { data: tournaments } = await supabase
+        .from("tournaments")
+        .select(`
+          id,
+          name,
+          start_date,
+          end_date,
+          sports!inner(name)
+        `)
+        .order("id", { ascending: false });
+
+      if (tournaments && tournaments.length > 0) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        tournaments.forEach((tournament: any) => {
+          checkPageBreak(10);
+          doc.text(`• ${tournament.name} (${tournament.sports?.name || "N/A"})`, margin + 5, yPosition);
+          yPosition += 6;
+          doc.text(`  Fechas: ${tournament.start_date || "N/A"} - ${tournament.end_date || "N/A"}`, margin + 5, yPosition);
+          yPosition += 6;
+        });
+      } else {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "italic");
+        doc.text("No hay torneos registrados", margin + 5, yPosition);
+        yPosition += 6;
+      }
+      yPosition += 5;
+
+      // 2. EQUIPOS
+      checkPageBreak(20);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("2. EQUIPOS", margin, yPosition);
+      yPosition += 8;
+
+      const { data: teams } = await supabase
+        .from("teams")
+        .select("id, name")
+        .order("name", { ascending: true });
+
+      if (teams && teams.length > 0) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        teams.forEach((team: any) => {
+          checkPageBreak(6);
+          doc.text(`• ${team.name}`, margin + 5, yPosition);
+          yPosition += 6;
+        });
+        doc.text(`Total: ${teams.length} equipos`, margin + 5, yPosition);
+        yPosition += 6;
+      } else {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "italic");
+        doc.text("No hay equipos registrados", margin + 5, yPosition);
+        yPosition += 6;
+      }
+      yPosition += 5;
+
+      // 3. INSCRIPCIONES
+      checkPageBreak(20);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("3. INSCRIPCIONES", margin, yPosition);
+      yPosition += 8;
+
+      const { data: registrationForms } = await supabase
+        .from("registration_forms")
+        .select(`
+          id,
+          name,
+          genero,
+          sports!inner(name)
+        `)
+        .order("created_at", { ascending: false });
+
+      if (registrationForms && registrationForms.length > 0) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        registrationForms.forEach((form: any) => {
+          checkPageBreak(10);
+          doc.text(`• ${form.name} - ${form.sports?.name || "N/A"} (${form.genero || "N/A"})`, margin + 5, yPosition);
+          yPosition += 6;
+        });
+        doc.text(`Total: ${registrationForms.length} inscripciones`, margin + 5, yPosition);
+        yPosition += 6;
+      } else {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "italic");
+        doc.text("No hay inscripciones registradas", margin + 5, yPosition);
+        yPosition += 6;
+      }
+      yPosition += 5;
+
+      // 4. BRACKETS/SORTEOS
+      checkPageBreak(20);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("4. BRACKETS/SORTEOS", margin, yPosition);
+      yPosition += 8;
+
+      const { data: draws } = await supabase
+        .from("draws")
+        .select("id, name, created_at")
+        .order("created_at", { ascending: false });
+
+      if (draws && draws.length > 0) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        draws.forEach((draw: any) => {
+          checkPageBreak(8);
+          doc.text(`• ${draw.name}`, margin + 5, yPosition);
+          yPosition += 6;
+          const createdDate = draw.created_at ? new Date(draw.created_at).toLocaleDateString("es-ES") : "N/A";
+          doc.text(`  Creado: ${createdDate}`, margin + 5, yPosition);
+          yPosition += 6;
+        });
+        doc.text(`Total: ${draws.length} brackets`, margin + 5, yPosition);
+        yPosition += 6;
+      } else {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "italic");
+        doc.text("No hay brackets registrados", margin + 5, yPosition);
+        yPosition += 6;
+      }
+      yPosition += 5;
+
+      // 5. PARTIDOS
+      checkPageBreak(20);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("5. PARTIDOS", margin, yPosition);
+      yPosition += 8;
+
+      const { data: matches } = await supabase
+        .from("matches")
+        .select(`
+          id,
+          team_a,
+          team_b,
+          scheduled_at,
+          status,
+          genero,
+          tournaments!inner(sports!inner(name))
+        `)
+        .order("scheduled_at", { ascending: false })
+        .limit(100); // Limitar a 100 para no hacer el PDF muy largo
+
+      // Obtener nombres de equipos
+      const teamNamesMap: Record<number, string> = {};
+      if (matches && matches.length > 0) {
+        const teamIds = new Set<number>();
+        matches.forEach((match: any) => {
+          if (match.team_a) teamIds.add(match.team_a);
+          if (match.team_b) teamIds.add(match.team_b);
+        });
+
+        if (teamIds.size > 0) {
+          const { data: teamsData } = await supabase
+            .from("teams")
+            .select("id, name")
+            .in("id", Array.from(teamIds));
+
+          if (teamsData) {
+            teamsData.forEach((team: any) => {
+              teamNamesMap[team.id] = team.name;
+            });
+          }
+        }
+      }
+
+      if (matches && matches.length > 0) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Mostrando ${matches.length} partidos (máximo 100)`, margin + 5, yPosition);
+        yPosition += 8;
+        
+        matches.forEach((match: any) => {
+          checkPageBreak(12);
+          const teamA = teamNamesMap[match.team_a] || `Equipo ${match.team_a}`;
+          const teamB = teamNamesMap[match.team_b] || `Equipo ${match.team_b}`;
+          const sport = match.tournaments?.sports?.name || "N/A";
+          const date = match.scheduled_at ? new Date(match.scheduled_at).toLocaleString("es-ES") : "Sin fecha";
+          const genero = match.genero || "N/A";
+          
+          doc.text(`${teamA} vs ${teamB}`, margin + 5, yPosition);
+          yPosition += 6;
+          doc.text(`  ${sport} (${genero}) - ${match.status || "N/A"} - ${date}`, margin + 5, yPosition);
+          yPosition += 6;
+        });
+      } else {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "italic");
+        doc.text("No hay partidos registrados", margin + 5, yPosition);
+        yPosition += 6;
+      }
+      yPosition += 5;
+
+      // 6. RESÚMEN ESTADÍSTICO
+      checkPageBreak(20);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("6. RESÚMEN ESTADÍSTICO", margin, yPosition);
+      yPosition += 8;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      checkPageBreak(30);
+      doc.text(`Total de Torneos: ${tournaments?.length || 0}`, margin + 5, yPosition);
+      yPosition += 6;
+      doc.text(`Total de Equipos: ${teams?.length || 0}`, margin + 5, yPosition);
+      yPosition += 6;
+      doc.text(`Total de Inscripciones: ${registrationForms?.length || 0}`, margin + 5, yPosition);
+      yPosition += 6;
+      doc.text(`Total de Brackets: ${draws?.length || 0}`, margin + 5, yPosition);
+      yPosition += 6;
+      doc.text(`Total de Partidos: ${matches?.length || 0}`, margin + 5, yPosition);
+      yPosition += 6;
+
+      // Pie de página
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "italic");
+        doc.text(`Página ${i} de ${totalPages}`, doc.internal.pageSize.width - margin - 20, doc.internal.pageSize.height - 10);
+      }
+
+      // Convertir a Blob
+      const pdfBlob = doc.output("blob");
+      console.log("PDF del historial generado exitosamente");
+      return pdfBlob;
+    } catch (error: any) {
+      console.error("Error generando PDF del historial:", error);
+      return null;
+    }
+  };
+
+  const uploadHistoryPDF = async (pdfBlob: Blob): Promise<boolean> => {
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const fileName = `historial-torneo-${timestamp}.pdf`;
+      const filePath = `torneos/historial/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from("documents")
+        .upload(filePath, pdfBlob, {
+          contentType: "application/pdf",
+          upsert: false,
+        });
+
+      if (error) {
+        console.error("Error subiendo PDF del historial:", error);
+        // Si el bucket no existe, no es crítico, solo loguear
+        if (error.message?.includes("Bucket not found") || error.message?.includes("not found")) {
+          console.warn("El bucket 'documents' no existe. El PDF no se guardó, pero se continuará con la eliminación.");
+        }
+        return false;
+      }
+
+      console.log(`PDF del historial guardado en: ${filePath}`);
+      return true;
+    } catch (error: any) {
+      console.error("Error subiendo PDF del historial:", error);
+      return false;
+    }
+  };
 
   const clearAllTournamentData = async () => {
     try {
@@ -246,7 +551,24 @@ export default function NuevoTorneoPage() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      // Limpiar todos los datos del torneo anterior
+      // 1. Generar PDF del historial ANTES de eliminar datos
+      console.log("Generando PDF del historial antes de eliminar datos...");
+      const pdfBlob = await generateHistoryPDF();
+      
+      if (pdfBlob) {
+        // 2. Subir PDF a Supabase Storage
+        console.log("Subiendo PDF del historial a documentos...");
+        const uploaded = await uploadHistoryPDF(pdfBlob);
+        if (uploaded) {
+          console.log("PDF del historial guardado exitosamente en documentos");
+        } else {
+          console.warn("No se pudo subir el PDF del historial, pero se continuará con la eliminación");
+        }
+      } else {
+        console.warn("No se pudo generar el PDF del historial, pero se continuará con la eliminación");
+      }
+
+      // 3. Limpiar todos los datos del torneo anterior
       console.log("Limpiando datos del torneo anterior...");
       await clearAllTournamentData();
 
@@ -272,8 +594,9 @@ export default function NuevoTorneoPage() {
         throw new Error("No se pudieron crear los torneos");
       }
 
+      const pdfMessage = pdfBlob ? "\n\nEl historial completo ha sido guardado en la sección de Documentos." : "";
       showAlert(
-        `Torneo "${form.name.trim()}" creado exitosamente para ${sports.length} disciplina(s)\n\nTodos los datos anteriores han sido eliminados.`,
+        `Torneo "${form.name.trim()}" creado exitosamente para ${sports.length} disciplina(s)\n\nTodos los datos anteriores han sido eliminados.${pdfMessage}`,
         "success"
       );
       setTimeout(() => {

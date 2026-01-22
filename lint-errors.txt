@@ -1,0 +1,353 @@
+﻿
+> limpus@0.1.0 lint
+> eslint
+
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\equipos\[id]\page.tsx
+   60:42  error    Unexpected any. Specify a different type                                                                                                                                                                        @typescript-eslint/no-explicit-any
+   72:55  error    Unexpected any. Specify a different type                                                                                                                                                                        @typescript-eslint/no-explicit-any
+   87:6   warning  React Hook useEffect has a missing dependency: 'form'. Either include it or remove the dependency array. You can also do a functional update 'setForm(f => ...)' if you only need 'form' in the 'setForm' call  react-hooks/exhaustive-deps
+  106:15  error    Unexpected any. Specify a different type                                                                                                                                                                        @typescript-eslint/no-explicit-any
+  160:50  error    Unexpected any. Specify a different type                                                                                                                                                                        @typescript-eslint/no-explicit-any
+  174:61  error    Unexpected any. Specify a different type                                                                                                                                                                        @typescript-eslint/no-explicit-any
+  188:58  error    Unexpected any. Specify a different type                                                                                                                                                                        @typescript-eslint/no-explicit-any
+  208:72  error    Unexpected any. Specify a different type                                                                                                                                                                        @typescript-eslint/no-explicit-any
+  336:21  error    Unexpected any. Specify a different type                                                                                                                                                                        @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\equipos\nuevoequipo\page.tsx
+   49:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  130:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  151:74  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  164:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  185:72  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  300:67  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  346:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\inscripciones\[id]\page.tsx
+  12:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\inscripciones\components\ViewRegistrationsModal.tsx
+   50:6   warning  React Hook useEffect has a missing dependency: 'loadTeamRegistrations'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   82:47  error    Unexpected any. Specify a different type                                                                                  @typescript-eslint/no-explicit-any
+   99:21  error    Unexpected any. Specify a different type                                                                                  @typescript-eslint/no-explicit-any
+  130:37  error    Unexpected any. Specify a different type                                                                                  @typescript-eslint/no-explicit-any
+  142:21  error    Unexpected any. Specify a different type                                                                                  @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\inscripciones\hooks\useRegistrationForms.ts
+  42:5   warning  'isFetching' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  83:14  warning  'error' is defined but never used                @typescript-eslint/no-unused-vars
+  83:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  93:14  warning  'error' is defined but never used                @typescript-eslint/no-unused-vars
+  93:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\leader\components\MatchDetailsModal.tsx
+   50:6   warning  React Hook useEffect has a missing dependency: 'loadMatchDetails'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  107:44  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  133:40  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\leader\components\RegistrationModal.tsx
+   26:47  warning  'loadingRegistrations' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   80:56  error    Unexpected any. Specify a different type                   @typescript-eslint/no-explicit-any
+   82:44  error    Unexpected any. Specify a different type                   @typescript-eslint/no-explicit-any
+  112:14  warning  'error' is defined but never used                          @typescript-eslint/no-unused-vars
+  112:21  error    Unexpected any. Specify a different type                   @typescript-eslint/no-explicit-any
+  146:68  error    Unexpected any. Specify a different type                   @typescript-eslint/no-explicit-any
+  247:21  error    Unexpected any. Specify a different type                   @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\leader\hooks\useTeamLeader.ts
+  48:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  56:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  65:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  77:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  78:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\leader\hooks\useTeamMatches.ts
+   65:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   76:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   80:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   91:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   97:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  108:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  118:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\leader\hooks\useTeamRegistrations.ts
+  52:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  89:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\leader\hooks\useTeamStats.ts
+  71:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\leader\page.tsx
+  16:11  warning  'user' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\[id]\page.tsx
+   15:10  warning  'tournamentData' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   15:56  error    Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+   16:80  error    Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  112:21  error    Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\brackets\components\EliminationBracket.tsx
+   21:53  warning  'savedDrawId' is defined but never used           @typescript-eslint/no-unused-vars
+  127:25  warning  'matchCenter' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\brackets\page.tsx
+    7:22  warning  'Team' is defined but never used                                                                                                                       @typescript-eslint/no-unused-vars
+   46:6   warning  React Hook useEffect has a missing dependency: 'loadTeams'. Either include it or remove the dependency array                                           react-hooks/exhaustive-deps
+   70:6   warning  React Hook useEffect has missing dependencies: 'loadSavedBrackets', 'setBombos', and 'tournament'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  362:37  warning  'teamIndex' is defined but never used                                                                                                                  @typescript-eslint/no-unused-vars
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\components\BracketsModal.tsx
+    5:22  warning  'Team' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+   41:6   warning  React Hook useEffect has a missing dependency: 'loadTeams'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  196:41  warning  'teamIndex' is defined but never used                                                                         @typescript-eslint/no-unused-vars
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\components\DocumentsModal.tsx
+  26:6   warning  React Hook useEffect has a missing dependency: 'loadDocuments'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  35:53  warning  'fileName' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\hooks\useBrackets.ts
+  301:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  346:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\hooks\useDashboard.ts
+  106:23  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  107:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  117:29  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  120:43  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  167:46  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  178:58  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  179:44  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  190:36  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  191:36  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  202:49  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  204:47  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  246:5   warning  'isFetching' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\hooks\useDocuments.ts
+   63:15  warning  'data' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  112:21  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  144:21  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  153:47  warning  'fileName' is defined but never used       @typescript-eslint/no-unused-vars
+  170:21  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\hooks\useMatches.ts
+   43:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   44:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   58:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   63:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   64:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   74:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:66  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   88:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  105:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:53  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  127:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  128:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  147:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  168:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  194:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  212:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  236:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  278:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\hooks\useResults.ts
+   78:39  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   78:77  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   86:47  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   90:24  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   91:24  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  101:49  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  105:60  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  115:35  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  132:30  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  138:47  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  157:28  warning  'tournament' is defined but never used           @typescript-eslint/no-unused-vars
+  164:5   warning  'isFetching' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  223:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  387:25  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  460:42  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  495:30  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  511:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  522:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\hooks\useStandings.ts
+  193:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  224:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\nuevo\page.tsx
+   56:13  warning  'lineHeight' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   98:42  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  128:30  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  163:42  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  193:30  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  236:33  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  248:38  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  261:33  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  316:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  346:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  499:28  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  507:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  605:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\page.tsx
+    4:10  warning  'useEffect' is defined but never used        @typescript-eslint/no-unused-vars
+   24:10  warning  'Tournament' is defined but never used       @typescript-eslint/no-unused-vars
+   24:42  warning  'TournamentStats' is defined but never used  @typescript-eslint/no-unused-vars
+   80:27  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   81:25  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   91:33  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   94:58  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  150:29  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  152:50  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  163:56  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  164:48  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  179:40  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  180:40  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  192:36  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  195:45  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\programar\page.tsx
+     6:17  warning  'ArrowLeft' is defined but never used                                                                                                                          @typescript-eslint/no-unused-vars
+    14:9   warning  'router' is assigned a value but never used                                                                                                                    @typescript-eslint/no-unused-vars
+    45:10  warning  'loadingTeams' is assigned a value but never used                                                                                                              @typescript-eslint/no-unused-vars
+    45:24  warning  'setLoadingTeams' is assigned a value but never used                                                                                                           @typescript-eslint/no-unused-vars
+    68:6   warning  React Hook useEffect has a missing dependency: 'loadAllMatches'. Either include it or remove the dependency array                                              react-hooks/exhaustive-deps
+   195:32  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   204:66  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   216:50  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   285:6   warning  React Hook useEffect has a missing dependency: 'loadTeamsFromBombo'. Either include it or remove the dependency array                                          react-hooks/exhaustive-deps
+   307:6   warning  React Hook useEffect has missing dependencies: 'loadAdministrators', 'loadAllMatches', and 'loadReferees'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+   375:30  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   376:30  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   390:30  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   395:30  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   395:61  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   396:30  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   396:63  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   411:35  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   416:66  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   426:41  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   443:36  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   450:53  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   476:59  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   477:58  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   487:17  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   497:56  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   506:56  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   513:52  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   514:54  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   536:11  warning  'pageWidth' is assigned a value but never used                                                                                                                 @typescript-eslint/no-unused-vars
+   566:83  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   567:38  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   601:24  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   601:32  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   623:31  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   749:21  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   841:24  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+   927:21  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+  1265:45  error    Unexpected any. Specify a different type                                                                                                                       @typescript-eslint/no-explicit-any
+  1310:19  warning  'matchStatusText' is assigned a value but never used                                                                                                           @typescript-eslint/no-unused-vars
+  1311:19  warning  'matchStatusColor' is assigned a value but never used                                                                                                          @typescript-eslint/no-unused-vars
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\resultados\page.tsx
+    6:21  warning  'Clock' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+    6:36  warning  'Users' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+   21:5   warning  'loadScheduledMatches' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+   81:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\resultados\page.tsx:81:5
+  79 |
+  80 |   useEffect(() => {
+> 81 |     loadTournament();
+     |     ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  82 |   }, []);
+  83 |
+  84 |   const handleStartMatch = async (matchId: number, e: React.MouseEvent) => {  react-hooks/set-state-in-effect
+  104:45  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-explicit-any
+  172:28  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-explicit-any
+  611:41  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\torneos\tablas\page.tsx
+  6:29  warning  'TrendingUp' is defined but never used      @typescript-eslint/no-unused-vars
+  9:10  warning  'BomboStandings' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\usuarios\[id]\page.tsx
+  67:13  warning  'data' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\usuarios\hooks\useUsers.ts
+  28:19  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  32:35  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  44:5   warning  'isFetching' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  73:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\usuarios\nuevo\page.tsx
+  30:11  warning  'data' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\viewers\clasificacion\page.tsx
+  14:28  warning  'loadingSports' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+  23:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\dashboard\viewers\clasificacion\page.tsx:23:7
+  21 |     if (sports.length > 0 && !selectedSport) {
+  22 |       const firstSport = sports[0];
+> 23 |       setSelectedSport(firstSport.id);
+     |       ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  24 |       setSelectedSportName(firstSport.name);
+  25 |     }
+  26 |   }, [sports, selectedSport]);  react-hooks/set-state-in-effect
+  29:61  warning  'isFetching' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\login\page.tsx
+  42:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\page.tsx
+  7:26  warning  'Sport' is defined but never used   @typescript-eslint/no-unused-vars
+  8:35  warning  'Trophy' is defined but never used  @typescript-eslint/no-unused-vars
+  8:43  warning  'Play' is defined but never used    @typescript-eslint/no-unused-vars
+  8:49  warning  'Star' is defined but never used    @typescript-eslint/no-unused-vars
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\app\registro\page.tsx
+  65:14  warning  'err' is defined but never used                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+  65:19  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  76:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\components\ActionCard.tsx
+  18:3  warning  'variant' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\contexts\ThemeContext.tsx
+  27:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\contexts\ThemeContext.tsx:27:5
+  25 |     const initialTheme = savedTheme || systemTheme;
+  26 |     
+> 27 |     setTheme(initialTheme);
+     |     ^^^^^^^^ Avoid calling setState() directly within an effect
+  28 |     setMounted(true);
+  29 |     
+  30 |     // Aplicar el tema inicial al DOM  react-hooks/set-state-in-effect
+
+C:\Users\elhas\OneDrive\Documentos\Limpus\limpus\src\hooks\useUser.ts
+   5:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  30:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Ô£û 225 problems (167 errors, 58 warnings)
+

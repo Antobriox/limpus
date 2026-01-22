@@ -1,6 +1,34 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../../../lib/supabaseClient";
 
+// Tipos para datos de Supabase
+type SupabaseRegistrationForm = {
+  id: number;
+  name: string;
+  sport_id: number;
+  genero: string | null;
+  min_players: number;
+  max_players: number;
+  editable_until: string | null;
+  is_locked: boolean;
+  sports?: {
+    name: string;
+  };
+};
+
+type SupabaseTeamRegistration = {
+  id: number;
+  form_id: number;
+  submitted_at: string | null;
+  approved: boolean | null;
+  registration_forms?: {
+    name: string;
+    sports?: {
+      name: string;
+    };
+  };
+};
+
 export type RegistrationForm = {
   id: number;
   name: string;
@@ -10,6 +38,7 @@ export type RegistrationForm = {
   max_players: number;
   editable_until: string | null;
   is_locked: boolean;
+  genero: string | null;
 };
 
 export type TeamRegistration = {
@@ -37,6 +66,7 @@ const loadRegistrationForms = async (): Promise<RegistrationForm[]> => {
       max_players,
       editable_until,
       is_locked,
+      genero,
       sports!inner (
         name
       )
@@ -47,7 +77,7 @@ const loadRegistrationForms = async (): Promise<RegistrationForm[]> => {
   if (error) throw error;
 
   return (
-    data?.map((f: any) => ({
+    (data as SupabaseRegistrationForm[] | null)?.map((f: SupabaseRegistrationForm) => ({
       id: f.id,
       name: f.name,
       sport_id: f.sport_id,
@@ -56,6 +86,7 @@ const loadRegistrationForms = async (): Promise<RegistrationForm[]> => {
       max_players: f.max_players,
       editable_until: f.editable_until,
       is_locked: f.is_locked,
+      genero: f.genero || null,
     })) || []
   );
 };
@@ -83,7 +114,7 @@ const loadTeamRegistrations = async (teamId: number): Promise<TeamRegistration[]
 
   // Contar jugadores por inscripción
   const registrationsWithPlayers = await Promise.all(
-    (data || []).map(async (tr: any) => {
+    ((data || []) as SupabaseTeamRegistration[]).map(async (tr: SupabaseTeamRegistration) => {
       const { count } = await supabase
         .from("players")
         .select("*", { count: "exact", head: true })

@@ -6,6 +6,26 @@ import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
+// Tipos para datos de Supabase
+type SupabaseRole = {
+  id: number;
+  name: string;
+};
+
+type SupabaseUserRole = {
+  user_id: string;
+};
+
+type SupabaseProfile = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+};
+
+type SupabaseOccupiedLeader = {
+  user_id: string;
+};
+
 type Leader = {
   id: string;
   full_name: string;
@@ -45,8 +65,8 @@ export default function NuevoEquipoPage() {
         console.log("Todos los roles encontrados:", rolesData);
 
         // Buscar el rol que sea "lider_equipo" o contenga "líder" o "lider"
-        const leaderRole = rolesData?.find(
-          (r: any) => {
+        const leaderRole = (rolesData as SupabaseRole[] | null)?.find(
+          (r: SupabaseRole) => {
             const nameLower = r.name.toLowerCase();
             return (
               nameLower === "lider_equipo" ||
@@ -109,7 +129,7 @@ export default function NuevoEquipoPage() {
           }
 
           // Obtener los perfiles de esos usuarios
-          const userIds = userRolesData.map((ur: any) => ur.user_id);
+          const userIds = (userRolesData as SupabaseUserRole[]).map((ur: SupabaseUserRole) => ur.user_id);
           console.log("User IDs a buscar:", userIds);
 
           const { data: profilesData2, error: profilesError2 } = await supabase
@@ -127,7 +147,7 @@ export default function NuevoEquipoPage() {
           console.log("Perfiles encontrados (método 2):", profilesData2);
           
           if (profilesData2 && profilesData2.length > 0) {
-            const leaders = profilesData2.map((profile: any) => ({
+            const leaders = (profilesData2 as SupabaseProfile[]).map((profile: SupabaseProfile) => ({
               id: profile.id,
               full_name:
                 profile.full_name ||
@@ -148,7 +168,7 @@ export default function NuevoEquipoPage() {
                 .in("user_id", leaderIds);
               
               if (occupiedLeadersData) {
-                const occupiedSet = new Set(occupiedLeadersData.map((ol: any) => ol.user_id));
+                const occupiedSet = new Set((occupiedLeadersData as SupabaseOccupiedLeader[]).map((ol: SupabaseOccupiedLeader) => ol.user_id));
                 setOccupiedLeaders(occupiedSet);
               }
             }
@@ -161,7 +181,7 @@ export default function NuevoEquipoPage() {
         console.log("Perfiles encontrados (método 1):", profilesData);
 
         if (profilesData && profilesData.length > 0) {
-          const leaders = profilesData.map((profile: any) => ({
+          const leaders = (profilesData as SupabaseProfile[]).map((profile: SupabaseProfile) => ({
             id: profile.id,
             full_name:
               profile.full_name ||
@@ -182,7 +202,7 @@ export default function NuevoEquipoPage() {
               .in("user_id", leaderIds);
             
             if (occupiedLeadersData) {
-              const occupiedSet = new Set(occupiedLeadersData.map((ol: any) => ol.user_id));
+              const occupiedSet = new Set((occupiedLeadersData as SupabaseOccupiedLeader[]).map((ol: SupabaseOccupiedLeader) => ol.user_id));
               setOccupiedLeaders(occupiedSet);
             }
           }
@@ -297,7 +317,7 @@ export default function NuevoEquipoPage() {
           .in("user_id", uniqueLeaders);
 
         if (existingLeaders && existingLeaders.length > 0) {
-          const existingUserIds = new Set(existingLeaders.map((l: any) => l.user_id));
+          const existingUserIds = new Set((existingLeaders as Array<{ user_id: string }>).map((l) => l.user_id));
           // Filtrar solo los líderes que no están ya asignados a otro equipo
           const newLeaders = uniqueLeaders.filter((id) => !existingUserIds.has(id));
           
@@ -343,9 +363,9 @@ export default function NuevoEquipoPage() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       
       router.push("/dashboard/equipos");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creando equipo:", error);
-      // alert eliminadaerror.message || "Error al crear el equipo");
+      // alert eliminada(error instanceof Error ? error.message : "Error al crear el equipo");
     } finally {
       setLoading(false);
     }

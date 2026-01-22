@@ -1,10 +1,15 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { useRegistrationForms } from "./hooks/useRegistrationForms";
+import ViewRegistrationsModal from "./components/ViewRegistrationsModal";
+import { Eye } from "lucide-react";
 
 export default function InscripcionesPage() {
   // Usar el hook con TanStack Query - los datos se cargan automáticamente y se cachean
   const { forms, loading, toggleStatus, deleteForm } = useRegistrationForms();
+  const [selectedForm, setSelectedForm] = useState<{ id: number; name: string } | null>(null);
 
   if (loading) {
     return (
@@ -27,12 +32,12 @@ export default function InscripcionesPage() {
           </p>
         </div>
 
-        <a
+        <Link
           href="/dashboard/inscripciones/nueva"
           className="bg-blue-600 hover:bg-blue-700 transition text-white px-4 sm:px-5 py-2 rounded-lg text-sm font-medium whitespace-nowrap"
         >
           + Nueva inscripción
-        </a>
+        </Link>
       </div>
 
       {/* Empty state */}
@@ -50,6 +55,7 @@ export default function InscripcionesPage() {
               <thead className="bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-gray-300">
                 <tr>
                   <th className="px-4 sm:px-6 py-3 text-left">Nombre</th>
+                  <th className="px-4 sm:px-6 py-3 text-center">Género</th>
                   <th className="px-4 sm:px-6 py-3 text-center">Jugadores</th>
                   <th className="px-4 sm:px-6 py-3 text-center">Editable hasta</th>
                   <th className="px-4 sm:px-6 py-3 text-center">Estado</th>
@@ -65,6 +71,20 @@ export default function InscripcionesPage() {
                 >
                   <td className="px-4 sm:px-6 py-3 font-medium text-gray-900 dark:text-white">
                     {f.name}
+                  </td>
+
+                  <td className="px-4 sm:px-6 py-3 text-center">
+                    {f.genero ? (
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        f.genero === "masculino"
+                          ? "bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400"
+                          : "bg-pink-100 text-pink-600 dark:bg-pink-500/10 dark:text-pink-400"
+                      }`}>
+                        {f.genero === "masculino" ? "Masculino" : "Femenino"}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 dark:text-gray-600 text-xs">No asignado</span>
+                    )}
                   </td>
 
                   <td className="px-4 sm:px-6 py-3 text-center text-gray-700 dark:text-gray-300">
@@ -95,6 +115,15 @@ export default function InscripcionesPage() {
 
                   <td className="px-4 sm:px-6 py-3 text-right space-x-2 sm:space-x-3">
                     <button
+                      onClick={() => setSelectedForm({ id: f.id, name: f.name })}
+                      className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 transition text-xs sm:text-sm"
+                      title="Ver equipos inscritos"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Ver
+                    </button>
+
+                    <button
                       onClick={() => toggleStatus(f.id, f.is_locked)}
                       className="text-blue-400 hover:text-blue-300 transition text-xs sm:text-sm"
                     >
@@ -121,6 +150,16 @@ export default function InscripcionesPage() {
           </table>
           </div>
         </div>
+      )}
+
+      {/* Modal para ver inscripciones */}
+      {selectedForm && (
+        <ViewRegistrationsModal
+          formId={selectedForm.id}
+          formName={selectedForm.name}
+          isOpen={!!selectedForm}
+          onClose={() => setSelectedForm(null)}
+        />
       )}
     </div>
   );

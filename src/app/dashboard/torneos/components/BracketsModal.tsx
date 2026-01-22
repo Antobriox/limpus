@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Tournament, Team } from "../types";
+import { Tournament } from "../types";
 import { useBrackets } from "../hooks/useBrackets";
 
 interface BracketsModalProps {
@@ -38,7 +38,7 @@ export default function BracketsModal({
     if (isOpen) {
       loadTeams();
     }
-  }, [isOpen]);
+  }, [isOpen, loadTeams]);
 
   const handleClose = () => {
     setBombos([]);
@@ -193,7 +193,7 @@ export default function BracketsModal({
                       </p>
                     </div>
                     <div className="space-y-2">
-                      {bombo.map((team, teamIndex) => (
+                      {bombo.map((team) => (
                         <div
                           key={team.id}
                           draggable

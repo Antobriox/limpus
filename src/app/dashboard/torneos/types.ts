@@ -60,6 +60,7 @@ export type ScheduleForm = {
   assistant: string;
   status: string;
   field?: string;
+  genero?: string;
 };
 
 export type TournamentStats = {

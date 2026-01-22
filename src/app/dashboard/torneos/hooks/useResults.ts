@@ -411,8 +411,64 @@ export const useResults = (tournament: Tournament | null) => {
     },
   });
 
-  const loadPlayersForTeam = async (teamId: number): Promise<Player[]> => {
+  const loadPlayersForTeam = async (
+    teamId: number, 
+    sportId?: number, 
+    genero?: string | null
+  ): Promise<Player[]> => {
     try {
+      console.log(`Cargando jugadores para equipo ${teamId}, deporte ${sportId}, género ${genero}`);
+      
+      // Si tenemos sportId y genero, buscar la inscripción específica
+      if (sportId && genero) {
+        // Buscar la inscripción del equipo que corresponde a esta disciplina y género
+        const { data: teamRegistrations, error: regError } = await supabase
+          .from("team_registrations")
+          .select(`
+            id,
+            form_id,
+            registration_forms!inner (
+              sport_id,
+              genero
+            )
+          `)
+          .eq("team_id", teamId)
+          .eq("registration_forms.sport_id", sportId)
+          .eq("registration_forms.genero", genero);
+
+        if (regError) {
+          console.error("Error buscando inscripción:", regError);
+        }
+
+        if (teamRegistrations && teamRegistrations.length > 0) {
+          // Encontramos la inscripción específica, cargar jugadores de esa inscripción
+          const registrationId = teamRegistrations[0].id;
+          console.log(`Inscripción encontrada: ${registrationId} para equipo ${teamId}, deporte ${sportId}, género ${genero}`);
+
+          const { data: players, error: playersError } = await supabase
+            .from("players")
+            .select("id, full_name, jersey_number")
+            .eq("team_registration_id", registrationId)
+            .order("jersey_number", { ascending: true, nullsFirst: false });
+
+          if (playersError) {
+            console.error("Error cargando jugadores de inscripción:", playersError);
+            return [];
+          }
+
+          console.log(`Jugadores encontrados: ${players?.length || 0} para inscripción ${registrationId}`);
+          return (players || []).map((p: any) => ({
+            id: p.id,
+            full_name: p.full_name,
+            jersey_number: p.jersey_number,
+          }));
+        } else {
+          console.log(`No se encontró inscripción para equipo ${teamId}, deporte ${sportId}, género ${genero}`);
+          return [];
+        }
+      }
+
+      // Fallback: si no tenemos sportId y genero, cargar todos los jugadores del equipo (comportamiento anterior)
       // Obtener las carreras del equipo
       const { data: careers, error: careersError } = await supabase
         .from("careers")

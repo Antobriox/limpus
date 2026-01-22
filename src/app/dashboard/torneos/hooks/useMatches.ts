@@ -26,7 +26,8 @@ export const useMatches = (tournament: Tournament | null) => {
           referee,
           assistant,
           tournament_id,
-          field
+          field,
+          genero
         `)
         .eq("tournament_id", tournament.id)
         .order("scheduled_at", { ascending: true, nullsFirst: true });
@@ -37,10 +38,18 @@ export const useMatches = (tournament: Tournament | null) => {
       }
 
       if (matches && matches.length > 0) {
+        type SupabaseMatch = {
+          team_a: number | null;
+          team_b: number | null;
+          referee: string | null;
+          assistant: string | null;
+          tournament_id: number | null;
+        };
+
         // Obtener todos los IDs de equipos únicos
         const teamIds = [
-          ...matches.map((m: any) => m.team_a),
-          ...matches.map((m: any) => m.team_b),
+          ...(matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.team_a),
+          ...(matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.team_b),
         ];
         const uniqueTeamIds = Array.from(new Set(teamIds)).filter(
           (id): id is number => id !== undefined && typeof id === "number"
@@ -52,16 +61,21 @@ export const useMatches = (tournament: Tournament | null) => {
           .select("id, name")
           .in("id", uniqueTeamIds);
 
+        type TeamData = {
+          id: number;
+          name: string;
+        };
+
         // Crear un mapa de team_id -> team name
         const teamsMap = new Map(
-          teamsData?.map((t: any) => [t.id, { id: t.id, name: t.name }]) || []
+          (teamsData as TeamData[] | null)?.map((t: TeamData) => [t.id, { id: t.id, name: t.name }]) || []
         );
 
         // Obtener IDs de árbitros y asistentes
         const userIds = [
-          ...matches.map((m: any) => m.referee),
-          ...matches.map((m: any) => m.assistant),
-        ].filter(Boolean);
+          ...(matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.referee),
+          ...(matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.assistant),
+        ].filter((id): id is string => id !== null && id !== undefined);
         const uniqueUserIds = Array.from(new Set(userIds));
 
         let profilesMap = new Map<string, string>();
@@ -70,11 +84,17 @@ export const useMatches = (tournament: Tournament | null) => {
             .from("profiles")
             .select("id, full_name")
             .in("id", uniqueUserIds);
-          profilesMap = new Map(profilesData?.map((p: any) => [p.id, p.full_name]) || []);
+          
+          type ProfileData = {
+            id: string;
+            full_name: string | null;
+          };
+
+          profilesMap = new Map((profilesData as ProfileData[] | null)?.map((p: ProfileData) => [p.id, p.full_name || ""]) || []);
         }
 
         // Obtener información de disciplinas de los torneos
-        const tournamentIds = Array.from(new Set(matches.map((m: any) => m.tournament_id).filter(Boolean)));
+        const tournamentIds = Array.from(new Set((matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.tournament_id).filter((id): id is number => id !== null && id !== undefined)));
         const tournamentsMap = new Map<number, number>(); // tournament_id -> sport_id
         
         if (tournamentIds.length > 0) {
@@ -239,6 +259,7 @@ export const useMatches = (tournament: Tournament | null) => {
       if (form.referee) updateData.referee = form.referee;
       if (form.assistant) updateData.assistant = form.assistant;
       if (form.field) updateData.field = form.field;
+      if (form.genero) updateData.genero = form.genero;
       
       // Determinar el estado automáticamente:
       // Si todos los campos están completos (fecha, árbitro, asistente, cancha), el estado es "scheduled"

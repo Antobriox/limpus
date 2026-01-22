@@ -5,7 +5,7 @@ import { Team, Tournament } from "../types";
 import { generateBracketsPDF } from "../utils/pdfGenerator";
 import { useQueryClient } from "@tanstack/react-query";
 
-export const useBrackets = (tournament: Tournament | null, sportId: number | null) => {
+export const useBrackets = (tournament: Tournament | null, sportId: number | null, genero: string | null = null) => {
   const queryClient = useQueryClient();
   const [allTeams, setAllTeams] = useState<Team[]>([]);
   const [selectedTeams, setSelectedTeams] = useState<Set<number>>(new Set());
@@ -58,7 +58,16 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
         return;
       }
 
+      // Si no hay género seleccionado, no cargar brackets
+      if (!genero) {
+        setLoadingSaved(false);
+        setBombos([]);
+        setSavedDrawId(null);
+        return;
+      }
+
       const sportName = sportData?.name || "";
+      const generoText = genero === "masculino" ? "masculino" : "femenino";
       
       // Buscar todos los draws para este torneo
       const { data: draws, error: drawsError } = await supabase
@@ -75,17 +84,18 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
         return;
       }
 
-      // Filtrar manualmente por el nombre exacto del deporte en el formato esperado
-      // El formato es: "Brackets - [Torneo] - [Deporte]"
+      // Filtrar manualmente por el nombre exacto del deporte y género en el formato esperado
+      // El formato es: "Brackets - [Torneo] - [Deporte] - [Género]"
       const filteredDraws = draws?.filter(draw => {
         const drawName = draw.name?.toLowerCase() || "";
         const sportNameLower = sportName.toLowerCase();
         // Buscar el nombre del deporte en el nombre del draw
-        const matches = drawName.includes(sportNameLower);
-        if (matches) {
-          console.log(`Bracket encontrado para ${sportName}:`, draw.name);
-        }
-        return matches;
+        const matchesSport = drawName.includes(sportNameLower);
+        if (!matchesSport) return false;
+        
+        // Filtrar por género (siempre debe haber género)
+        const matchesGenero = drawName.includes(generoText);
+        return matchesGenero;
       }) || [];
 
       if (filteredDraws.length === 0) {
@@ -175,9 +185,9 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
     
     if (teamsToUse.length === 0) {
       return;
-      return;
     }
 
+    // Generar bombos (fases de grupo)
     const equiposPorBombo = 4;
     const totalEquipos = teamsToUse.length;
     const numBombos = Math.ceil(totalEquipos / equiposPorBombo);
@@ -222,11 +232,12 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
         .single();
 
       const sportName = sportData?.name || "Disciplina";
+      const generoText = genero ? ` - ${genero === "masculino" ? "Masculino" : "Femenino"}` : "";
 
       const { data: draw, error: drawError } = await supabase
         .from("draws")
         .insert({
-          name: `Brackets - ${tournament.name} - ${sportName}`,
+          name: `Brackets - ${tournament.name} - ${sportName}${generoText}`,
           tournament_id: tournament.id,
           created_by: user.id,
         })
@@ -287,7 +298,7 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
       // Brackets generados y guardados correctamente
       setSavedDrawId(draw.id);
       if (onSuccess) onSuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error:", error);
     } finally {
       setGenerating(false);
@@ -332,7 +343,7 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
       queryClient.invalidateQueries({ queryKey: ["standings"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error:", error);
     }
   };

@@ -102,9 +102,15 @@ const loadDashboardData = async (): Promise<{
 
   let recentTeams: Team[] = [];
   if (allTeamsData && allTeamsData.length > 0) {
-    const careerIds = allTeamsData
-      .flatMap((team: any) => team.careers || [])
-      .map((career: any) => career.id)
+    type TeamWithCareers = {
+      id: number;
+      name: string;
+      careers?: Array<{ id: number; name: string }>;
+    };
+    
+    const careerIds = (allTeamsData as TeamWithCareers[])
+      .flatMap((team: TeamWithCareers) => team.careers || [])
+      .map((career: { id: number }) => career.id)
       .filter((id: number) => id);
 
     const { data: captainsData } = await supabase
@@ -113,11 +119,16 @@ const loadDashboardData = async (): Promise<{
       .in("career_id", careerIds)
       .eq("is_captain", true);
 
+    type CaptainData = {
+      career_id: number;
+      full_name: string | null;
+    };
+
     const captainsMap = new Map(
-      captainsData?.map((c: any) => [c.career_id, c.full_name]) || []
+      (captainsData as CaptainData[] | null)?.map((c: CaptainData) => [c.career_id, c.full_name]) || []
     );
 
-    recentTeams = allTeamsData.map((team: any) => {
+    recentTeams = (allTeamsData as TeamWithCareers[]).map((team: TeamWithCareers) => {
       const faculty = team.careers && team.careers.length > 0 
         ? team.careers[0].name 
         : "Sin facultad";
@@ -164,7 +175,23 @@ const loadDashboardData = async (): Promise<{
 
   let recentResults: RecentResult[] = [];
   if (finishedMatches && finishedMatches.length > 0) {
-    const matchIds = finishedMatches.map((m: any) => m.id);
+    type FinishedMatch = {
+      id: number;
+      team_a: number | null;
+      team_b: number | null;
+      scheduled_at: string | null;
+      ended_at: string | null;
+      status: string;
+      tournaments?: {
+        id: number;
+        name: string;
+        sports?: {
+          name: string;
+        };
+      };
+    };
+
+    const matchIds = (finishedMatches as FinishedMatch[]).map((m: FinishedMatch) => m.id);
     const { data: resultsData } = await supabase
       .from("match_results")
       .select(`
@@ -175,8 +202,23 @@ const loadDashboardData = async (): Promise<{
       `)
       .in("match_id", matchIds);
 
-    const matchResultsData = finishedMatches.map((match: any) => {
-      const result = resultsData?.find((r: any) => r.match_id === match.id);
+    type MatchResult = {
+      match_id: number;
+      score_team_a: number | null;
+      score_team_b: number | null;
+      confirmed_at: string | null;
+    };
+
+    type MatchResultData = {
+      match_id: number;
+      score_team_a: number;
+      score_team_b: number;
+      confirmed_at: string | null;
+      matches: FinishedMatch;
+    };
+
+    const matchResultsData: MatchResultData[] = (finishedMatches as FinishedMatch[]).map((match: FinishedMatch) => {
+      const result = (resultsData as MatchResult[] | null)?.find((r: MatchResult) => r.match_id === match.id);
       return {
         match_id: match.id,
         score_team_a: result?.score_team_a || 0,
@@ -187,8 +229,8 @@ const loadDashboardData = async (): Promise<{
     });
 
     const allTeamIds = [
-      ...matchResultsData.map((mr: any) => mr.matches?.team_a),
-      ...matchResultsData.map((mr: any) => mr.matches?.team_b),
+      ...matchResultsData.map((mr: MatchResultData) => mr.matches?.team_a),
+      ...matchResultsData.map((mr: MatchResultData) => mr.matches?.team_b),
     ];
     const teamIds = Array.from(new Set(allTeamIds)).filter(
       (id): id is number => id !== undefined && typeof id === "number"
@@ -199,9 +241,14 @@ const loadDashboardData = async (): Promise<{
       .select("id, name")
       .in("id", teamIds);
 
-    const teamsMap = new Map(teamsData?.map((t: any) => [t.id, t.name]) || []);
+    type TeamData = {
+      id: number;
+      name: string;
+    };
 
-    recentResults = matchResultsData.map((mr: any) => {
+    const teamsMap = new Map((teamsData as TeamData[] | null)?.map((t: TeamData) => [t.id, t.name]) || []);
+
+    recentResults = matchResultsData.map((mr: MatchResultData) => {
       const match = mr.matches;
       const date = match.ended_at || match.scheduled_at;
       const dateLabel = date
@@ -243,7 +290,6 @@ export const useDashboard = () => {
   const {
     data,
     isLoading,
-    isFetching,
   } = useQuery({
     queryKey: DASHBOARD_QUERY_KEY,
     queryFn: loadDashboardData,

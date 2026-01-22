@@ -2,6 +2,20 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useUser } from "../../../../hooks/useUser";
 
+// Tipos para datos de Supabase
+type SupabaseCareer = {
+  id: number;
+  name: string;
+};
+
+type SupabaseTeamLeader = {
+  user_id: string;
+};
+
+type SupabaseProfile = {
+  full_name: string | null;
+};
+
 export type TeamInfo = {
   id: number;
   name: string;
@@ -45,7 +59,7 @@ const loadTeamLeader = async (userId: string): Promise<TeamInfo | null> => {
     .select("id, name")
     .eq("team_id", teamId);
 
-  const careers = careersData?.map((c: any) => c.name) || [];
+  const careers = (careersData as SupabaseCareer[] | null)?.map((c: SupabaseCareer) => c.name) || [];
 
   // 4. Cargar líderes del equipo
   const { data: teamLeadersData } = await supabase
@@ -53,7 +67,7 @@ const loadTeamLeader = async (userId: string): Promise<TeamInfo | null> => {
     .select("user_id")
     .eq("team_id", teamId);
 
-  const leaderIds = teamLeadersData?.map((tl: any) => tl.user_id) || [];
+  const leaderIds = (teamLeadersData as SupabaseTeamLeader[] | null)?.map((tl: SupabaseTeamLeader) => tl.user_id) || [];
   
   let leaders: string[] = [];
   if (leaderIds.length > 0) {
@@ -62,7 +76,7 @@ const loadTeamLeader = async (userId: string): Promise<TeamInfo | null> => {
       .select("full_name")
       .in("id", leaderIds);
 
-    leaders = profilesData?.map((p: any) => p.full_name || "Sin nombre") || [];
+    leaders = (profilesData as SupabaseProfile[] | null)?.map((p: SupabaseProfile) => p.full_name || "Sin nombre") || [];
   }
 
   // 5. Obtener facultad (primera carrera o "Sin facultad")
@@ -73,9 +87,9 @@ const loadTeamLeader = async (userId: string): Promise<TeamInfo | null> => {
   // y está asociado a una carrera del equipo
   let captain: string | null = null;
   if (careersData && careersData.length > 0) {
-    const careerIds = careersData
-      .map((c: any) => c.id)
-      .filter((id: any): id is number => id !== null && id !== undefined && typeof id === 'number');
+    const careerIds = (careersData as SupabaseCareer[])
+      .map((c: SupabaseCareer) => c.id)
+      .filter((id): id is number => id !== null && id !== undefined && typeof id === 'number');
     
     if (careerIds.length > 0) {
       const { data: captainData, error: captainError } = await supabase

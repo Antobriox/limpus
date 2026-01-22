@@ -20,6 +20,7 @@ export default function NuevaInscripcionPage() {
   const [form, setForm] = useState({
     name: "",
     sport_id: "",
+    genero: "",
     editable_until: "",
     min_players: 5,
     max_players: 12,
@@ -52,6 +53,11 @@ export default function NuevaInscripcionPage() {
       return;
     }
 
+    if (!form.genero) {
+      // alert eliminada"Debes seleccionar un género");
+      return;
+    }
+
     if (form.min_players > form.max_players) {
       // alert eliminada"El mínimo no puede ser mayor al máximo");
       return;
@@ -68,6 +74,7 @@ export default function NuevaInscripcionPage() {
       .insert({
         name: form.name,
         sport_id: parseInt(form.sport_id),
+        genero: form.genero,
         editable_until: form.editable_until || null,
         min_players: form.min_players,
         max_players: form.max_players,
@@ -127,6 +134,21 @@ export default function NuevaInscripcionPage() {
                 {sport.name}
               </option>
             ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Género <span className="text-red-500">*</span>
+          </label>
+          <select
+            className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            value={form.genero}
+            onChange={(e) => setForm({ ...form, genero: e.target.value })}
+          >
+            <option value="">Selecciona un género</option>
+            <option value="masculino">Masculino</option>
+            <option value="femenino">Femenino</option>
           </select>
         </div>
 

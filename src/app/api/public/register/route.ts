@@ -112,10 +112,10 @@ export async function POST(req: Request) {
       success: true,
       message: "Usuario creado exitosamente" 
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("SERVER ERROR in public/register:", err);
     return NextResponse.json(
-      { error: `Error interno del servidor: ${err?.message || String(err)}` },
+      { error: `Error interno del servidor: ${err instanceof Error ? err.message : String(err)}` },
       { status: 500 }
     );
   }

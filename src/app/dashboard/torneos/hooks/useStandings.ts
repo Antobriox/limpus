@@ -3,7 +3,39 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../../../../lib/supabaseClient";
 import { generateStandings, MatchData, TeamMap } from "../utils/calculateStandings";
 import { getDisciplineRulesByName, getDisciplineRules } from "../config/disciplineRules";
-import { TeamStanding, DisciplineRules, BomboStandings } from "../types/standings";
+import { TeamStanding, BomboStandings } from "../types/standings";
+
+// Tipos para datos de Supabase
+type SupabaseMatch = {
+  id: number;
+  team_a: number;
+  team_b: number;
+  status: string;
+};
+
+type SupabaseDrawResult = {
+  result_order: number | null;
+  team_id: number;
+};
+
+type SupabaseTeam = {
+  id: number;
+  name: string;
+};
+
+type SupabaseMatchResult = {
+  match_id: number;
+  score_team_a: number | null;
+  score_team_b: number | null;
+};
+
+type SupabaseMatchEvent = {
+  match_id: number;
+  event_type: string;
+  team_id: number | null;
+  player_id: number | null;
+  value: number | null;
+};
 
 // Query key factory para standings
 const standingsQueryKey = (sportId: number, sportName: string, tournamentId?: number, genero?: string | null) => 
@@ -60,7 +92,7 @@ const loadStandingsQuery = async (
 
   console.log(`Partidos finalizados encontrados: ${matches?.length || 0}`);
   if (matches && matches.length > 0) {
-    matches.forEach((m: any) => {
+    matches.forEach((m: SupabaseMatch) => {
       console.log(`  - Partido ${m.id}: Equipo ${m.team_a} vs Equipo ${m.team_b}, Status: ${m.status}`);
     });
   }
@@ -78,7 +110,7 @@ const loadStandingsQuery = async (
   console.log(`Buscando brackets para disciplina: "${disciplineName}" (ID: ${sportId})`);
 
   // Buscar brackets guardados para esta disciplina
-  let allTeamIds = new Set<number>();
+  const allTeamIds = new Set<number>();
   
   // Obtener TODOS los torneos
   const { data: tournaments } = await supabase
@@ -120,10 +152,21 @@ const loadStandingsQuery = async (
         const drawName = (draw.name?.toLowerCase() || "")
           .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         
-        return searchTerms.some(term => {
+        // Verificar que el nombre del draw incluya el nombre de la disciplina
+        const matchesDiscipline = searchTerms.some(term => {
           const normalizedTerm = term.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
           return drawName.includes(normalizedTerm);
         });
+        
+        if (!matchesDiscipline) return false;
+        
+        // Si hay género especificado, también filtrar por género
+        if (genero) {
+          const generoText = genero === "masculino" ? "masculino" : "femenino";
+          return drawName.includes(generoText);
+        }
+        
+        return true;
       });
 
       if (filteredDraws.length > 0) {
@@ -138,7 +181,7 @@ const loadStandingsQuery = async (
           console.log(`${drawResults.length} equipos encontrados en brackets`);
           
           const bomboMap = new Map<number, Set<number>>();
-          drawResults.forEach((dr: any) => {
+          drawResults.forEach((dr: SupabaseDrawResult) => {
             const bombo = dr.result_order || 1;
             if (!bomboMap.has(bombo)) {
               bomboMap.set(bombo, new Set());
@@ -174,7 +217,7 @@ const loadStandingsQuery = async (
   }
 
   const teamMap: TeamMap = new Map(
-    allTeams?.map((t: any) => [t.id, t.name]) || []
+    (allTeams as SupabaseTeam[] | null)?.map((t: SupabaseTeam) => [t.id, t.name]) || []
   );
 
   // Obtener información de bombos si está disponible
@@ -260,7 +303,7 @@ const loadStandingsQuery = async (
     }];
   }
 
-  const matchIds = matches.map((m: any) => m.id);
+  const matchIds = matches.map((m: SupabaseMatch) => m.id);
 
   // Cargar resultados de partidos
   const selectFields = rules.usesSets
@@ -287,9 +330,9 @@ const loadStandingsQuery = async (
   }
 
   // Combinar datos de partidos con resultados y eventos
-  const matchesData: MatchData[] = matches.map((match: any) => {
-    const result = results?.find((r: any) => r.match_id === match.id);
-    const matchEvents = events?.filter((e: any) => e.match_id === match.id) || [];
+  const matchesData: MatchData[] = matches.map((match: SupabaseMatch) => {
+    const result = (results as SupabaseMatchResult[] | null)?.find((r: SupabaseMatchResult) => r.match_id === match.id);
+    const matchEvents = (events as SupabaseMatchEvent[] | null)?.filter((e: SupabaseMatchEvent) => e.match_id === match.id) || [];
 
     // Contar tarjetas por equipo
     let yellowCardsA = 0;
@@ -300,7 +343,7 @@ const loadStandingsQuery = async (
     let setsA: number | null = null;
     let setsB: number | null = null;
 
-    matchEvents.forEach((event: any) => {
+    matchEvents.forEach((event: SupabaseMatchEvent) => {
       if (event.team_id === match.team_a) {
         if (event.event_type === "yellow_card") yellowCardsA++;
         if (event.event_type === "red_card") redCardsA++;

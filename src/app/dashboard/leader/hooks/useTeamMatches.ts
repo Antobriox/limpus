@@ -1,6 +1,41 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../../../../lib/supabaseClient";
 
+// Tipos para datos de Supabase
+type SupabaseMatch = {
+  id: number;
+  team_a: number | null;
+  team_b: number | null;
+  scheduled_at: string | null;
+  field: string | null;
+  status: string;
+  referee: string | null;
+  assistant: string | null;
+  genero: string | null;
+  tournaments?: {
+    sports?: {
+      name: string;
+    };
+  };
+  match_results?: {
+    score_team_a: number | null;
+    score_team_b: number | null;
+  } | Array<{
+    score_team_a: number | null;
+    score_team_b: number | null;
+  }>;
+};
+
+type SupabaseTeam = {
+  id: number;
+  name: string;
+};
+
+type SupabaseProfile = {
+  id: string;
+  full_name: string | null;
+};
+
 export type TeamMatch = {
   id: number;
   team_a_id: number;
@@ -62,7 +97,7 @@ const loadTeamMatches = async (teamId: number): Promise<{
 
   // Obtener IDs de equipos únicos
   const teamIds = new Set<number>();
-  matchesData.forEach((m: any) => {
+  (matchesData as SupabaseMatch[]).forEach((m: SupabaseMatch) => {
     if (m.team_a) teamIds.add(m.team_a);
     if (m.team_b) teamIds.add(m.team_b);
   });
@@ -73,11 +108,11 @@ const loadTeamMatches = async (teamId: number): Promise<{
     .select("id, name")
     .in("id", Array.from(teamIds));
 
-  const teamsMap = new Map(teamsData?.map((t: any) => [t.id, t.name]) || []);
+  const teamsMap = new Map((teamsData as SupabaseTeam[] | null)?.map((t: SupabaseTeam) => [t.id, t.name]) || []);
 
   // Cargar nombres de árbitros
-  const refereeIds = matchesData
-    .map((m: any) => m.referee)
+  const refereeIds = (matchesData as SupabaseMatch[])
+    .map((m: SupabaseMatch) => m.referee)
     .filter((id): id is string => id !== null && id !== undefined);
   
   let refereesMap = new Map<string, string>();
@@ -88,13 +123,13 @@ const loadTeamMatches = async (teamId: number): Promise<{
       .in("id", refereeIds);
 
     refereesMap = new Map(
-      refereesData?.map((r: any) => [r.id, r.full_name || "Sin nombre"]) || []
+      (refereesData as SupabaseProfile[] | null)?.map((r: SupabaseProfile) => [r.id, r.full_name || "Sin nombre"]) || []
     );
   }
 
   // Cargar nombres de asistentes
-  const assistantIds = matchesData
-    .map((m: any) => m.assistant)
+  const assistantIds = (matchesData as SupabaseMatch[])
+    .map((m: SupabaseMatch) => m.assistant)
     .filter((id): id is string => id !== null && id !== undefined);
   
   let assistantsMap = new Map<string, string>();
@@ -105,7 +140,7 @@ const loadTeamMatches = async (teamId: number): Promise<{
       .in("id", assistantIds);
 
     assistantsMap = new Map(
-      assistantsData?.map((a: any) => [a.id, a.full_name || "Sin nombre"]) || []
+      (assistantsData as SupabaseProfile[] | null)?.map((a: SupabaseProfile) => [a.id, a.full_name || "Sin nombre"]) || []
     );
   }
 
@@ -115,7 +150,7 @@ const loadTeamMatches = async (teamId: number): Promise<{
   const live: TeamMatch[] = [];
   const past: TeamMatch[] = [];
 
-  matchesData.forEach((m: any) => {
+  (matchesData as SupabaseMatch[]).forEach((m: SupabaseMatch) => {
     // Obtener el resultado del partido (puede ser un array o un objeto)
     let scoreA = null;
     let scoreB = null;

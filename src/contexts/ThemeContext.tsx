@@ -17,7 +17,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     // Obtener el tema guardado en localStorage o usar la preferencia del sistema
     const savedTheme = localStorage.getItem("theme") as Theme | null;
     const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -26,6 +25,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const initialTheme = savedTheme || systemTheme;
     
     setTheme(initialTheme);
+    setMounted(true);
     
     // Aplicar el tema inicial al DOM
     const root = document.documentElement;

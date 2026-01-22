@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+
+// Tipos para datos de Supabase
+type SupabasePlayer = {
+  id: number;
+  full_name: string;
+  jersey_number: number | null;
+};
+
 import { supabase } from "../../../../lib/supabaseClient";
 import { X } from "lucide-react";
 import { getDisciplineRulesByName } from "../../torneos/config/disciplineRules";
@@ -12,6 +20,7 @@ type MatchDetailsModalProps = {
   teamAName: string;
   teamBName: string;
   sportName: string;
+  genero?: string | null;
   onClose: () => void;
 };
 
@@ -36,6 +45,7 @@ export default function MatchDetailsModal({
   teamAName,
   teamBName,
   sportName,
+  genero,
   onClose,
 }: MatchDetailsModalProps) {
   const [loading, setLoading] = useState(true);
@@ -43,11 +53,7 @@ export default function MatchDetailsModal({
   const [playersA, setPlayersA] = useState<Player[]>([]);
   const [playersB, setPlayersB] = useState<Player[]>([]);
 
-  useEffect(() => {
-    loadMatchDetails();
-  }, [matchId]);
-
-  const loadMatchDetails = async () => {
+  const loadMatchDetails = useCallback(async () => {
     setLoading(true);
     try {
       // Cargar eventos del partido
@@ -57,49 +63,92 @@ export default function MatchDetailsModal({
         .eq("match_id", matchId)
         .order("value", { ascending: true });
 
-      // Cargar jugadores de ambos equipos usando la misma lógica que useResults
-      // Obtener las carreras de cada equipo
-      const [careersA, careersB] = await Promise.all([
-        supabase.from("careers").select("id").eq("team_id", teamAId),
-        supabase.from("careers").select("id").eq("team_id", teamBId),
-      ]);
+      // Obtener sport_id del partido para filtrar jugadores
+      let sportId: number | undefined = undefined;
+      const { data: matchData } = await supabase
+        .from("matches")
+        .select(`
+          tournament_id,
+          genero,
+          tournaments!inner (
+            sport_id
+          )
+        `)
+        .eq("id", matchId)
+        .single();
+      
+      sportId = matchData?.tournaments?.sport_id;
+      const matchGenero = matchData?.genero || genero;
 
-      const careerIdsA = careersA.data?.map((c) => c.id) || [];
-      const careerIdsB = careersB.data?.map((c) => c.id) || [];
+      console.log(`Cargando jugadores para partido ${matchId}, deporte ${sportId}, género ${matchGenero}`);
 
-      // Cargar jugadores de esas carreras
-      const [playersAData, playersBData] = await Promise.all([
-        careerIdsA.length > 0
-          ? supabase
+      // Cargar jugadores de ambos equipos filtrando por disciplina y género
+      const loadPlayersForTeam = async (teamId: number, sportId?: number, genero?: string | null): Promise<Player[]> => {
+        // Si tenemos sportId y genero, buscar la inscripción específica
+        if (sportId && genero) {
+          const { data: teamRegistrations } = await supabase
+            .from("team_registrations")
+            .select(`
+              id,
+              form_id,
+              registration_forms!inner (
+                sport_id,
+                genero
+              )
+            `)
+            .eq("team_id", teamId)
+            .eq("registration_forms.sport_id", sportId)
+            .eq("registration_forms.genero", genero);
+
+          if (teamRegistrations && teamRegistrations.length > 0) {
+            const registrationId = teamRegistrations[0].id;
+            const { data: players } = await supabase
               .from("players")
               .select("id, full_name, jersey_number")
-              .in("career_id", careerIdsA)
-              .order("jersey_number", { ascending: true, nullsFirst: false })
-          : { data: [] },
-        careerIdsB.length > 0
-          ? supabase
-              .from("players")
-              .select("id, full_name, jersey_number")
-              .in("career_id", careerIdsB)
-              .order("jersey_number", { ascending: true, nullsFirst: false })
-          : { data: [] },
-      ]);
+              .eq("team_registration_id", registrationId)
+              .order("jersey_number", { ascending: true, nullsFirst: false });
 
-      setPlayersA(
-        (playersAData.data || []).map((p: any) => ({
+            return ((players || []) as SupabasePlayer[]).map((p: SupabasePlayer) => ({
+              id: p.id,
+              full_name: p.full_name,
+              jersey_number: p.jersey_number,
+            }));
+          }
+          return [];
+        }
+
+        // Fallback: cargar todos los jugadores del equipo (comportamiento anterior)
+        const { data: careers } = await supabase
+          .from("careers")
+          .select("id")
+          .eq("team_id", teamId);
+
+        if (!careers || careers.length === 0) {
+          return [];
+        }
+
+        const careerIds = careers.map((c) => c.id);
+        const { data: players } = await supabase
+          .from("players")
+          .select("id, full_name, jersey_number")
+          .in("career_id", careerIds)
+          .order("jersey_number", { ascending: true, nullsFirst: false });
+
+        return ((players || []) as SupabasePlayer[]).map((p: SupabasePlayer) => ({
           id: p.id,
           full_name: p.full_name,
           jersey_number: p.jersey_number,
-        }))
-      );
+        }));
+      };
 
-      setPlayersB(
-        (playersBData.data || []).map((p: any) => ({
-          id: p.id,
-          full_name: p.full_name,
-          jersey_number: p.jersey_number,
-        }))
-      );
+      // Cargar jugadores de ambos equipos
+      const [playersA, playersB] = await Promise.all([
+        loadPlayersForTeam(teamAId, sportId, matchGenero),
+        loadPlayersForTeam(teamBId, sportId, matchGenero),
+      ]);
+
+      setPlayersA(playersA);
+      setPlayersB(playersB);
 
       setEvents(eventsData || []);
     } catch (error) {
@@ -107,7 +156,11 @@ export default function MatchDetailsModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [matchId, teamAId, teamBId, genero]);
+
+  useEffect(() => {
+    loadMatchDetails();
+  }, [loadMatchDetails]);
 
   const getPlayerName = (playerId: number | null, team: "a" | "b"): string => {
     if (!playerId) return "Jugador desconocido";
@@ -308,7 +361,7 @@ export default function MatchDetailsModal({
                             className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
                           >
                             <span className="text-sm text-gray-700 dark:text-gray-300">
-                              {getPlayerName(card.player_id, "a")} - Minuto {card.minute}'
+                              {getPlayerName(card.player_id, "a")} - Minuto {card.minute}&apos;
                             </span>
                           </div>
                         ))}
@@ -333,7 +386,7 @@ export default function MatchDetailsModal({
                             className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
                           >
                             <span className="text-sm text-gray-700 dark:text-gray-300">
-                              {getPlayerName(card.player_id, "b")} - Minuto {card.minute}'
+                              {getPlayerName(card.player_id, "b")} - Minuto {card.minute}&apos;
                             </span>
                           </div>
                         ))}
@@ -363,7 +416,7 @@ export default function MatchDetailsModal({
                             className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
                           >
                             <span className="text-sm text-gray-700 dark:text-gray-300">
-                              {getPlayerName(card.player_id, "a")} - Minuto {card.minute}'
+                              {getPlayerName(card.player_id, "a")} - Minuto {card.minute}&apos;
                             </span>
                           </div>
                         ))}
@@ -388,7 +441,7 @@ export default function MatchDetailsModal({
                             className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
                           >
                             <span className="text-sm text-gray-700 dark:text-gray-300">
-                              {getPlayerName(card.player_id, "b")} - Minuto {card.minute}'
+                              {getPlayerName(card.player_id, "b")} - Minuto {card.minute}&apos;
                             </span>
                           </div>
                         ))}

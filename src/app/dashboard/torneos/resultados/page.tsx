@@ -18,7 +18,6 @@ export default function ResultadosPage() {
     scheduledMatches,
     loading,
     saving,
-    loadScheduledMatches,
     loadPlayersForTeam,
     saveMatchResult,
     updateMatchStatus,
@@ -40,10 +39,6 @@ export default function ResultadosPage() {
     red_cards_team_b: [],
     sets: [], // Para Vóley: sets individuales con puntajes
   });
-
-  useEffect(() => {
-    loadTournament();
-  }, []);
 
   // Los partidos se cargan automáticamente con TanStack Query (caché)
   // No necesitamos llamar loadScheduledMatches manualmente
@@ -81,6 +76,13 @@ export default function ResultadosPage() {
     }
   };
 
+  useEffect(() => {
+    const loadTournamentAsync = async () => {
+      await loadTournament();
+    };
+    loadTournamentAsync();
+  }, []);
+
   const handleStartMatch = async (matchId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     // Confirmación eliminada
@@ -101,7 +103,7 @@ export default function ResultadosPage() {
     e.stopPropagation();
     
     // Buscar el partido para verificar su estado actual
-    const match = scheduledMatches.find((m: any) => m.id === matchId);
+    const match = scheduledMatches.find((m: Match) => m.id === matchId);
     if (match?.status === "finished") {
       return;
       e.target.value = match.status; // Restaurar el valor anterior
@@ -122,10 +124,22 @@ export default function ResultadosPage() {
     setLoadingPlayers(true);
     setShowResultModal(true);
 
+    // Obtener sport_id del torneo para filtrar jugadores
+    let sportId: number | undefined = undefined;
+    if (match.tournament_id) {
+      const { data: tournamentData } = await supabase
+        .from("tournaments")
+        .select("sport_id")
+        .eq("id", match.tournament_id)
+        .single();
+      sportId = tournamentData?.sport_id;
+    }
+
     // Cargar jugadores y datos existentes del partido
+    // Filtrar jugadores por disciplina y género del partido
     const [playersA, playersB, existingResult, existingEvents] = await Promise.all([
-      loadPlayersForTeam(match.team_a),
-      loadPlayersForTeam(match.team_b),
+      loadPlayersForTeam(match.team_a, sportId, match.genero || null),
+      loadPlayersForTeam(match.team_b, sportId, match.genero || null),
       supabase
         .from("match_results")
         .select("*")
@@ -1129,7 +1143,7 @@ export default function ResultadosPage() {
                       })}
                       {resultForm.sets.length === 0 && (
                         <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                          <p>No hay sets registrados. Haz clic en "+ Agregar Set" para comenzar.</p>
+                          <p>No hay sets registrados. Haz clic en &quot;+ Agregar Set&quot; para comenzar.</p>
                         </div>
                       )}
                     </div>
@@ -1404,7 +1418,7 @@ export default function ResultadosPage() {
                       {resultForm.yellow_cards_team_a.map((card, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
                           <span className="text-sm text-gray-700 dark:text-gray-300">
-                            {getPlayerName(card.player_id, "a")} - Minuto {card.minute}'
+                            {getPlayerName(card.player_id, "a")} - Minuto {card.minute}&apos;
                           </span>
                           <button
                             onClick={() => handleRemoveCard("a", "yellow", index)}
@@ -1507,7 +1521,7 @@ export default function ResultadosPage() {
                       {resultForm.yellow_cards_team_b.map((card, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
                           <span className="text-sm text-gray-700 dark:text-gray-300">
-                            {getPlayerName(card.player_id, "b")} - Minuto {card.minute}'
+                            {getPlayerName(card.player_id, "b")} - Minuto {card.minute}&apos;
                           </span>
                           <button
                             onClick={() => handleRemoveCard("b", "yellow", index)}
@@ -1610,7 +1624,7 @@ export default function ResultadosPage() {
                       {resultForm.red_cards_team_a.map((card, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
                           <span className="text-sm text-gray-700 dark:text-gray-300">
-                            {getPlayerName(card.player_id, "a")} - Minuto {card.minute}'
+                            {getPlayerName(card.player_id, "a")} - Minuto {card.minute}&apos;
                           </span>
                           <button
                             onClick={() => handleRemoveCard("a", "red", index)}
@@ -1713,7 +1727,7 @@ export default function ResultadosPage() {
                       {resultForm.red_cards_team_b.map((card, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
                           <span className="text-sm text-gray-700 dark:text-gray-300">
-                            {getPlayerName(card.player_id, "b")} - Minuto {card.minute}'
+                            {getPlayerName(card.player_id, "b")} - Minuto {card.minute}&apos;
                           </span>
                           <button
                             onClick={() => handleRemoveCard("b", "red", index)}

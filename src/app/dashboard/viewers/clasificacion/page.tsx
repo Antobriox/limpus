@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useStandings } from "../../torneos/hooks/useStandings";
 import { useSports } from "../hooks/useSports";
 import { getDisciplineRulesByName } from "../../torneos/config/disciplineRules";
-import { ArrowLeft, Trophy, TrendingUp, Star } from "lucide-react";
+import { ArrowLeft, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function ClasificacionViewersPage() {
@@ -18,19 +19,11 @@ export default function ClasificacionViewersPage() {
   // Seleccionar el primer deporte por defecto cuando se cargan los deportes
   useEffect(() => {
     if (sports.length > 0 && !selectedSport) {
-      setSelectedSport(sports[0].id);
+      const firstSport = sports[0];
+      setSelectedSport(firstSport.id);
+      setSelectedSportName(firstSport.name);
     }
   }, [sports, selectedSport]);
-
-  // Actualizar el nombre del deporte cuando cambia la selección
-  useEffect(() => {
-    if (selectedSport) {
-      const sport = sports.find((s) => s.id === selectedSport);
-      if (sport) {
-        setSelectedSportName(sport.name);
-      }
-    }
-  }, [selectedSport, sports]);
 
   // Usar el hook con TanStack Query para cargar standings
   const { bomboStandings, loading: loadingStandings, error, isFetching } = useStandings(
@@ -50,18 +43,18 @@ export default function ClasificacionViewersPage() {
           <div className="flex items-center justify-center relative">
             {/* Navigation Links - Centrados */}
             <div className="flex items-center gap-8">
-              <a
+              <Link
                 href="/"
                 className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition"
               >
                 Home
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/dashboard/viewers/clasificacion"
                 className="text-blue-600 dark:text-blue-400 font-medium transition"
               >
                 Clasificación
-              </a>
+              </Link>
             </div>
           </div>
         </div>

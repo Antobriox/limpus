@@ -4,10 +4,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { useUser } from "../../../hooks/useUser";
 import {
-  Users,
-  Calendar,
-  Trophy,
-  Clock,
   CheckCircle2,
   AlertCircle,
   UserCheck,
@@ -65,7 +61,7 @@ export default function DashboardPage() {
             .eq("name", tournaments[0].name);
 
           if (allTournaments && allTournaments.length > 0) {
-            const allTournamentIds = allTournaments.map((t: any) => t.id);
+            const allTournamentIds = allTournaments.map((t: { id: number }) => t.id);
             
             const { count } = await supabase
               .from("matches")
@@ -104,7 +100,14 @@ export default function DashboardPage() {
         const sportCounts = new Map<number, { name: string; count: number }>();
         
         if (teamRegistrations) {
-          teamRegistrations.forEach((tr: any) => {
+          teamRegistrations.forEach((tr: {
+            registration_forms?: {
+              sports?: {
+                id: number;
+                name: string;
+              };
+            };
+          }) => {
             const sportId = tr.registration_forms?.sports?.id;
             const sportName = tr.registration_forms?.sports?.name;
             
@@ -291,7 +294,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-gray-900 dark:text-white text-sm font-medium">
-                    Aprobar inscripción de 'Los Delfines'
+                    Aprobar inscripción de &apos;Los Delfines&apos;
                   </p>
                   <p className="text-gray-600 dark:text-gray-400 text-xs">
                     Fútbol Masculino

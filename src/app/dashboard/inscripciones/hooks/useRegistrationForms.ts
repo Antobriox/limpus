@@ -5,6 +5,7 @@ import { supabase } from "../../../../lib/supabaseClient";
 export type Form = {
   id: number;
   name: string;
+  genero: string | null;
   min_players: number;
   max_players: number;
   editable_until: string | null;
@@ -20,6 +21,7 @@ const loadFormsQuery = async (): Promise<Form[]> => {
     .select(`
       id,
       name,
+      genero,
       min_players,
       max_players,
       editable_until,
@@ -37,7 +39,6 @@ export const useRegistrationForms = () => {
   const {
     data: forms = [],
     isLoading,
-    isFetching,
   } = useQuery({
     queryKey: REGISTRATION_FORMS_QUERY_KEY,
     queryFn: loadFormsQuery,
@@ -78,8 +79,8 @@ export const useRegistrationForms = () => {
   const toggleStatus = async (id: number, locked: boolean) => {
     try {
       await toggleStatusMutation.mutateAsync({ id, locked });
-    } catch (error: any) {
-      // alert eliminada"Error al cambiar estado: " + error.message);
+    } catch {
+      // alert eliminada"Error al cambiar estado: " + (error instanceof Error ? error.message : String(error)));
     }
   };
 
@@ -88,8 +89,8 @@ export const useRegistrationForms = () => {
 
     try {
       await deleteFormMutation.mutateAsync(id);
-    } catch (error: any) {
-      // alert eliminada"Error al eliminar formulario: " + error.message);
+    } catch {
+      // alert eliminada"Error al eliminar formulario: " + (error instanceof Error ? error.message : String(error)));
     }
   };
 

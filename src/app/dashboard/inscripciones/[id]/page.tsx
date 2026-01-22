@@ -9,7 +9,16 @@ export default function EditInscripcionPage() {
   const { id } = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState<any>(null);
+  const [form, setForm] = useState<{
+    id: number;
+    name: string;
+    sport_id: number;
+    min_players: number;
+    max_players: number;
+    editable_until: string | null;
+    is_locked: boolean;
+    genero: string | null;
+  } | null>(null);
 
   useEffect(() => {
     supabase
