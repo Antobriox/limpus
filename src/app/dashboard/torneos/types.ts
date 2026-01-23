@@ -40,8 +40,10 @@ export type Match = {
   status: string | null;
   referee: string | null;
   assistant: string | null;
-  teams?: { id: number; name: string };
-  teams1?: { id: number; name: string };
+  genero?: string | null;
+  tournament_id?: number | null;
+  teams?: { id: number | null; name: string };
+  teams1?: { id: number | null; name: string };
   refereeName?: string | null;
   assistantName?: string | null;
   sportName?: string | null;

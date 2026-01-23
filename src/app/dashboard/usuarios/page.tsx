@@ -20,7 +20,7 @@ export default function UsuariosPage() {
     return users.filter(
       (user) =>
         (user.full_name || "").toLowerCase().includes(term) ||
-        user.email.toLowerCase().includes(term) ||
+        (user.email || "").toLowerCase().includes(term) ||
         user.roles.some((role) => role.name.toLowerCase().includes(term))
     );
   }, [users, searchTerm]);

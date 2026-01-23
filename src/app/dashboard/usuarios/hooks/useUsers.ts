@@ -4,8 +4,8 @@ import { supabase } from "../../../../lib/supabaseClient";
 
 export type UserRow = {
   id: string;
-  full_name: string;
-  email: string;
+  full_name: string | null;
+  email: string | null;
   roles: { name: string }[];
 };
 
@@ -37,8 +37,8 @@ const loadUsersQuery = async (): Promise<UserRow[]> => {
   const formatted =
     (data as SupabaseProfile[] | null)?.map((u: SupabaseProfile) => ({
       id: u.id,
-      full_name: u.full_name,
-      email: u.email,
+      full_name: u.full_name || null,
+      email: u.email || null,
       roles: u.user_roles.map((r) => r.roles).filter((role): role is { name: string } => role !== null),
     })) ?? [];
 

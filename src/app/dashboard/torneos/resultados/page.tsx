@@ -21,7 +21,7 @@ export default function ResultadosPage() {
     loadPlayersForTeam,
     saveMatchResult,
     updateMatchStatus,
-  } = useResults(tournament);
+  } = useResults();
 
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
@@ -105,8 +105,7 @@ export default function ResultadosPage() {
     // Buscar el partido para verificar su estado actual
     const match = scheduledMatches.find((m: Match) => m.id === matchId);
     if (match?.status === "finished") {
-      return;
-      e.target.value = match.status; // Restaurar el valor anterior
+      e.target.value = match.status || ""; // Restaurar el valor anterior
       return;
     }
     
@@ -132,14 +131,14 @@ export default function ResultadosPage() {
         .select("sport_id")
         .eq("id", match.tournament_id)
         .single();
-      sportId = tournamentData?.sport_id;
+      sportId = tournamentData?.sport_id || undefined;
     }
 
     // Cargar jugadores y datos existentes del partido
     // Filtrar jugadores por disciplina y género del partido
     const [playersA, playersB, existingResult, existingEvents] = await Promise.all([
-      loadPlayersForTeam(match.team_a, sportId, match.genero || null),
-      loadPlayersForTeam(match.team_b, sportId, match.genero || null),
+      match.team_a !== null ? loadPlayersForTeam(match.team_a, sportId, match.genero || null) : Promise.resolve([]),
+      match.team_b !== null ? loadPlayersForTeam(match.team_b, sportId, match.genero || null) : Promise.resolve([]),
       supabase
         .from("match_results")
         .select("*")
@@ -181,8 +180,8 @@ export default function ResultadosPage() {
     }, []);
 
     // Separar eventos por tipo
-    const goalsA: Array<{ player_id: number; minute: number }> = [];
-    const goalsB: Array<{ player_id: number; minute: number }> = [];
+    const goalsA: Array<{ player_id: number; minute: number; points?: number }> = [];
+    const goalsB: Array<{ player_id: number; minute: number; points?: number }> = [];
     const yellowCardsA: Array<{ player_id: number; minute: number }> = [];
     const yellowCardsB: Array<{ player_id: number; minute: number }> = [];
     const redCardsA: Array<{ player_id: number; minute: number }> = [];
@@ -200,6 +199,8 @@ export default function ResultadosPage() {
       value: number | null;
     };
     events.forEach((event: SupabaseMatchEvent) => {
+      if (event.player_id === null || event.value === null) return;
+      
       if (event.event_type === "goal") {
         if (event.team_id === match.team_a) {
           // Para básquet: value = puntos * 1000 + minuto, extraer ambos
@@ -211,7 +212,7 @@ export default function ResultadosPage() {
           } else {
             goalsA.push({ player_id: event.player_id, minute: event.value });
           }
-        } else {
+        } else if (event.team_id === match.team_b) {
           if (isBasketball) {
             const points = Math.floor(event.value / 1000);
             const minute = event.value % 1000;
@@ -223,13 +224,13 @@ export default function ResultadosPage() {
       } else if (event.event_type === "yellow_card") {
         if (event.team_id === match.team_a) {
           yellowCardsA.push({ player_id: event.player_id, minute: event.value });
-        } else {
+        } else if (event.team_id === match.team_b) {
           yellowCardsB.push({ player_id: event.player_id, minute: event.value });
         }
       } else if (event.event_type === "red_card") {
         if (event.team_id === match.team_a) {
           redCardsA.push({ player_id: event.player_id, minute: event.value });
-        } else {
+        } else if (event.team_id === match.team_b) {
           redCardsB.push({ player_id: event.player_id, minute: event.value });
         }
       } else if (event.event_type?.startsWith("set_") && event.event_type?.includes("_team_")) {
@@ -311,14 +312,14 @@ export default function ResultadosPage() {
     const teamId = team === "a" ? selectedMatch.team_a : selectedMatch.team_b;
     
     if (team === "a") {
-      newScoreA = resultForm.score_team_a + points;
+      newScoreA = (resultForm.score_team_a || 0) + points;
       setResultForm({
         ...resultForm,
         goals_team_a: [...resultForm.goals_team_a, { player_id: playerId, minute, points }],
         score_team_a: newScoreA,
       });
     } else {
-      newScoreB = resultForm.score_team_b + points;
+      newScoreB = (resultForm.score_team_b || 0) + points;
       setResultForm({
         ...resultForm,
         goals_team_b: [...resultForm.goals_team_b, { player_id: playerId, minute, points }],
@@ -405,7 +406,7 @@ export default function ResultadosPage() {
       // alert eliminada"No se pueden agregar goles a un partido finalizado");
       return;
     }
-    setShowGoalForm({ team, playerId: "", minute: "" });
+    setShowGoalForm({ team, playerId: "", minute: "", points: "1" });
   };
 
   const handleRemoveGoal = async (team: "a" | "b", index: number) => {
@@ -429,7 +430,7 @@ export default function ResultadosPage() {
       const pointsToRemove = isBasketball ? (goalToRemove.points || 1) : 1;
       const newGoals = resultForm.goals_team_a.filter((_, i) => i !== index);
       newScoreA = isBasketball 
-        ? resultForm.score_team_a - pointsToRemove
+        ? (resultForm.score_team_a || 0) - pointsToRemove
         : newGoals.length;
       setResultForm({
         ...resultForm,
@@ -441,7 +442,7 @@ export default function ResultadosPage() {
       const pointsToRemove = isBasketball ? (goalToRemove.points || 1) : 1;
       const newGoals = resultForm.goals_team_b.filter((_, i) => i !== index);
       newScoreB = isBasketball 
-        ? resultForm.score_team_b - pointsToRemove
+        ? (resultForm.score_team_b || 0) - pointsToRemove
         : newGoals.length;
       setResultForm({
         ...resultForm,
@@ -644,17 +645,7 @@ export default function ResultadosPage() {
       ) : (
         <div className="space-y-4">
           {(() => {
-            type ScheduledMatch = {
-              id: number;
-              scheduled_at: string | null;
-              teams?: { name?: string };
-              teams1?: { name?: string };
-              sportName?: string | null;
-              genero?: string | null;
-              field?: string | null;
-              status?: string;
-            };
-            return scheduledMatches.map((match: ScheduledMatch) => {
+            return scheduledMatches.map((match: Match) => {
             const scheduledDate = match.scheduled_at ? new Date(match.scheduled_at) : null;
             return (
               <div
@@ -695,12 +686,12 @@ export default function ResultadosPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">Asistente:</span>
-                        <span>{match.assistantName || "Sin asignar"}</span>
+                        <span>{match.assistantName || match.assistant || "Sin asignar"}</span>
                       </div>
-                      {match.refereeName && (
+                      {(match.refereeName || match.referee) && (
                         <div className="flex items-center gap-2">
                           <span className="font-medium">Árbitro:</span>
-                          <span>{match.refereeName}</span>
+                          <span>{match.refereeName || match.referee || ""}</span>
                         </div>
                       )}
                       {match.field && (

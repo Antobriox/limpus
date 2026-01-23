@@ -16,6 +16,10 @@ type SupabaseTeamRegistration = {
   }>;
 };
 
+import { supabase } from "../../../../lib/supabaseClient";
+import { X, Users, User, Eye } from "lucide-react";
+
+// Tipo para datos de jugador desde Supabase
 type SupabasePlayer = {
   id: number;
   full_name: string;
@@ -26,12 +30,8 @@ type SupabasePlayer = {
   jersey_number: number | null;
   is_captain: boolean;
   cedula_photo_url?: string | null;
-  careers?: Array<{
-    name: string;
-  }>;
+  career_id: number | null;
 };
-import { supabase } from "../../../../lib/supabaseClient";
-import { X, Users, User, Eye } from "lucide-react";
 
 type ViewRegistrationsModalProps = {
   formId: number;
@@ -138,7 +138,8 @@ export default function ViewRegistrationsModal({
   const loadPlayers = async (teamRegistrationId: number) => {
     setLoadingPlayers(true);
     try {
-      const { data: playersData, error } = await supabase
+      // Primero cargar todos los jugadores
+      const { data: playersData, error: playersError } = await supabase
         .from("players")
         .select(`
           id,
@@ -150,19 +151,42 @@ export default function ViewRegistrationsModal({
           jersey_number,
           is_captain,
           cedula_photo_url,
-          careers!inner (
-            name
-          )
+          career_id
         `)
         .eq("team_registration_id", teamRegistrationId)
         .order("full_name");
 
-      if (error) throw error;
+      if (playersError) throw playersError;
 
-      const mappedPlayers = ((playersData || []) as SupabasePlayer[]).map((p: SupabasePlayer) => {
-        // Debug: verificar el valor original
-        console.log(`Jugador ${p.full_name}: cedula_photo_url =`, p.cedula_photo_url, typeof p.cedula_photo_url);
-        
+      if (!playersData || playersData.length === 0) {
+        setPlayers([]);
+        return;
+      }
+
+      // Obtener los career_id únicos (filtrar nulls)
+      const careerIds = [...new Set(
+        (playersData as SupabasePlayer[])
+          .map((p: SupabasePlayer) => p.career_id)
+          .filter((id: number | null): id is number => id !== null)
+      )];
+
+      // Cargar las carreras correspondientes
+      let careersMap = new Map<number, string>();
+      if (careerIds.length > 0) {
+        const { data: careersData, error: careersError } = await supabase
+          .from("careers")
+          .select("id, name")
+          .in("id", careerIds);
+
+        if (!careersError && careersData) {
+          careersMap = new Map(
+            (careersData as { id: number; name: string }[]).map((c) => [c.id, c.name])
+          );
+        }
+      }
+
+      // Mapear jugadores con sus carreras
+      const mappedPlayers = (playersData as SupabasePlayer[]).map((p: SupabasePlayer) => {
         return {
           id: p.id,
           full_name: p.full_name,
@@ -172,9 +196,7 @@ export default function ViewRegistrationsModal({
           semester: p.semester,
           jersey_number: p.jersey_number,
           is_captain: p.is_captain || false,
-          career_name: (Array.isArray(p.careers) && p.careers.length > 0) 
-            ? p.careers[0].name 
-            : null,
+          career_name: p.career_id ? (careersMap.get(p.career_id) || null) : null,
           cedula_photo_url: p.cedula_photo_url || null,
         };
       });

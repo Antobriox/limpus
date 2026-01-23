@@ -37,8 +37,8 @@ export default function HomePage() {
   
   const [selectedMatchForDetails, setSelectedMatchForDetails] = useState<{
     id: number;
-    teamAId: number;
-    teamBId: number;
+    teamAId: number | null;
+    teamBId: number | null;
     teamAName: string;
     teamBName: string;
     sportName: string;
@@ -589,8 +589,8 @@ export default function HomePage() {
                       onClick={() =>
                         setSelectedMatchForDetails({
                           id: match.id,
-                          teamAId: match.team_a_id ?? 0,
-                          teamBId: match.team_b_id ?? 0,
+                          teamAId: match.team_a_id,
+                          teamBId: match.team_b_id,
                           teamAName: match.team_a_name,
                           teamBName: match.team_b_name,
                           sportName: match.sport_name,

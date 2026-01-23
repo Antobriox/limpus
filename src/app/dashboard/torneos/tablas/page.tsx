@@ -278,7 +278,7 @@ export default function TablasPage() {
                         </td>
                         <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                           <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                            {team.matchesPlayed}
+                            {team.played}
                           </span>
                         </td>
                         <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">

@@ -30,11 +30,17 @@ export function useUser() {
       type UserRoleRow = {
         roles: {
           name: string;
-        } | null;
+        } | Array<{
+          name: string;
+        }> | null;
       };
       if (!error && data) {
         const roleNames = (data as UserRoleRow[])
-          .map((row: UserRoleRow) => row.roles?.name)
+          .map((row: UserRoleRow) => {
+            if (!row.roles) return null;
+            const rolesData = Array.isArray(row.roles) ? row.roles[0] : row.roles;
+            return rolesData?.name;
+          })
           .filter((name): name is string => Boolean(name));
 
         setRoles(roleNames);

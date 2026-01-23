@@ -23,6 +23,8 @@ export type LiveMatch = {
 
 export type UpcomingMatch = {
   id: number;
+  team_a_id: number | null;
+  team_b_id: number | null;
   team_a_name: string;
   team_b_name: string;
   scheduled_at: string | null;
@@ -55,17 +57,24 @@ type SupabaseMatch = {
   id: number;
   team_a: number | null;
   team_b: number | null;
-  scheduled_at: string | null;
-  ended_at: string | null;
-  field: string | null;
-  genero: string | null;
+  scheduled_at?: string | null;
+  ended_at?: string | null;
+  field?: string | null;
+  genero?: string | null;
   status: string;
-  tournament_id: number | null;
+  tournament_id?: number | null;
+  referee?: string | null;
   tournaments?: {
     sports?: {
       name: string;
     };
-  };
+  } | Array<{
+    sports?: {
+      name: string;
+    } | Array<{
+      name: string;
+    }>;
+  }>;
   match_results?: {
     score_team_a: number | null;
     score_team_b: number | null;
@@ -171,18 +180,22 @@ const loadViewersData = async (): Promise<{
         }
       }
 
+      // Manejar tournaments como objeto o array
+      const tournamentsData = Array.isArray(m.tournaments) ? m.tournaments[0] : m.tournaments;
+      const sportsData = Array.isArray(tournamentsData?.sports) ? tournamentsData?.sports[0] : tournamentsData?.sports;
+
       return {
         id: m.id,
         team_a_id: m.team_a,
         team_b_id: m.team_b,
-        team_a_name: teamsMap.get(m.team_a || 0) || "Equipo A",
-        team_b_name: teamsMap.get(m.team_b || 0) || "Equipo B",
+        team_a_name: m.team_a !== null ? (teamsMap.get(m.team_a) || "Equipo A") : "Equipo A",
+        team_b_name: m.team_b !== null ? (teamsMap.get(m.team_b) || "Equipo B") : "Equipo B",
         score_a: scoreA,
         score_b: scoreB,
-        sport_name: m.tournaments?.sports?.name || "Deporte",
+        sport_name: sportsData?.name || "Deporte",
         status: m.status,
-        genero: m.genero,
-        field: m.field,
+        genero: m.genero || null,
+        field: m.field || null,
       };
     });
   }
@@ -322,17 +335,21 @@ const loadViewersData = async (): Promise<{
       .map((m: SupabaseMatch & { referee?: string | null }) => {
         // Obtener el nombre del deporte
         let sportName = "Deporte";
-        const tournament = tournamentsMap.get(m.tournament_id);
-        if (tournament?.sport_id && sportsMap.has(tournament.sport_id)) {
-          sportName = sportsMap.get(tournament.sport_id)!;
+        if (m.tournament_id !== null && m.tournament_id !== undefined) {
+          const tournament = tournamentsMap.get(m.tournament_id);
+          if (tournament?.sport_id && sportsMap.has(tournament.sport_id)) {
+            sportName = sportsMap.get(tournament.sport_id)!;
+          }
         }
 
         return {
           id: m.id,
-          team_a_name: teamsMap.get(m.team_a) || "Equipo A",
-          team_b_name: teamsMap.get(m.team_b) || "Equipo B",
-          scheduled_at: m.scheduled_at,
-          field: m.field,
+          team_a_id: m.team_a,
+          team_b_id: m.team_b,
+          team_a_name: m.team_a !== null ? (teamsMap.get(m.team_a) || "Equipo A") : "Equipo A",
+          team_b_name: m.team_b !== null ? (teamsMap.get(m.team_b) || "Equipo B") : "Equipo B",
+          scheduled_at: m.scheduled_at || null,
+          field: m.field || null,
           sport_name: sportName,
           status: m.status,
           genero: m.genero || null,
@@ -426,17 +443,19 @@ const loadViewersData = async (): Promise<{
         }
       }
 
-      // Obtener nombre del deporte directamente desde tournaments!inner
-      const sportName = m.tournaments?.sports?.name || "Deporte";
+      // Manejar tournaments como objeto o array
+      const tournamentsData = Array.isArray(m.tournaments) ? m.tournaments[0] : m.tournaments;
+      const sportsData = Array.isArray(tournamentsData?.sports) ? tournamentsData?.sports[0] : tournamentsData?.sports;
+      const sportName = sportsData?.name || "Deporte";
 
       return {
         id: m.id,
         team_a_id: m.team_a,
         team_b_id: m.team_b,
-        team_a_name: teamsMap.get(m.team_a) || "Equipo A",
-        team_b_name: teamsMap.get(m.team_b) || "Equipo B",
-        scheduled_at: m.scheduled_at,
-        ended_at: m.ended_at,
+        team_a_name: m.team_a !== null ? (teamsMap.get(m.team_a) || "Equipo A") : "Equipo A",
+        team_b_name: m.team_b !== null ? (teamsMap.get(m.team_b) || "Equipo B") : "Equipo B",
+        scheduled_at: m.scheduled_at || null,
+        ended_at: m.ended_at || null,
         field: m.field || null,
         sport_name: sportName,
         genero: m.genero || null,

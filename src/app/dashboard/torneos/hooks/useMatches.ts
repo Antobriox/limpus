@@ -39,11 +39,15 @@ export const useMatches = (tournament: Tournament | null) => {
 
       if (matches && matches.length > 0) {
         type SupabaseMatch = {
+          id: number;
           team_a: number | null;
           team_b: number | null;
           referee: string | null;
           assistant: string | null;
           tournament_id: number | null;
+          scheduled_at: string | null;
+          status: string;
+          field?: string | null;
         };
 
         // Obtener todos los IDs de equipos únicos
@@ -136,32 +140,34 @@ export const useMatches = (tournament: Tournament | null) => {
         }
 
         // Enriquecer los partidos con los nombres de los equipos, árbitros, asistentes, disciplinas y canchas
-        type EnrichedMatch = SupabaseMatch & {
-          teams?: { id: number; name: string };
-          teams1?: { id: number; name: string };
-          refereeName?: string | null;
-          assistantName?: string | null;
-          sportName?: string | null;
-          field?: string | null;
-          scheduled_at?: string | null;
-        };
-        const enrichedMatches = matches.map((match: SupabaseMatch): EnrichedMatch => {
-          const tournamentSportId = tournamentsMap.get(match.tournament_id);
+        const enrichedMatches = matches.map((match: SupabaseMatch): Match => {
+          const tournamentSportId = match.tournament_id !== null ? tournamentsMap.get(match.tournament_id) : undefined;
           const sportName = tournamentSportId ? (sportsMap.get(tournamentSportId) || null) : null;
           
+          const teamA = match.team_a !== null ? teamsMap.get(match.team_a) : undefined;
+          const teamB = match.team_b !== null ? teamsMap.get(match.team_b) : undefined;
+          
           return {
-            ...match,
-            teams: teamsMap.get(match.team_a) || { id: match.team_a, name: "Equipo A" },
-            teams1: teamsMap.get(match.team_b) || { id: match.team_b, name: "Equipo B" },
-            refereeName: profilesMap.get(match.referee) || null,
-            assistantName: profilesMap.get(match.assistant) || null,
+            id: match.id,
+            team_a: match.team_a,
+            team_b: match.team_b,
+            scheduled_at: match.scheduled_at,
+            status: match.status,
+            referee: match.referee,
+            assistant: match.assistant,
+            genero: undefined,
+            tournament_id: match.tournament_id,
+            teams: teamA ? { id: match.team_a!, name: teamA.name } : undefined,
+            teams1: teamB ? { id: match.team_b!, name: teamB.name } : undefined,
+            refereeName: match.referee ? profilesMap.get(match.referee) || null : null,
+            assistantName: match.assistant ? profilesMap.get(match.assistant) || null : null,
             sportName: sportName,
             field: match.field || null,
           };
         });
 
-        const pending = enrichedMatches.filter((m: EnrichedMatch) => !m.scheduled_at);
-        const scheduled = enrichedMatches.filter((m: EnrichedMatch) => m.scheduled_at);
+        const pending = enrichedMatches.filter((m: Match) => !m.scheduled_at);
+        const scheduled = enrichedMatches.filter((m: Match) => m.scheduled_at);
         setPendingMatches(pending);
         setScheduledMatches(scheduled);
       } else {

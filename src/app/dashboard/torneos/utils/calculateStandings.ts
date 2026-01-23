@@ -3,8 +3,8 @@ import { DisciplineRules, TeamStanding, TiebreakerCriteria } from "../types/stan
 
 export type MatchData = {
   id: number;
-  team_a: number;
-  team_b: number;
+  team_a: number | null;
+  team_b: number | null;
   score_team_a: number | null;
   score_team_b: number | null;
   winner_team: number | null;
@@ -95,6 +95,8 @@ const calculateTeamStats = (
   let redCards = 0;
 
   matches.forEach((match) => {
+    if (match.team_a === null || match.team_b === null) return;
+    
     const isTeamA = match.team_a === teamId;
     const isTeamB = match.team_b === teamId;
 
@@ -250,7 +252,7 @@ export const generateStandings = (
   // Obtener todos los equipos únicos de los partidos
   const teamIdsFromMatches = new Set<number>();
   matches.forEach((match) => {
-    if (match.score_team_a !== null && match.score_team_b !== null) {
+    if (match.score_team_a !== null && match.score_team_b !== null && match.team_a !== null && match.team_b !== null) {
       teamIdsFromMatches.add(match.team_a);
       teamIdsFromMatches.add(match.team_b);
     }

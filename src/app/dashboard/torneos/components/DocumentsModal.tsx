@@ -45,8 +45,8 @@ export default function DocumentsModal({
     input.click();
   };
 
-  const handleDeleteFile = async (filePath: string, fileName: string) => {
-    await deleteFile(filePath, fileName);
+  const handleDeleteFile = async (filePath: string) => {
+    await deleteFile(filePath);
   };
 
   if (!isOpen) return null;
@@ -142,7 +142,7 @@ export default function DocumentsModal({
                         Ver
                       </a>
                       <button
-                        onClick={() => handleUpdateFile(file.path, file.name)}
+                        onClick={() => handleUpdateFile(file.path)}
                         disabled={uploading}
                         className="text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300 text-sm px-2 py-1 rounded hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Actualizar archivo"
@@ -150,7 +150,7 @@ export default function DocumentsModal({
                         <RefreshCw className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteFile(file.path, file.name)}
+                        onClick={() => handleDeleteFile(file.path)}
                         disabled={uploading}
                         className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Eliminar archivo"

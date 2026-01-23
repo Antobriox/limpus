@@ -96,16 +96,19 @@ export default function NuevoTorneoPage() {
         name: string;
         start_date: string | null;
         end_date: string | null;
-        sports: {
+        sports?: {
           name: string;
-        };
+        } | Array<{
+          name: string;
+        }>;
       };
       if (tournaments && tournaments.length > 0) {
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         (tournaments as SupabaseTournament[]).forEach((tournament: SupabaseTournament) => {
           checkPageBreak(10);
-          doc.text(`• ${tournament.name} (${tournament.sports?.name || "N/A"})`, margin + 5, yPosition);
+          const sportsData = Array.isArray(tournament.sports) ? tournament.sports[0] : tournament.sports;
+          doc.text(`• ${tournament.name} (${sportsData?.name || "N/A"})`, margin + 5, yPosition);
           yPosition += 6;
           doc.text(`  Fechas: ${tournament.start_date || "N/A"} - ${tournament.end_date || "N/A"}`, margin + 5, yPosition);
           yPosition += 6;
@@ -173,16 +176,19 @@ export default function NuevoTorneoPage() {
         id: number;
         name: string;
         genero: string | null;
-        sports: {
+        sports?: {
           name: string;
-        };
+        } | Array<{
+          name: string;
+        }>;
       };
       if (registrationForms && registrationForms.length > 0) {
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         (registrationForms as SupabaseRegistrationForm[]).forEach((form: SupabaseRegistrationForm) => {
           checkPageBreak(10);
-          doc.text(`• ${form.name} - ${form.sports?.name || "N/A"} (${form.genero || "N/A"})`, margin + 5, yPosition);
+          const sportsData = Array.isArray(form.sports) ? form.sports[0] : form.sports;
+          doc.text(`• ${form.name} - ${sportsData?.name || "N/A"} (${form.genero || "N/A"})`, margin + 5, yPosition);
           yPosition += 6;
         });
         doc.text(`Total: ${registrationForms.length} inscripciones`, margin + 5, yPosition);
@@ -306,8 +312,8 @@ export default function NuevoTorneoPage() {
         };
         (matches as SupabaseMatch[]).forEach((match: SupabaseMatch) => {
           checkPageBreak(12);
-          const teamA = teamNamesMap[match.team_a] || `Equipo ${match.team_a}`;
-          const teamB = teamNamesMap[match.team_b] || `Equipo ${match.team_b}`;
+          const teamA = match.team_a !== null ? (teamNamesMap[match.team_a] || `Equipo ${match.team_a}`) : "Equipo A";
+          const teamB = match.team_b !== null ? (teamNamesMap[match.team_b] || `Equipo ${match.team_b}`) : "Equipo B";
           const sport = match.tournaments?.sports?.name || "N/A";
           const date = match.scheduled_at ? new Date(match.scheduled_at).toLocaleString("es-ES") : "Sin fecha";
           const genero = match.genero || "N/A";

@@ -146,7 +146,7 @@ export default function ClasificacionViewersPage() {
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
             <p className="text-red-800 dark:text-red-200">
-              Error al cargar la clasificación: {error.message}
+              Error al cargar la clasificación: {error}
             </p>
           </div>
         )}
@@ -261,7 +261,7 @@ export default function ClasificacionViewersPage() {
                           </td>
                           <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                             <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                              {team.matchesPlayed}
+                              {team.played}
                             </span>
                           </td>
                           <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">

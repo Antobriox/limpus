@@ -197,13 +197,23 @@ export default function TorneosPage() {
         scheduled_at: string | null;
         ended_at: string | null;
         status: string;
-        tournaments: {
+        tournaments?: {
           id: number;
           name: string;
-          sports: {
+          sports?: {
             name: string;
-          };
-        };
+          } | Array<{
+            name: string;
+          }>;
+        } | Array<{
+          id: number;
+          name: string;
+          sports?: {
+            name: string;
+          } | Array<{
+              name: string;
+            }>;
+        }>;
       };
       type MatchResult = {
         match_id: number;
@@ -299,12 +309,16 @@ export default function TorneosPage() {
               })
             : "";
 
+          // Manejar tournaments como objeto o array
+          const tournamentsData = Array.isArray(match?.tournaments) ? match.tournaments[0] : match?.tournaments;
+          const sportsData = Array.isArray(tournamentsData?.sports) ? tournamentsData?.sports[0] : tournamentsData?.sports;
+
           return {
             id: mr.match_id,
-            sport: match?.tournaments?.sports?.name || "Deporte",
+            sport: sportsData?.name || "Deporte",
             category: "General",
-            team1: teamsMap.get(match?.team_a) || "Equipo A",
-            team2: teamsMap.get(match?.team_b) || "Equipo B",
+            team1: match?.team_a !== null && match?.team_a !== undefined ? (teamsMap.get(match.team_a) || "Equipo A") : "Equipo A",
+            team2: match?.team_b !== null && match?.team_b !== undefined ? (teamsMap.get(match.team_b) || "Equipo B") : "Equipo B",
             score1: mr.score_team_a,
             score2: mr.score_team_b,
             date: dateLabel,

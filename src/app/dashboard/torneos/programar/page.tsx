@@ -16,6 +16,7 @@ type SupabaseTeam = {
 };
 
 type SupabaseMatch = {
+  id: number;
   team_a: number | null;
   team_b: number | null;
   referee: string | null;
@@ -24,9 +25,12 @@ type SupabaseMatch = {
   scheduled_at: string | null;
   status: string;
   field: string | null;
-  teams?: { id: number; name: string };
-  teams1?: { id: number; name: string };
+  genero?: string | null;
+  teams?: { id: number | null; name: string };
+  teams1?: { id: number | null; name: string };
   sportName?: string | null;
+  refereeName?: string | null;
+  assistantName?: string | null;
 };
 
 type SupabaseTournament = {
@@ -472,16 +476,25 @@ export default function ProgramarPartidosPage() {
         }
 
         // Enriquecer los partidos con los nombres de los equipos, árbitros, asistentes, disciplinas y canchas
-        const enrichedMatches = (matches as SupabaseMatch[]).map((match: SupabaseMatch) => {
-          const tournamentSportId = tournamentsMap.get(match.tournament_id);
+        const enrichedMatches = (matches as SupabaseMatch[]).map((match: SupabaseMatch): Match => {
+          const tournamentSportId = match.tournament_id !== null ? tournamentsMap.get(match.tournament_id) : undefined;
           const sportName = tournamentSportId ? (sportsMap.get(tournamentSportId) || null) : null;
           
+          const teamA = match.team_a !== null ? teamsMap.get(match.team_a) : undefined;
+          const teamB = match.team_b !== null ? teamsMap.get(match.team_b) : undefined;
+          
           return {
-            ...match,
-            teams: teamsMap.get(match.team_a) || { id: match.team_a, name: "Equipo A" },
-            teams1: teamsMap.get(match.team_b) || { id: match.team_b, name: "Equipo B" },
-            refereeName: match.referee ? refereesMap.get(match.referee) || "Sin árbitro" : null,
-            assistantName: match.assistant ? refereesMap.get(match.assistant) || "Sin asistente" : null,
+            id: match.id,
+            team_a: match.team_a,
+            team_b: match.team_b,
+            scheduled_at: match.scheduled_at,
+            status: match.status,
+            referee: match.referee,
+            assistant: match.assistant,
+            teams: teamA ? { id: match.team_a!, name: typeof teamA === 'string' ? teamA : teamA.name } : undefined,
+            teams1: teamB ? { id: match.team_b!, name: typeof teamB === 'string' ? teamB : teamB.name } : undefined,
+            refereeName: match.referee ? refereesMap.get(match.referee) || null : null,
+            assistantName: match.assistant ? refereesMap.get(match.assistant) || null : null,
             sportName: sportName,
             field: match.field || null,
           };
@@ -499,8 +512,8 @@ export default function ProgramarPartidosPage() {
 
           if (tournamentsData && tournamentsData.length > 0) {
             const tournamentIds = (tournamentsData as Array<{ id: number }>).map((t) => t.id);
-            filteredMatches = filteredMatches.filter((m: SupabaseMatch & { teams?: { name?: string }; teams1?: { name?: string } }) =>
-              tournamentIds.includes(m.tournament_id || 0)
+            filteredMatches = filteredMatches.filter((m: Match) =>
+              m.team_a !== null && m.team_b !== null && (m.tournament_id ? tournamentIds.includes(m.tournament_id) : false)
             );
           } else {
             filteredMatches = [];
@@ -509,7 +522,7 @@ export default function ProgramarPartidosPage() {
 
         if (filters.estado) {
           filteredMatches = filteredMatches.filter(
-            (m: SupabaseMatch) => m.status === filters.estado
+            (m: Match) => m.status === filters.estado
           );
         }
 
@@ -519,7 +532,7 @@ export default function ProgramarPartidosPage() {
           const nextDay = new Date(filterDate);
           nextDay.setDate(nextDay.getDate() + 1);
 
-          filteredMatches = filteredMatches.filter((m: SupabaseMatch) => {
+          filteredMatches = filteredMatches.filter((m: Match) => {
             if (!m.scheduled_at) return false;
             const matchDate = new Date(m.scheduled_at);
             return matchDate >= filterDate && matchDate < nextDay;
@@ -528,15 +541,15 @@ export default function ProgramarPartidosPage() {
 
         if (filters.buscar) {
           const searchTerm = filters.buscar.toLowerCase();
-          filteredMatches = filteredMatches.filter((m: SupabaseMatch & { teams?: { name?: string }; teams1?: { name?: string } }) => {
+          filteredMatches = filteredMatches.filter((m: Match) => {
             const teamAName = m.teams?.name?.toLowerCase() || "";
             const teamBName = m.teams1?.name?.toLowerCase() || "";
             return teamAName.includes(searchTerm) || teamBName.includes(searchTerm);
           });
         }
 
-        const pending = filteredMatches.filter((m: SupabaseMatch) => !m.scheduled_at);
-        const scheduled = filteredMatches.filter((m: SupabaseMatch) => m.scheduled_at);
+        const pending = filteredMatches.filter((m: Match) => !m.scheduled_at);
+        const scheduled = filteredMatches.filter((m: Match) => m.scheduled_at);
         
         // Actualizar los estados del hook
         setPendingMatches(pending);
@@ -606,20 +619,13 @@ export default function ProgramarPartidosPage() {
     currentY += 15;
 
     // Agrupar partidos por fecha
-    type EnrichedMatch = SupabaseMatch & {
-      teams?: { name?: string };
-      teams1?: { name?: string };
-      refereeName?: string | null;
-      assistantName?: string | null;
-      sportName?: string | null;
-    };
     type MatchGroup = {
       dateKey: string;
       date: Date;
-      matches: EnrichedMatch[];
+      matches: Match[];
     };
     const matchesByDate = new Map<string, MatchGroup>();
-    scheduledMatches.forEach((match: EnrichedMatch) => {
+    scheduledMatches.forEach((match: Match) => {
       if (match.scheduled_at) {
         const date = new Date(match.scheduled_at);
         // Usar fecha sin hora para agrupar
@@ -653,7 +659,7 @@ export default function ProgramarPartidosPage() {
       const matches = dateGroup.matches;
       
       // Ordenar partidos por hora dentro de cada fecha
-      matches.sort((a: SupabaseMatch, b: SupabaseMatch) => {
+      matches.sort((a: Match, b: Match) => {
         const timeA = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
         const timeB = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
         return timeA - timeB;
@@ -675,7 +681,7 @@ export default function ProgramarPartidosPage() {
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
 
-      matches.forEach((match: SupabaseMatch & { teams?: { name?: string }; teams1?: { name?: string }; refereeName?: string | null; assistantName?: string | null; sportName?: string | null }) => {
+      matches.forEach((match: Match) => {
         // Verificar si necesitamos una nueva página
         if (currentY > pageHeight - 40) {
           doc.addPage();
@@ -904,6 +910,7 @@ export default function ProgramarPartidosPage() {
         genero?: string;
         status: string;
       } = {
+        status: "scheduled",
         tournament_id: tournamentId,
         team_a: parseInt(newMatchForm.team_a),
         team_b: parseInt(newMatchForm.team_b),
@@ -987,6 +994,7 @@ export default function ProgramarPartidosPage() {
         referee: "",
         assistant: "",
         cancha: "",
+        genero: "",
       });
       await loadAllMatches();
     } catch (error: unknown) {

@@ -76,11 +76,16 @@ const loadScheduledMatchesQuery = async (): Promise<Match[]> => {
   }
 
   type SupabaseMatch = {
+    id: number;
     team_a: number | null;
     team_b: number | null;
     referee: string | null;
     assistant: string | null;
     tournament_id: number | null;
+    scheduled_at: string | null;
+    status: string;
+    field?: string | null;
+    genero?: string | null;
   };
   const teamIds = [...(matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.team_a), ...(matches as SupabaseMatch[]).map((m: SupabaseMatch) => m.team_b)];
   const uniqueTeamIds = Array.from(new Set(teamIds)).filter((id): id is number => id !== undefined && typeof id === "number");
@@ -158,29 +163,29 @@ const loadScheduledMatchesQuery = async (): Promise<Match[]> => {
     }
   }
 
-  type EnrichedMatch = SupabaseMatch & {
-    teams?: { id: number; name: string };
-    teams1?: { id: number; name: string };
-    refereeName?: string | null;
-    assistantName?: string | null;
-    sportName?: string | null;
-    field?: string | null;
-    genero?: string | null;
-    scheduled_at?: string | null;
-  };
-  const enrichedMatches = matches.map((match: SupabaseMatch): EnrichedMatch => {
-    const tournamentSportId = tournamentsMap.get(match.tournament_id);
+  const enrichedMatches = matches.map((match: SupabaseMatch): Match => {
+    const tournamentSportId = match.tournament_id !== null ? tournamentsMap.get(match.tournament_id) : undefined;
     const sportName = tournamentSportId ? (sportsMap.get(tournamentSportId) || null) : null;
     
+    const teamA = match.team_a !== null ? teamsMap.get(match.team_a) : undefined;
+    const teamB = match.team_b !== null ? teamsMap.get(match.team_b) : undefined;
+    
     return {
-      ...match,
-      teams: teamsMap.get(match.team_a) || { id: match.team_a, name: "Equipo A" },
-      teams1: teamsMap.get(match.team_b) || { id: match.team_b, name: "Equipo B" },
-      refereeName: profilesMap.get(match.referee) || null,
-      assistantName: profilesMap.get(match.assistant) || null,
+      id: match.id,
+      team_a: match.team_a,
+      team_b: match.team_b,
+      scheduled_at: match.scheduled_at || null,
+      status: match.status || null,
+      referee: match.referee || null,
+      assistant: match.assistant || null,
+      genero: match.genero || null,
+      tournament_id: match.tournament_id || null,
+      teams: teamA ? { id: match.team_a!, name: typeof teamA === 'string' ? teamA : teamA.name } : undefined,
+      teams1: teamB ? { id: match.team_b!, name: typeof teamB === 'string' ? teamB : teamB.name } : undefined,
+      refereeName: match.referee ? profilesMap.get(match.referee) || null : null,
+      assistantName: match.assistant ? profilesMap.get(match.assistant) || null : null,
       sportName: sportName,
       field: match.field || null,
-      genero: match.genero || null,
     };
   });
 
@@ -275,7 +280,10 @@ export const useResults = () => {
         .eq("id", matchId)
         .single();
       
-      const sportName = tournamentData?.tournaments?.sports?.name || "";
+      // Manejar tournaments como objeto o array
+      const tournamentsData = Array.isArray(tournamentData?.tournaments) ? tournamentData.tournaments[0] : tournamentData?.tournaments;
+      const sportsData = Array.isArray(tournamentsData?.sports) ? tournamentsData?.sports[0] : tournamentsData?.sports;
+      const sportName = sportsData?.name || "";
       const isBasketball = sportName.toLowerCase().includes("basket") || 
                           sportName.toLowerCase().includes("básquet");
 
@@ -367,32 +375,22 @@ export const useResults = () => {
       form.sets.forEach((set) => {
         // Evento para equipo A: guardamos el score en value y el número del set en el event_type
         // Omitimos player_id completamente para evitar problemas con foreign key constraints
-        const eventA: {
-          match_id: number;
-          event_type: string;
-          team_id: number;
-          value: number;
-          created_by: string;
-        } = {
+        const eventA: MatchEvent = {
           match_id: Number(matchId),
           event_type: `set_${set.set_number}_team_a`, // Incluimos el número del set en el event_type
           team_id: Number(match.team_a),
+          player_id: null, // Los sets no tienen jugador específico
           value: Number(set.score_team_a), // Score del equipo A
           created_by: String(user.id),
         };
         events.push(eventA);
         
         // Evento para equipo B: guardamos el score en value y el número del set en el event_type
-        const eventB: {
-          match_id: number;
-          event_type: string;
-          team_id: number;
-          value: number;
-          created_by: string;
-        } = {
+        const eventB: MatchEvent = {
           match_id: Number(matchId),
           event_type: `set_${set.set_number}_team_b`, // Incluimos el número del set en el event_type
           team_id: Number(match.team_b),
+          player_id: null, // Los sets no tienen jugador específico
           value: Number(set.score_team_b), // Score del equipo B
           created_by: String(user.id),
         };

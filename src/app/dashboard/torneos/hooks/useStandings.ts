@@ -8,8 +8,8 @@ import { TeamStanding, BomboStandings } from "../types/standings";
 // Tipos para datos de Supabase
 type SupabaseMatch = {
   id: number;
-  team_a: number;
-  team_b: number;
+  team_a: number | null;
+  team_b: number | null;
   status: string;
 };
 
@@ -340,10 +340,10 @@ const loadStandingsQuery = async (
     let setsB: number | null = null;
 
     matchEvents.forEach((event: SupabaseMatchEvent) => {
-      if (event.team_id === match.team_a) {
+      if (event.team_id !== null && match.team_a !== null && event.team_id === match.team_a) {
         if (event.event_type === "yellow_card") yellowCardsA++;
         if (event.event_type === "red_card") redCardsA++;
-      } else if (event.team_id === match.team_b) {
+      } else if (event.team_id !== null && match.team_b !== null && event.team_id === match.team_b) {
         if (event.event_type === "yellow_card") yellowCardsB++;
         if (event.event_type === "red_card") redCardsB++;
       }
@@ -366,7 +366,7 @@ const loadStandingsQuery = async (
       team_b: match.team_b,
       score_team_a: result?.score_team_a ?? null,
       score_team_b: result?.score_team_b ?? null,
-      winner_team: result?.winner_team || null,
+      winner_team: null, // winner_team no existe en match_results, se calcula después
       sets_team_a: setsA,
       sets_team_b: setsB,
       yellow_cards_team_a: yellowCardsA,

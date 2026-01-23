@@ -3,6 +3,8 @@ import { supabase } from "../../../../lib/supabaseClient";
 
 // Tipos para datos de Supabase
 type SupabaseMatch = {
+  team_a: number | null;
+  team_b: number | null;
   tournaments?: {
     sports?: {
       name: string;
