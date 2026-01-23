@@ -287,12 +287,12 @@ export const useResults = () => {
           ? ((goal.points || 1) * 1000 + goal.minute)
           : goal.minute;
         events.push({
-          match_id: matchId,
+          match_id: Number(matchId),
           event_type: "goal",
-          team_id: match.team_a,
-          player_id: goal.player_id,
-          value: eventValue,
-          created_by: user.id,
+          team_id: Number(match.team_a),
+          player_id: Number(goal.player_id),
+          value: Number(eventValue),
+          created_by: String(user.id),
         });
       });
 
@@ -304,60 +304,60 @@ export const useResults = () => {
           ? ((goal.points || 1) * 1000 + goal.minute)
           : goal.minute;
         events.push({
-          match_id: matchId,
+          match_id: Number(matchId),
           event_type: "goal",
-          team_id: match.team_b,
-          player_id: goal.player_id,
-          value: eventValue,
-          created_by: user.id,
+          team_id: Number(match.team_b),
+          player_id: Number(goal.player_id),
+          value: Number(eventValue),
+          created_by: String(user.id),
         });
       });
 
       // Tarjetas amarillas del equipo A
       form.yellow_cards_team_a.forEach((card) => {
         events.push({
-          match_id: matchId,
+          match_id: Number(matchId),
           event_type: "yellow_card",
-          team_id: match.team_a,
-          player_id: card.player_id,
-          value: card.minute,
-          created_by: user.id,
+          team_id: Number(match.team_a),
+          player_id: Number(card.player_id),
+          value: Number(card.minute),
+          created_by: String(user.id),
         });
       });
 
       // Tarjetas amarillas del equipo B
       form.yellow_cards_team_b.forEach((card) => {
         events.push({
-          match_id: matchId,
+          match_id: Number(matchId),
           event_type: "yellow_card",
-          team_id: match.team_b,
-          player_id: card.player_id,
-          value: card.minute,
-          created_by: user.id,
+          team_id: Number(match.team_b),
+          player_id: Number(card.player_id),
+          value: Number(card.minute),
+          created_by: String(user.id),
         });
       });
 
       // Tarjetas rojas del equipo A
       form.red_cards_team_a.forEach((card) => {
         events.push({
-          match_id: matchId,
+          match_id: Number(matchId),
           event_type: "red_card",
-          team_id: match.team_a,
-          player_id: card.player_id,
-          value: card.minute,
-          created_by: user.id,
+          team_id: Number(match.team_a),
+          player_id: Number(card.player_id),
+          value: Number(card.minute),
+          created_by: String(user.id),
         });
       });
 
       // Tarjetas rojas del equipo B
       form.red_cards_team_b.forEach((card) => {
         events.push({
-          match_id: matchId,
+          match_id: Number(matchId),
           event_type: "red_card",
-          team_id: match.team_b,
-          player_id: card.player_id,
-          value: card.minute,
-          created_by: user.id,
+          team_id: Number(match.team_b),
+          player_id: Number(card.player_id),
+          value: Number(card.minute),
+          created_by: String(user.id),
         });
       });
 
@@ -366,35 +366,56 @@ export const useResults = () => {
       // Usamos event_type: "set_team_a" y "set_team_b", value: score, y el número del set en el event_type
       form.sets.forEach((set) => {
         // Evento para equipo A: guardamos el score en value y el número del set en el event_type
-        events.push({
-          match_id: matchId,
+        // Omitimos player_id completamente para evitar problemas con foreign key constraints
+        const eventA: {
+          match_id: number;
+          event_type: string;
+          team_id: number;
+          value: number;
+          created_by: string;
+        } = {
+          match_id: Number(matchId),
           event_type: `set_${set.set_number}_team_a`, // Incluimos el número del set en el event_type
-          team_id: match.team_a,
-          player_id: null, // No usamos player_id (tiene foreign key constraint)
-          value: set.score_team_a, // Score del equipo A
-          created_by: user.id,
-        });
+          team_id: Number(match.team_a),
+          value: Number(set.score_team_a), // Score del equipo A
+          created_by: String(user.id),
+        };
+        events.push(eventA);
         
         // Evento para equipo B: guardamos el score en value y el número del set en el event_type
-        events.push({
-          match_id: matchId,
+        const eventB: {
+          match_id: number;
+          event_type: string;
+          team_id: number;
+          value: number;
+          created_by: string;
+        } = {
+          match_id: Number(matchId),
           event_type: `set_${set.set_number}_team_b`, // Incluimos el número del set en el event_type
-          team_id: match.team_b,
-          player_id: null, // No usamos player_id (tiene foreign key constraint)
-          value: set.score_team_b, // Score del equipo B
-          created_by: user.id,
-        });
+          team_id: Number(match.team_b),
+          value: Number(set.score_team_b), // Score del equipo B
+          created_by: String(user.id),
+        };
+        events.push(eventB);
       });
 
       // Insertar todos los eventos
       if (events.length > 0) {
-        const { error: eventsError } = await supabase
-          .from("match_events")
-          .insert(events);
+        try {
+          const { error: eventsError, data: eventsData } = await supabase
+            .from("match_events")
+            .insert(events)
+            .select();
 
-        if (eventsError) {
-          console.error("Error guardando eventos:", eventsError);
-          throw new Error("Error al guardar algunos eventos del partido");
+          if (eventsError) {
+            console.error("Error guardando eventos:", eventsError);
+            console.error("Eventos que fallaron:", events);
+            throw new Error(`Error al guardar algunos eventos del partido: ${eventsError.message || "Error desconocido"}`);
+          }
+          console.log("Eventos guardados exitosamente:", eventsData?.length || 0);
+        } catch (error) {
+          console.error("Excepción al guardar eventos:", error);
+          throw error;
         }
       }
 

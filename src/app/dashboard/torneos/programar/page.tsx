@@ -100,11 +100,6 @@ export default function ProgramarPartidosPage() {
     buscar: "",
   });
 
-  // Recargar partidos cuando cambien los filtros
-  useEffect(() => {
-    loadAllMatches();
-  }, [loadAllMatches]);
-
   useEffect(() => {
     const initializeData = async () => {
       await loadTournament();
@@ -338,7 +333,7 @@ export default function ProgramarPartidosPage() {
   const checkValidStatuses = useCallback(async () => {
     try {
       // Consultar partidos existentes para ver qué valores de status tienen
-      const { data: matches, error } = await supabase
+      const { error } = await supabase
         .from("matches")
         .select("status")
         .not("status", "is", null)
@@ -349,23 +344,25 @@ export default function ProgramarPartidosPage() {
         return;
       }
 
-      // Obtener valores únicos de status
-      const uniqueStatuses = Array.from(new Set(matches?.map(m => m.status).filter(Boolean) || []));
-      console.log("═══════════════════════════════════════════════════════");
-      console.log("ESTADOS ENCONTRADOS EN LA BASE DE DATOS:");
-      console.log("═══════════════════════════════════════════════════════");
-      if (uniqueStatuses.length > 0) {
-        uniqueStatuses.forEach((status, index) => {
-          console.log(`${index + 1}. "${status}"`);
-        });
-      } else {
-        console.log("No se encontraron partidos con estado asignado.");
-        console.log("Esto significa que todos los partidos tienen status = null");
-      }
-      console.log("═══════════════════════════════════════════════════════");
-      console.log("💡 Para ver el constraint exacto, consulta la base de datos directamente.");
-      console.log("   El constraint se llama: matches_status_check");
-      console.log("═══════════════════════════════════════════════════════");
+      // Obtener valores únicos de status (comentado - no se usa actualmente)
+      // const { data: matches } = await supabase...
+      // const uniqueStatuses = Array.from(new Set(matches?.map(m => m.status).filter(Boolean) || []));
+      // Comentado para evitar logs repetitivos
+      // console.log("═══════════════════════════════════════════════════════");
+      // console.log("ESTADOS ENCONTRADOS EN LA BASE DE DATOS:");
+      // console.log("═══════════════════════════════════════════════════════");
+      // if (uniqueStatuses.length > 0) {
+      //   uniqueStatuses.forEach((status, index) => {
+      //     console.log(`${index + 1}. "${status}"`);
+      //   });
+      // } else {
+      //   console.log("No se encontraron partidos con estado asignado.");
+      //   console.log("Esto significa que todos los partidos tienen status = null");
+      // }
+      // console.log("═══════════════════════════════════════════════════════");
+      // console.log("💡 Para ver el constraint exacto, consulta la base de datos directamente.");
+      // console.log("   El constraint se llama: matches_status_check");
+      // console.log("═══════════════════════════════════════════════════════");
     } catch (error) {
       console.error("Error verificando estados:", error);
     }
@@ -553,15 +550,24 @@ export default function ProgramarPartidosPage() {
     }
   }, [filters]);
 
+  // Inicialización: solo ejecutar una vez al montar
   useEffect(() => {
-    const initializeMatches = async () => {
+    const initializeData = async () => {
       await loadReferees();
       await loadAdministrators();
-      await loadAllMatches();
+      // checkValidStatuses solo se ejecuta una vez al inicializar
       await checkValidStatuses();
+      // Cargar partidos inicialmente
+      await loadAllMatches();
     };
-    initializeMatches();
-  }, [loadReferees, loadAdministrators, loadAllMatches, checkValidStatuses]);
+    initializeData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Solo ejecutar una vez al montar el componente
+
+  // Recargar partidos cuando cambien los filtros (pero no checkValidStatuses)
+  useEffect(() => {
+    loadAllMatches();
+  }, [loadAllMatches]);
 
   // Función para exportar calendario a PDF
   const exportCalendarToPDF = () => {
@@ -1122,11 +1128,11 @@ export default function ProgramarPartidosPage() {
 
       {/* Modal Editar Partido */}
       {showEditMatchModal && selectedMatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 dark:border-neutral-800">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto mx-2 sm:mx-0 my-2 sm:my-4">
+            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-neutral-800">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white pr-2">
                   Editar Partido: {selectedMatch.teams?.name || "Equipo A"} vs{" "}
                   {selectedMatch.teams1?.name || "Equipo B"}
                 </h2>
@@ -1142,9 +1148,9 @@ export default function ProgramarPartidosPage() {
                       field: "",
                     });
                   }}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0 p-1"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
             </div>
@@ -1325,48 +1331,11 @@ export default function ProgramarPartidosPage() {
                 const scheduledDate = match.scheduled_at
                   ? new Date(match.scheduled_at)
                   : null;
-                const startedDate = match.started_at
-                  ? new Date(match.started_at)
-                  : null;
-                const endedDate = match.ended_at
-                  ? new Date(match.ended_at)
-                  : null;
+                // startedDate y endedDate no se usan actualmente - el estado se muestra directamente en el JSX
+                // const startedDate = match.started_at ? new Date(match.started_at) : null;
+                // const endedDate = match.ended_at ? new Date(match.ended_at) : null;
 
-                // Determinar el estado del partido
-                if (endedDate) {
-                  matchStatusText = "Finalizado";
-                  matchStatusColor = "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300";
-                } else if (startedDate) {
-                  matchStatusText = "En Curso";
-                  matchStatusColor = "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300";
-                } else if (scheduledDate && scheduledDate <= new Date()) {
-                  matchStatusText = "Por Iniciar";
-                  matchStatusColor = "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300";
-                } else if (match.status === "scheduled") {
-                  matchStatusText = "Programado";
-                  matchStatusColor = "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300";
-                } else if (match.status === "pending") {
-                  matchStatusText = "Pendiente";
-                  matchStatusColor = "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300";
-                } else if (match.status === "in_progress") {
-                  matchStatusText = "En Curso";
-                  matchStatusColor = "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300";
-                } else if (match.status === "finished") {
-                  matchStatusText = "Finalizado";
-                  matchStatusColor = "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300";
-                } else if (match.status === "cancelled") {
-                  matchStatusText = "Cancelado";
-                  matchStatusColor = "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300";
-                } else if (match.status === "postponed") {
-                  matchStatusText = "Aplazado";
-                  matchStatusColor = "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300";
-                } else if (match.status === "suspended") {
-                  matchStatusText = "Suspendido";
-                  matchStatusColor = "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300";
-                } else {
-                  matchStatusText = match.status || "Sin estado";
-                  matchStatusColor = "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300";
-                }
+                // El estado del partido se muestra directamente en el JSX más abajo
 
                 return (
                   <div
@@ -1493,10 +1462,10 @@ export default function ProgramarPartidosPage() {
 
       {/* Modal para Crear Nuevo Partido */}
       {showNewMatchModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-neutral-900 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-neutral-900 rounded-lg p-4 sm:p-6 max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto mx-2 sm:mx-0 my-2 sm:my-4">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white pr-2">
                 Crear Nuevo Partido
               </h2>
               <button
@@ -1515,7 +1484,7 @@ export default function ProgramarPartidosPage() {
                     genero: "",
                   });
                 }}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors flex-shrink-0"
               >
                 <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               </button>

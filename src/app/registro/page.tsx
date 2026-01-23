@@ -72,7 +72,7 @@ export default function RegistroPage() {
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 font-display">
       {/* LEFT PANEL */}
-      <div className="relative hidden md:flex flex-col justify-center bg-[#0d0f15] p-10 text-white">
+      <div className="relative hidden md:flex flex-col justify-center bg-[#0d0f15] p-8 lg:p-10 text-white">
         <div className="absolute inset-0">
           <Image
             src="/img/login-bg.png"
@@ -82,19 +82,19 @@ export default function RegistroPage() {
           />
         </div>
 
-        <div className="relative z-10 max-w-md space-y-6">
+        <div className="relative z-10 max-w-md space-y-4 lg:space-y-6">
           <div className="flex items-center gap-3">
-            <GraduationCap className="w-10 h-10" />
-            <span className="text-2xl font-bold tracking-tight">
+            <GraduationCap className="w-8 h-8 lg:w-10 lg:h-10" />
+            <span className="text-xl lg:text-2xl font-bold tracking-tight">
               Olimpiadas Universitarias
             </span>
           </div>
 
-          <h1 className="text-4xl font-black leading-tight">
+          <h1 className="text-3xl lg:text-4xl font-black leading-tight">
             Únete a la plataforma de líderes.
           </h1>
 
-          <p className="text-gray-300">
+          <p className="text-gray-300 text-sm lg:text-base">
             Crea tu cuenta y accede a eventos, equipos y competiciones al más alto nivel
             académico y deportivo.
           </p>
@@ -102,20 +102,20 @@ export default function RegistroPage() {
       </div>
 
       {/* RIGHT PANEL */}
-      <div className="flex items-center justify-center bg-white dark:bg-[#18181B] px-6">
-        <div className="w-full max-w-md space-y-8">
+      <div className="flex items-center justify-center bg-white dark:bg-[#18181B] px-4 sm:px-6 py-8 sm:py-12">
+        <div className="w-full max-w-md space-y-6 sm:space-y-8">
           {/* Header */}
           <div>
-            <h2 className="text-4xl font-black text-gray-900 dark:text-white">
+            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white">
               Crear cuenta
             </h2>
-            <p className="text-gray-500 dark:text-gray-400">
+            <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">
               Regístrate para acceder a la Plataforma de Olimpiadas Universitarias
             </p>
           </div>
 
           {/* Form */}
-          <form onSubmit={register} className="space-y-6">
+          <form onSubmit={register} className="space-y-4 sm:space-y-6">
             {/* Nombre completo */}
             <div>
               <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
@@ -126,12 +126,12 @@ export default function RegistroPage() {
                   type="text"
                   required
                   placeholder="Juan Pérez"
-                  className="flex-1 px-4 py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                  className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                 />
-                <div className="flex items-center px-4 text-gray-400 dark:text-gray-500">
-                  <User className="w-5 h-5" />
+                <div className="flex items-center px-3 sm:px-4 text-gray-400 dark:text-gray-500">
+                  <User className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
               </div>
             </div>
@@ -146,12 +146,12 @@ export default function RegistroPage() {
                   type="email"
                   required
                   placeholder="correo@universidad.edu"
-                  className="flex-1 px-4 py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                  className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
-                <div className="flex items-center px-4 text-gray-400 dark:text-gray-500">
-                  <Mail className="w-5 h-5" />
+                <div className="flex items-center px-3 sm:px-4 text-gray-400 dark:text-gray-500">
+                  <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
               </div>
             </div>
@@ -166,16 +166,16 @@ export default function RegistroPage() {
                   type={showPassword ? "text" : "password"}
                   required
                   placeholder="Mínimo 6 caracteres"
-                  className="flex-1 px-4 py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                  className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="px-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                  className="px-3 sm:px-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  {showPassword ? <EyeOff /> : <Eye />}
+                  {showPassword ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
                 </button>
               </div>
             </div>
@@ -190,16 +190,16 @@ export default function RegistroPage() {
                   type={showConfirmPassword ? "text" : "password"}
                   required
                   placeholder="Repite tu contraseña"
-                  className="flex-1 px-4 py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                  className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="px-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                  className="px-3 sm:px-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  {showConfirmPassword ? <EyeOff /> : <Eye />}
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
                 </button>
               </div>
             </div>
@@ -213,23 +213,23 @@ export default function RegistroPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-blue-600 py-4 font-bold text-white hover:bg-blue-700 transition disabled:opacity-50"
+              className="w-full rounded-lg bg-blue-600 py-3 sm:py-4 font-bold text-white hover:bg-blue-700 transition disabled:opacity-50 text-sm sm:text-base"
             >
               {loading ? "Creando cuenta..." : "Crear cuenta"}
             </button>
           </form>
 
           {/* Footer */}
-          <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+          <div className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
             ¿Ya tienes una cuenta?{" "}
             <a href="/login" className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
               Inicia sesión aquí
             </a>
           </div>
 
-          <footer className="pt-6 text-center text-xs text-gray-400 dark:text-gray-500">
+          <footer className="pt-4 sm:pt-6 text-center text-xs text-gray-400 dark:text-gray-500">
             © 2025 Limpus
-            <div className="mt-2 flex justify-center gap-4">
+            <div className="mt-2 flex flex-wrap justify-center gap-2 sm:gap-4">
               <a href="#" className="hover:underline">
                 Términos
               </a>

@@ -156,7 +156,29 @@ export default function ResultadosPage() {
 
     // Cargar datos existentes si hay
     const result = existingResult.data;
-    const events = existingEvents.data || [];
+    const allEvents = existingEvents.data || [];
+
+    // Filtrar eventos duplicados basándose en una combinación única de propiedades
+    type MatchEvent = {
+      event_type: string;
+      team_id: number | null;
+      player_id: number | null;
+      value: number | null;
+    };
+    const events = allEvents.reduce((acc: MatchEvent[], event: MatchEvent) => {
+      // Verificar si ya existe un evento con la misma combinación única
+      const exists = acc.some(
+        (e) =>
+          e.event_type === event.event_type &&
+          e.team_id === event.team_id &&
+          e.player_id === event.player_id &&
+          e.value === event.value
+      );
+      if (!exists) {
+        acc.push(event);
+      }
+      return acc;
+    }, []);
 
     // Separar eventos por tipo
     const goalsA: Array<{ player_id: number; minute: number }> = [];
@@ -313,33 +335,38 @@ export default function ResultadosPage() {
                           selectedMatch.sportName?.toLowerCase().includes("básquet");
       const eventValue = isBasketball ? (points * 1000 + minute) : minute;
       
+      // Asegurarse de que todos los valores sean del tipo correcto
+      const eventData = {
+        match_id: Number(selectedMatch.id),
+        event_type: "goal",
+        team_id: Number(teamId),
+        player_id: Number(playerId),
+        value: Number(eventValue), // Para básquet: puntos, para fútbol: minuto
+        created_by: String(user.id),
+      };
+
       const { error: eventError } = await supabase
         .from("match_events")
-        .insert({
-          match_id: selectedMatch.id,
-          event_type: "goal",
-          team_id: teamId,
-          player_id: playerId,
-          value: eventValue, // Para básquet: puntos, para fútbol: minuto
-          created_by: user.id,
-        });
+        .insert(eventData);
 
       if (eventError) {
         console.error("Error guardando evento:", eventError);
+        console.error("Datos del evento:", eventData);
         // Revertir el cambio en el estado si falla
         if (team === "a") {
           setResultForm({
             ...resultForm,
-            goals_team_a: resultForm.goals_team_a,
+            goals_team_a: resultForm.goals_team_a.slice(0, -1), // Remover el último elemento agregado
             score_team_a: resultForm.score_team_a,
           });
         } else {
           setResultForm({
             ...resultForm,
-            goals_team_b: resultForm.goals_team_b,
+            goals_team_b: resultForm.goals_team_b.slice(0, -1), // Remover el último elemento agregado
             score_team_b: resultForm.score_team_b,
           });
         }
+        alert(`Error al guardar el evento: ${eventError.message || "Error desconocido"}`);
         return;
       }
     } catch (error) {
@@ -759,30 +786,30 @@ export default function ResultadosPage() {
 
       {/* Modal para ingresar resultados */}
       {showResultModal && selectedMatch && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto my-8">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-2 sm:my-8 mx-2 sm:mx-0">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white pr-2">
                   Publicar Resultado
                 </h2>
                 <button
                   onClick={() => setShowResultModal(false)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0 p-1"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
 
               {/* Información del partido */}
-              <div className="mb-6 p-4 bg-gray-50 dark:bg-neutral-800 rounded-lg">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 dark:bg-neutral-800 rounded-lg">
+                <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white mb-2">
                   {selectedMatch.teams?.name || "Equipo A"} vs {selectedMatch.teams1?.name || "Equipo B"}
                 </h3>
                 {selectedMatch.scheduled_at && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                     {new Date(selectedMatch.scheduled_at).toLocaleString("es-ES")}
                   </p>
                 )}
@@ -1189,7 +1216,7 @@ export default function ResultadosPage() {
                     </div>
                     <div className="space-y-2">
                       {resultForm.goals_team_a.map((goal, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
+                        <div key={`goal-a-${goal.player_id}-${goal.minute}-${goal.points || 0}-${index}`} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
                           <span className="text-sm text-gray-700 dark:text-gray-300">
                             {getPlayerName(goal.player_id, "a")} 
                             {scoreLabel === "Puntos" && goal.points 
@@ -1311,7 +1338,7 @@ export default function ResultadosPage() {
                     </div>
                     <div className="space-y-2">
                       {resultForm.goals_team_b.map((goal, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
+                        <div key={`goal-b-${goal.player_id}-${goal.minute}-${goal.points || 0}-${index}`} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
                           <span className="text-sm text-gray-700 dark:text-gray-300">
                             {getPlayerName(goal.player_id, "b")} 
                             {scoreLabel === "Puntos" && goal.points 
@@ -1434,7 +1461,7 @@ export default function ResultadosPage() {
                     </div>
                     <div className="space-y-2">
                       {resultForm.yellow_cards_team_a.map((card, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
+                        <div key={`yellow-a-${card.player_id}-${card.minute}-${index}`} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
                           <span className="text-sm text-gray-700 dark:text-gray-300">
                             {getPlayerName(card.player_id, "a")} - Minuto {card.minute}&apos;
                           </span>
@@ -1537,7 +1564,7 @@ export default function ResultadosPage() {
                     </div>
                     <div className="space-y-2">
                       {resultForm.yellow_cards_team_b.map((card, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
+                        <div key={`yellow-b-${card.player_id}-${card.minute}-${index}`} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
                           <span className="text-sm text-gray-700 dark:text-gray-300">
                             {getPlayerName(card.player_id, "b")} - Minuto {card.minute}&apos;
                           </span>
@@ -1640,7 +1667,7 @@ export default function ResultadosPage() {
                     </div>
                     <div className="space-y-2">
                       {resultForm.red_cards_team_a.map((card, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
+                        <div key={`red-a-${card.player_id}-${card.minute}-${index}`} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
                           <span className="text-sm text-gray-700 dark:text-gray-300">
                             {getPlayerName(card.player_id, "a")} - Minuto {card.minute}&apos;
                           </span>
@@ -1743,7 +1770,7 @@ export default function ResultadosPage() {
                     </div>
                     <div className="space-y-2">
                       {resultForm.red_cards_team_b.map((card, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
+                        <div key={`red-b-${card.player_id}-${card.minute}-${index}`} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-800 rounded">
                           <span className="text-sm text-gray-700 dark:text-gray-300">
                             {getPlayerName(card.player_id, "b")} - Minuto {card.minute}&apos;
                           </span>

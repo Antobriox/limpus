@@ -161,36 +161,36 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <div className="flex flex-col gap-2 rounded-lg p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
-          <p className="text-gray-600 dark:text-gray-400 text-base font-medium leading-normal">
+      <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+        <div className="flex flex-col gap-2 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+          <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm md:text-base font-medium leading-normal">
             Equipos Inscritos
           </p>
-          <p className="text-gray-900 dark:text-white text-3xl font-bold leading-tight">
+          <p className="text-gray-900 dark:text-white text-2xl sm:text-3xl font-bold leading-tight">
             {stats.equipos}
           </p>
         </div>
-        <div className="flex flex-col gap-2 rounded-lg p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
-          <p className="text-gray-600 dark:text-gray-400 text-base font-medium leading-normal">
+        <div className="flex flex-col gap-2 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+          <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm md:text-base font-medium leading-normal">
             Partidos Hoy
           </p>
-          <p className="text-gray-900 dark:text-white text-3xl font-bold leading-tight">
+          <p className="text-gray-900 dark:text-white text-2xl sm:text-3xl font-bold leading-tight">
             {stats.partidosHoy}
           </p>
         </div>
-        <div className="flex flex-col gap-2 rounded-lg p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
-          <p className="text-gray-600 dark:text-gray-400 text-base font-medium leading-normal">
+        <div className="flex flex-col gap-2 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+          <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm md:text-base font-medium leading-normal">
             Disciplinas Activas
           </p>
-          <p className="text-gray-900 dark:text-white text-3xl font-bold leading-tight">
+          <p className="text-gray-900 dark:text-white text-2xl sm:text-3xl font-bold leading-tight">
             {stats.disciplinas}
           </p>
         </div>
-        <div className="flex flex-col gap-2 rounded-lg p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
-          <p className="text-gray-600 dark:text-gray-400 text-base font-medium leading-normal">
+        <div className="flex flex-col gap-2 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+          <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm md:text-base font-medium leading-normal">
             Resultados Pendientes
           </p>
-          <p className="text-gray-900 dark:text-white text-3xl font-bold leading-tight">
+          <p className="text-gray-900 dark:text-white text-2xl sm:text-3xl font-bold leading-tight">
             {stats.pendientes}
           </p>
         </div>

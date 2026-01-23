@@ -27,6 +27,26 @@ export default function TablasPage() {
     loadSports();
   }, []);
 
+  // Seleccionar "Fútbol" por defecto cuando se cargan los deportes
+  useEffect(() => {
+    if (sports.length > 0 && !selectedSport) {
+      // Buscar "Fútbol" específicamente
+      const futbolSport = sports.find(
+        (s) => s.name.toLowerCase().includes("futbol") || 
+               s.name.toLowerCase().includes("fútbol") ||
+               s.name.toLowerCase().includes("football")
+      ) || sports[0]; // Si no encuentra Fútbol, usar el primero
+      
+      // Usar setTimeout para evitar setState sincrónico en efecto
+      setTimeout(() => {
+        setSelectedSport(futbolSport.id);
+        setSelectedSportName(futbolSport.name);
+        // Establecer "masculino" como género por defecto
+        setSelectedGenero("masculino");
+      }, 0);
+    }
+  }, [sports, selectedSport]);
+
   useEffect(() => {
     if (selectedSport) {
       const sport = sports.find((s) => s.id === selectedSport);
@@ -35,6 +55,13 @@ export default function TablasPage() {
       }
     }
   }, [selectedSport, sports]);
+
+  // Cuando se selecciona un deporte, establecer "masculino" por defecto si no hay género seleccionado
+  useEffect(() => {
+    if (selectedSport && !selectedGenero) {
+      setSelectedGenero("masculino");
+    }
+  }, [selectedSport, selectedGenero]);
 
   const loadSports = async () => {
     try {
@@ -55,20 +82,20 @@ export default function TablasPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-4 sm:mb-6">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition-colors"
+          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-3 sm:mb-4 transition-colors text-sm sm:text-base"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           <span>Volver</span>
         </button>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
               Tablas de Posiciones
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
               Clasificación por disciplina según reglas específicas
             </p>
           </div>
@@ -76,7 +103,7 @@ export default function TablasPage() {
       </div>
 
       {/* Selectores de disciplina y género */}
-      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Seleccionar Disciplina
@@ -84,8 +111,10 @@ export default function TablasPage() {
           <select
             value={selectedSport || ""}
             onChange={(e) => {
-              setSelectedSport(e.target.value ? parseInt(e.target.value) : null);
-              setSelectedGenero(null); // Reset género al cambiar disciplina
+              const sportId = e.target.value ? parseInt(e.target.value) : null;
+              setSelectedSport(sportId);
+              // Establecer "masculino" por defecto al cambiar disciplina
+              setSelectedGenero("masculino");
             }}
             className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
           >
@@ -117,11 +146,11 @@ export default function TablasPage() {
 
       {/* Información de reglas */}
       {rules && (
-        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg">
-          <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg">
+          <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white mb-2">
             Reglas de {rules.disciplineName}
           </h3>
-          <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+          <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 space-y-1">
             <p>
               <strong>Puntos:</strong>{" "}
               {rules.pointSystem.win !== undefined && `Victoria: ${rules.pointSystem.win} pts`}
@@ -130,7 +159,7 @@ export default function TablasPage() {
             </p>
             <p>
               <strong>Criterios de desempate:</strong>{" "}
-              {rules.tiebreakerOrder.join(" → ")}
+              <span className="break-words">{rules.tiebreakerOrder.join(" → ")}</span>
             </p>
           </div>
         </div>
@@ -138,131 +167,193 @@ export default function TablasPage() {
 
       {/* Tabla de posiciones - Solo mostrar si hay género seleccionado */}
       {!selectedGenero && selectedSport ? (
-        <div className="text-center py-12 bg-gray-50 dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700">
-          <Trophy className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">
+        <div className="text-center py-8 sm:py-12 bg-gray-50 dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700">
+          <Trophy className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3 sm:mb-4" />
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 px-4">
             Selecciona un género para ver las tablas de posiciones
           </p>
         </div>
       ) : loading ? (
-        <div className="text-center py-12">
+        <div className="text-center py-8 sm:py-12">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">Cargando tabla de posiciones...</p>
+          <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">Cargando tabla de posiciones...</p>
         </div>
       ) : error ? (
-        <div className="text-center py-12 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900">
-          <p className="text-red-600 dark:text-red-400">{error}</p>
+        <div className="text-center py-8 sm:py-12 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900 px-4">
+          <p className="text-sm sm:text-base text-red-600 dark:text-red-400">{error}</p>
         </div>
       ) : bomboStandings.length === 0 && selectedSport && selectedGenero ? (
-        <div className="text-center py-12 bg-gray-50 dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700">
-          <Trophy className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">
+        <div className="text-center py-8 sm:py-12 bg-gray-50 dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700 px-4">
+          <Trophy className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3 sm:mb-4" />
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
             No hay equipos registrados para esta disciplina y género. Genera brackets primero.
           </p>
         </div>
       ) : bomboStandings.length > 0 ? (
-        <div className="space-y-6">
-          {bomboStandings.map((bombo) => (
-            <div key={bombo.bomboNumber}>
-              <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg overflow-hidden">
-                <div className="px-4 py-3 bg-blue-50 dark:bg-blue-950/20 border-b border-gray-200 dark:border-neutral-800">
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white">{bombo.bomboName}</h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 dark:bg-neutral-800">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white">
-                          Pos
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white">
-                          Equipo
-                        </th>
-                        <th className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-white">
-                          PJ
-                        </th>
-                        <th className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-white">
-                          G
-                        </th>
-                        {rules?.pointSystem.draw !== undefined && (
-                          <th className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-white">
-                            E
+        <div className="space-y-8">
+          {bomboStandings.map((bomboStanding, index) => (
+            <div key={index} className="bg-white dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700 overflow-hidden">
+              {/* Table Header */}
+              <div className="bg-blue-600 dark:bg-blue-700 px-6 py-4">
+                <h2 className="text-xl font-bold text-white">
+                  {bomboStandings.length > 1 ? `Bombo ${bomboStanding.bomboNumber}` : "Clasificación General"}
+                </h2>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full min-w-[640px] sm:min-w-0">
+                  <thead className="bg-gray-50 dark:bg-neutral-900">
+                    <tr>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Pos
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Equipo
+                      </th>
+                      <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        PJ
+                      </th>
+                      <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        G
+                      </th>
+                      <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        E
+                      </th>
+                      <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        P
+                      </th>
+                      {rules?.usesSets ? (
+                        <>
+                          <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Sets G
                           </th>
+                          <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Sets P
+                          </th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            {rules?.metricName === "goles" ? "GF" : "PF"}
+                          </th>
+                          <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            {rules?.metricName === "goles" ? "GC" : "PC"}
+                          </th>
+                          <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            {rules?.metricName === "goles" ? "DG" : "DP"}
+                          </th>
+                        </>
+                      )}
+                      {rules?.usesCards && (
+                        <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Fair Play
+                        </th>
+                      )}
+                      <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Pts
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-700">
+                    {bomboStanding.standings.map((team, teamIndex) => (
+                      <tr
+                        key={team.teamId}
+                        className={teamIndex < 3 ? "bg-blue-50 dark:bg-blue-900/20" : ""}
+                      >
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            {teamIndex === 0 && <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500 mr-1 sm:mr-2 flex-shrink-0" />}
+                            {teamIndex === 1 && <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mr-1 sm:mr-2 flex-shrink-0" />}
+                            {teamIndex === 2 && <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600 mr-1 sm:mr-2 flex-shrink-0" />}
+                            <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                              {teamIndex + 1}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 min-w-[120px]">
+                          <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                            {team.teamName}
+                          </span>
+                        </td>
+                        <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                          <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                            {team.matchesPlayed}
+                          </span>
+                        </td>
+                        <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                          <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                            {team.wins}
+                          </span>
+                        </td>
+                        <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                          <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                            {team.draws || 0}
+                          </span>
+                        </td>
+                        <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                          <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                            {team.losses}
+                          </span>
+                        </td>
+                        {rules?.usesSets ? (
+                          <>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {team.setsWon || 0}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {team.setsLost || 0}
+                              </span>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {team.goalsFor || team.pointsFor || 0}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {team.goalsAgainst || team.pointsAgainst || 0}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              <span className={`text-sm font-medium ${
+                                (team.goalDifference || team.pointDifference || 0) > 0
+                                  ? "text-green-600 dark:text-green-400"
+                                  : (team.goalDifference || team.pointDifference || 0) < 0
+                                  ? "text-red-600 dark:text-red-400"
+                                  : "text-gray-600 dark:text-gray-400"
+                              }`}>
+                                {team.goalDifference !== undefined
+                                  ? team.goalDifference
+                                  : team.pointDifference !== undefined
+                                  ? team.pointDifference
+                                  : 0}
+                              </span>
+                            </td>
+                          </>
                         )}
-                        <th className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-white">
-                          P
-                        </th>
-                        <th className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-white">
-                          {rules?.metricName === "goles" ? "GF" : rules?.metricName === "sets" ? "Sets G" : "PF"}
-                        </th>
-                        <th className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-white">
-                          {rules?.metricName === "goles" ? "GC" : rules?.metricName === "sets" ? "Sets P" : "PC"}
-                        </th>
-                        <th className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-white">
-                          {rules?.metricName === "goles" ? "DG" : rules?.metricName === "sets" ? "DS" : "DP"}
-                        </th>
                         {rules?.usesCards && (
-                          <th className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-white">
-                            Fair Play
-                          </th>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              {team.fairPlayPoints || 0}
+                            </span>
+                          </td>
                         )}
-                        <th className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-white">
-                          Pts
-                        </th>
+                        <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                          <span className="text-xs sm:text-sm font-bold text-blue-600 dark:text-blue-400">
+                            {team.points}
+                          </span>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-neutral-800">
-                      {bombo.standings.map((standing) => (
-                        <tr
-                          key={standing.teamId}
-                          className="hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
-                        >
-                          <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">
-                            {standing.position}
-                          </td>
-                          <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
-                            {standing.teamName}
-                          </td>
-                          <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">
-                            {standing.played}
-                          </td>
-                          <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">
-                            {standing.wins}
-                          </td>
-                          {rules?.pointSystem.draw !== undefined && (
-                            <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">
-                              {standing.draws}
-                            </td>
-                          )}
-                          <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">
-                            {standing.losses}
-                          </td>
-                          <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">
-                            {rules?.metricName === "sets" ? standing.setsWon : rules?.metricName === "goles" ? standing.goalsFor : standing.pointsFor}
-                          </td>
-                          <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">
-                            {rules?.metricName === "sets" ? standing.setsLost : rules?.metricName === "goles" ? standing.goalsAgainst : standing.pointsAgainst}
-                          </td>
-                          <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">
-                            {rules?.metricName === "sets" 
-                              ? standing.setDifference > 0 ? `+${standing.setDifference}` : standing.setDifference
-                              : rules?.metricName === "goles"
-                              ? standing.goalDifference > 0 ? `+${standing.goalDifference}` : standing.goalDifference
-                              : standing.pointDifference > 0 ? `+${standing.pointDifference}` : standing.pointDifference}
-                          </td>
-                          {rules?.usesCards && (
-                            <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">
-                              {standing.fairPlayPoints}
-                            </td>
-                          )}
-                          <td className="px-4 py-3 text-center font-bold text-blue-600 dark:text-blue-400">
-                            {standing.points}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           ))}
@@ -271,4 +362,3 @@ export default function TablasPage() {
     </div>
   );
 }
-

@@ -67,7 +67,8 @@ export default function BracketsPage() {
       // Si no hay género seleccionado, limpiar los brackets
       setBombos([]);
     }
-  }, [tournament, selectedSport, selectedGenero, loadSavedBrackets, setBombos]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tournament?.id, selectedSport, selectedGenero, loadSavedBrackets]);
 
   const loadTournament = async () => {
     try {
@@ -268,7 +269,7 @@ export default function BracketsPage() {
           </div>
           <div className="mt-4 text-center">
             <button
-              onClick={() => generateBombos("bombo")}
+              onClick={() => generateBombos()}
               disabled={selectedTeams.size === 0 || !selectedGenero}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2 mx-auto"
             >
@@ -418,7 +419,7 @@ export default function BracketsPage() {
             // Si no hay brackets guardados, mostrar opciones para generar nuevos
             <>
               <button
-                onClick={() => generateBombos("bombo")}
+                onClick={() => generateBombos()}
                 disabled={!selectedGenero}
                 className="px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >

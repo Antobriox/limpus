@@ -1,5 +1,5 @@
 // Hook para manejar la lógica de brackets
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { Team, Tournament } from "../types";
 import { generateBracketsPDF } from "../utils/pdfGenerator";
@@ -14,7 +14,7 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
   const [savedDrawId, setSavedDrawId] = useState<number | null>(null);
   const [loadingSaved, setLoadingSaved] = useState(false);
 
-  const loadTeams = async () => {
+  const loadTeams = useCallback(async () => {
     try {
       // Cargar TODOS los equipos disponibles (sin filtrar por inscripciones)
       const { data: teams, error: teamsError } = await supabase
@@ -33,9 +33,9 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
     } catch (error) {
       console.error("Error:", error);
     }
-  };
+  }, []);
 
-  const loadSavedBrackets = async () => {
+  const loadSavedBrackets = useCallback(async () => {
     if (!tournament || tournament.id === 0 || !sportId) {
       setLoadingSaved(false);
       return;
@@ -177,9 +177,9 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
     } finally {
       setLoadingSaved(false);
     }
-  };
+  }, [tournament, sportId, genero]);
 
-  const generateBombos = () => {
+  const generateBombos = useCallback(() => {
     // Usar solo los equipos seleccionados
     const teamsToUse = allTeams.filter(team => selectedTeams.has(team.id));
     
@@ -206,7 +206,7 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
     }
 
     setBombos(newBombos);
-  };
+  }, [allTeams, selectedTeams]);
 
   const saveBrackets = async (onSuccess?: () => void) => {
     if (bombos.length === 0) {

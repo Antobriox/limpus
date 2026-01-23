@@ -150,7 +150,23 @@ export default function MatchDetailsModal({
       setPlayersA(playersA);
       setPlayersB(playersB);
 
-      setEvents(eventsData || []);
+      // Filtrar eventos duplicados basándose en una combinación única de propiedades
+      const uniqueEvents = (eventsData || []).reduce((acc: MatchEvent[], event: MatchEvent) => {
+        // Verificar si ya existe un evento con la misma clave
+        const exists = acc.some(
+          (e) =>
+            e.event_type === event.event_type &&
+            e.team_id === event.team_id &&
+            e.player_id === event.player_id &&
+            e.value === event.value
+        );
+        if (!exists) {
+          acc.push(event);
+        }
+        return acc;
+      }, []);
+
+      setEvents(uniqueEvents);
     } catch (error) {
       console.error("Error cargando detalles del partido:", error);
     } finally {
@@ -250,27 +266,27 @@ export default function MatchDetailsModal({
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-neutral-800 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white dark:bg-neutral-800 border-b border-gray-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-neutral-800 rounded-lg max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-2 sm:my-4 mx-2 sm:mx-0">
+        <div className="sticky top-0 bg-white dark:bg-neutral-800 border-b border-gray-200 dark:border-neutral-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white pr-2">
             Detalles del Partido
           </h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700 transition"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700 transition flex-shrink-0"
           >
-            <X className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Información del partido */}
-          <div className="mb-6 p-4 bg-gray-50 dark:bg-neutral-900 rounded-lg">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 dark:bg-neutral-900 rounded-lg">
+            <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white mb-2">
               {teamAName} vs {teamBName}
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
               {sportName}
             </p>
           </div>
@@ -293,9 +309,20 @@ export default function MatchDetailsModal({
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      {goalsA.map((goal, index) => (
+                      {goalsA.map((goal, index) => {
+                        // Encontrar el evento original para usar su ID como key
+                        const originalEvent = events.find(
+                          (e) =>
+                            e.event_type === "goal" &&
+                            e.team_id === teamAId &&
+                            e.player_id === goal.player_id &&
+                            (isBasketball
+                              ? e.value === (goal.points! * 1000 + goal.minute)
+                              : e.value === goal.minute)
+                        );
+                        return (
                         <div
-                          key={index}
+                          key={originalEvent?.id || `goal-a-${index}`}
                           className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
                         >
                           <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -305,7 +332,8 @@ export default function MatchDetailsModal({
                               : ` - Minuto ${goal.minute}'`}
                           </span>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -323,9 +351,20 @@ export default function MatchDetailsModal({
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      {goalsB.map((goal, index) => (
+                      {goalsB.map((goal, index) => {
+                        // Encontrar el evento original para usar su ID como key
+                        const originalEvent = events.find(
+                          (e) =>
+                            e.event_type === "goal" &&
+                            e.team_id === teamBId &&
+                            e.player_id === goal.player_id &&
+                            (isBasketball
+                              ? e.value === (goal.points! * 1000 + goal.minute)
+                              : e.value === goal.minute)
+                        );
+                        return (
                         <div
-                          key={index}
+                          key={originalEvent?.id || `goal-b-${index}`}
                           className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
                         >
                           <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -335,7 +374,8 @@ export default function MatchDetailsModal({
                               : ` - Minuto ${goal.minute}'`}
                           </span>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -355,16 +395,26 @@ export default function MatchDetailsModal({
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        {yellowCardsA.map((card, index) => (
+                        {yellowCardsA.map((card, index) => {
+                          // Encontrar el evento original para usar su ID como key
+                          const originalEvent = events.find(
+                            (e) =>
+                              e.event_type === "yellow_card" &&
+                              e.team_id === teamAId &&
+                              e.player_id === card.player_id &&
+                              e.value === card.minute
+                          );
+                          return (
                           <div
-                            key={index}
+                            key={originalEvent?.id || `yellow-a-${index}`}
                             className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
                           >
                             <span className="text-sm text-gray-700 dark:text-gray-300">
                               {getPlayerName(card.player_id, "a")} - Minuto {card.minute}&apos;
                             </span>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -380,16 +430,26 @@ export default function MatchDetailsModal({
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        {yellowCardsB.map((card, index) => (
+                        {yellowCardsB.map((card, index) => {
+                          // Encontrar el evento original para usar su ID como key
+                          const originalEvent = events.find(
+                            (e) =>
+                              e.event_type === "yellow_card" &&
+                              e.team_id === teamBId &&
+                              e.player_id === card.player_id &&
+                              e.value === card.minute
+                          );
+                          return (
                           <div
-                            key={index}
+                            key={originalEvent?.id || `yellow-b-${index}`}
                             className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
                           >
                             <span className="text-sm text-gray-700 dark:text-gray-300">
                               {getPlayerName(card.player_id, "b")} - Minuto {card.minute}&apos;
                             </span>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -410,16 +470,26 @@ export default function MatchDetailsModal({
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        {redCardsA.map((card, index) => (
+                        {redCardsA.map((card, index) => {
+                          // Encontrar el evento original para usar su ID como key
+                          const originalEvent = events.find(
+                            (e) =>
+                              e.event_type === "red_card" &&
+                              e.team_id === teamAId &&
+                              e.player_id === card.player_id &&
+                              e.value === card.minute
+                          );
+                          return (
                           <div
-                            key={index}
+                            key={originalEvent?.id || `red-a-${index}`}
                             className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
                           >
                             <span className="text-sm text-gray-700 dark:text-gray-300">
                               {getPlayerName(card.player_id, "a")} - Minuto {card.minute}&apos;
                             </span>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -435,16 +505,26 @@ export default function MatchDetailsModal({
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        {redCardsB.map((card, index) => (
+                        {redCardsB.map((card, index) => {
+                          // Encontrar el evento original para usar su ID como key
+                          const originalEvent = events.find(
+                            (e) =>
+                              e.event_type === "red_card" &&
+                              e.team_id === teamBId &&
+                              e.player_id === card.player_id &&
+                              e.value === card.minute
+                          );
+                          return (
                           <div
-                            key={index}
+                            key={originalEvent?.id || `red-b-${index}`}
                             className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
                           >
                             <span className="text-sm text-gray-700 dark:text-gray-300">
                               {getPlayerName(card.player_id, "b")} - Minuto {card.minute}&apos;
                             </span>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

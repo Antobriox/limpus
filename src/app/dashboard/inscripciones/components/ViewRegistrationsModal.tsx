@@ -20,12 +20,13 @@ type SupabasePlayer = {
   semester: number | null;
   jersey_number: number | null;
   is_captain: boolean;
+  cedula_photo_url?: string | null;
   careers?: {
     name: string;
   };
 };
 import { supabase } from "../../../../lib/supabaseClient";
-import { X, Users, User } from "lucide-react";
+import { X, Users, User, Eye } from "lucide-react";
 
 type ViewRegistrationsModalProps = {
   formId: number;
@@ -52,6 +53,7 @@ type Player = {
   jersey_number: number | null;
   is_captain: boolean;
   career_name: string | null;
+  cedula_photo_url?: string | null;
 };
 
 export default function ViewRegistrationsModal({
@@ -140,6 +142,7 @@ export default function ViewRegistrationsModal({
           semester,
           jersey_number,
           is_captain,
+          cedula_photo_url,
           careers!inner (
             name
           )
@@ -149,8 +152,11 @@ export default function ViewRegistrationsModal({
 
       if (error) throw error;
 
-      setPlayers(
-        ((playersData || []) as SupabasePlayer[]).map((p: SupabasePlayer) => ({
+      const mappedPlayers = ((playersData || []) as SupabasePlayer[]).map((p: SupabasePlayer) => {
+        // Debug: verificar el valor original
+        console.log(`Jugador ${p.full_name}: cedula_photo_url =`, p.cedula_photo_url, typeof p.cedula_photo_url);
+        
+        return {
           id: p.id,
           full_name: p.full_name,
           email: p.email,
@@ -160,8 +166,11 @@ export default function ViewRegistrationsModal({
           jersey_number: p.jersey_number,
           is_captain: p.is_captain || false,
           career_name: p.careers?.name || null,
-        }))
-      );
+          cedula_photo_url: p.cedula_photo_url || null,
+        };
+      });
+
+      setPlayers(mappedPlayers);
     } catch (error: unknown) {
       console.error("Error cargando jugadores:", error);
     } finally {
@@ -172,32 +181,32 @@ export default function ViewRegistrationsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col mx-2 sm:mx-0 my-2 sm:my-4">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-neutral-800">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-neutral-800">
+          <div className="flex-1 min-w-0 pr-2">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white truncate">
               Inscripciones: {formName}
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
               Equipos y jugadores inscritos
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex-shrink-0 p-1"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden flex">
+        <div className="flex-1 overflow-hidden flex flex-col sm:flex-row">
           {/* Lista de equipos */}
-          <div className="w-1/3 border-r border-gray-200 dark:border-neutral-800 overflow-y-auto">
-            <div className="p-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          <div className="w-full sm:w-1/3 border-b sm:border-b-0 sm:border-r border-gray-200 dark:border-neutral-800 overflow-y-auto">
+            <div className="p-3 sm:p-4">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">
                 Equipos Inscritos ({teamRegistrations.length})
               </h3>
 
@@ -244,53 +253,56 @@ export default function ViewRegistrationsModal({
 
           {/* Lista de jugadores */}
           <div className="flex-1 overflow-y-auto">
-            <div className="p-6">
+            <div className="p-3 sm:p-4 md:p-6">
               {!selectedTeamId ? (
-                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  <User className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Selecciona un equipo para ver sus jugadores</p>
+                <div className="text-center py-8 sm:py-12 text-gray-500 dark:text-gray-400">
+                  <User className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 opacity-50" />
+                  <p className="text-sm sm:text-base">Selecciona un equipo para ver sus jugadores</p>
                 </div>
               ) : loadingPlayers ? (
-                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  Cargando jugadores...
+                <div className="text-center py-8 sm:py-12 text-gray-500 dark:text-gray-400">
+                  <p className="text-sm sm:text-base">Cargando jugadores...</p>
                 </div>
               ) : players.length === 0 ? (
-                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  <User className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Este equipo no tiene jugadores inscritos</p>
+                <div className="text-center py-8 sm:py-12 text-gray-500 dark:text-gray-400">
+                  <User className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 opacity-50" />
+                  <p className="text-sm sm:text-base">Este equipo no tiene jugadores inscritos</p>
                 </div>
               ) : (
                 <>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">
                     Jugadores ({players.length})
                   </h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                  <div className="overflow-x-auto -mx-3 sm:mx-0">
+                    <table className="w-full text-xs sm:text-sm min-w-[800px]">
                       <thead className="bg-gray-50 dark:bg-neutral-800">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
+                          <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
                             Nombre
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
                             Cédula
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
                             Email
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
                             Teléfono
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
                             Carrera
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
                             Semestre
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
                             Número
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
                             Capitán
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
+                            Foto Cédula
                           </th>
                         </tr>
                       </thead>
@@ -300,34 +312,48 @@ export default function ViewRegistrationsModal({
                             key={player.id}
                             className="hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition-colors"
                           >
-                            <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
+                            <td className="px-3 sm:px-4 py-2 sm:py-3 font-medium text-gray-900 dark:text-white text-xs sm:text-sm">
                               {player.full_name}
                             </td>
-                            <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
                               {player.cedula || "-"}
                             </td>
-                            <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-600 dark:text-gray-400 text-xs sm:text-sm break-all">
                               {player.email || "-"}
                             </td>
-                            <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
                               {player.phone || "-"}
                             </td>
-                            <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
                               {player.career_name || "-"}
                             </td>
-                            <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
                               {player.semester || "-"}
                             </td>
-                            <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
                               {player.jersey_number || "-"}
                             </td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
                               {player.is_captain ? (
                                 <span className="px-2 py-1 text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded">
                                   Sí
                                 </span>
                               ) : (
                                 <span className="text-gray-400 dark:text-gray-600">-</span>
+                              )}
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                              {player.cedula_photo_url && player.cedula_photo_url.trim() !== "" ? (
+                                <button
+                                  onClick={() => window.open(player.cedula_photo_url!, "_blank")}
+                                  className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                                  title="Ver foto de cédula"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span className="hidden sm:inline">Ver cédula</span>
+                                </button>
+                              ) : (
+                                <span className="text-gray-400 dark:text-gray-600 text-xs">-</span>
                               )}
                             </td>
                           </tr>

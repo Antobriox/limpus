@@ -108,38 +108,67 @@ const loadDashboardData = async (): Promise<{
       careers?: Array<{ id: number; name: string }>;
     };
     
-    const careerIds = (allTeamsData as TeamWithCareers[])
-      .flatMap((team: TeamWithCareers) => team.careers || [])
-      .map((career: { id: number }) => career.id)
-      .filter((id: number) => id);
+    // Obtener los IDs de los equipos
+    const teamIds = (allTeamsData as TeamWithCareers[]).map((team: TeamWithCareers) => team.id);
 
-    const { data: captainsData } = await supabase
-      .from("players")
-      .select("career_id, full_name")
-      .in("career_id", careerIds)
-      .eq("is_captain", true);
+    // Cargar líderes de equipo desde team_leaders
+    const { data: teamLeadersData } = await supabase
+      .from("team_leaders")
+      .select("team_id, user_id")
+      .in("team_id", teamIds);
 
-    type CaptainData = {
-      career_id: number;
-      full_name: string | null;
+    type TeamLeaderData = {
+      team_id: number;
+      user_id: string;
     };
 
-    const captainsMap = new Map(
-      (captainsData as CaptainData[] | null)?.map((c: CaptainData) => [c.career_id, c.full_name]) || []
-    );
+    // Obtener todos los user_ids únicos
+    const userIds = teamLeadersData 
+      ? [...new Set((teamLeadersData as TeamLeaderData[]).map((tl: TeamLeaderData) => tl.user_id))]
+      : [];
+
+    // Cargar los perfiles de los líderes
+    let profilesMap = new Map<string, string>();
+    if (userIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", userIds);
+
+      if (profilesData) {
+        profilesMap = new Map(
+          (profilesData as Array<{ id: string; full_name: string | null }>).map((p) => [
+            p.id,
+            p.full_name || "Sin nombre"
+          ])
+        );
+      }
+    }
+
+    // Crear un mapa de team_id -> nombres de líderes
+    const leadersMap = new Map<number, string[]>();
+    if (teamLeadersData) {
+      (teamLeadersData as TeamLeaderData[]).forEach((tl: TeamLeaderData) => {
+        const leaderName = profilesMap.get(tl.user_id);
+        if (leaderName) {
+          if (!leadersMap.has(tl.team_id)) {
+            leadersMap.set(tl.team_id, []);
+          }
+          leadersMap.get(tl.team_id)!.push(leaderName);
+        }
+      });
+    }
 
     recentTeams = (allTeamsData as TeamWithCareers[]).map((team: TeamWithCareers) => {
       const faculty = team.careers && team.careers.length > 0 
         ? team.careers[0].name 
         : "Sin facultad";
 
-      const careerId = team.careers && team.careers.length > 0 
-        ? team.careers[0].id 
-        : null;
-
-      const captain = careerId && captainsMap.has(careerId)
-        ? captainsMap.get(careerId)!
-        : "Sin capitán";
+      // Obtener los líderes del equipo
+      const teamLeaders = leadersMap.get(team.id) || [];
+      const captain = teamLeaders.length > 0
+        ? teamLeaders.join(", ")
+        : "Sin líder de equipo";
 
       return {
         id: team.id,

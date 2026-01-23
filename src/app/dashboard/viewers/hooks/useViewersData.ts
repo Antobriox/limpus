@@ -9,6 +9,8 @@ export type Sport = {
 
 export type LiveMatch = {
   id: number;
+  team_a_id: number;
+  team_b_id: number;
   team_a_name: string;
   team_b_name: string;
   score_a: number | null;
@@ -171,6 +173,8 @@ const loadViewersData = async (): Promise<{
 
       return {
         id: m.id,
+        team_a_id: m.team_a || 0,
+        team_b_id: m.team_b || 0,
         team_a_name: teamsMap.get(m.team_a) || "Equipo A",
         team_b_name: teamsMap.get(m.team_b) || "Equipo B",
         score_a: scoreA,

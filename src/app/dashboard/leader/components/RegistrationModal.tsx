@@ -14,9 +14,10 @@ type SupabasePlayer = {
   jersey_number: number | null;
   is_captain: boolean;
   team_registration_id: number | null;
+  cedula_photo_url?: string | null;
 };
 import { supabase } from "../../../../lib/supabaseClient";
-import { X, Plus, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
+import { X, Plus, Trash2, CheckCircle2, AlertCircle, Upload, Image as ImageIcon } from "lucide-react";
 import { useTeamRegistrations, RegistrationForm } from "../hooks/useTeamRegistrations";
 
 type Player = {
@@ -29,6 +30,7 @@ type Player = {
   semester: number;
   jersey_number: number;
   is_captain: boolean;
+  cedula_photo_url?: string | null;
 };
 
 type RegistrationModalProps = {
@@ -44,6 +46,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
   const [careers, setCareers] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState<{ [key: number]: boolean }>({});
 
   // Cargar carreras del equipo
   useEffect(() => {
@@ -103,6 +106,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
           semester: p.semester || 1,
           jersey_number: p.jersey_number || null,
           is_captain: p.is_captain || false,
+          cedula_photo_url: p.cedula_photo_url || null,
         })));
       } else {
         setPlayers([]);
@@ -149,6 +153,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
         semester: 1,
         jersey_number: null,
         is_captain: false,
+        cedula_photo_url: null,
       },
     ]);
   };
@@ -169,6 +174,57 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
     }
     
     setPlayers(updated);
+  };
+
+  const handleUploadCedulaPhoto = async (playerIndex: number, file: File) => {
+    if (!file.type.startsWith("image/")) {
+      alert("Por favor, selecciona un archivo de imagen válido");
+      return;
+    }
+
+    const player = players[playerIndex];
+    if (!player) return;
+
+    setUploadingPhotos((prev) => ({ ...prev, [playerIndex]: true }));
+
+    try {
+      // Crear un nombre único para el archivo
+      const fileExt = file.name.split(".").pop();
+      const fileName = `cedula_${teamId}_${playerIndex}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `players/cedulas/${fileName}`;
+
+      // Subir la imagen a Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(filePath, file, {
+          contentType: file.type,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error("Error subiendo foto de cédula:", uploadError);
+        alert("Error al subir la foto de cédula. Por favor, intenta nuevamente.");
+        return;
+      }
+
+      // Obtener la URL pública de la imagen
+      const { data: urlData } = supabase.storage
+        .from("documents")
+        .getPublicUrl(filePath);
+
+      if (urlData?.publicUrl) {
+        console.log(`Foto de cédula subida para jugador ${playerIndex}:`, urlData.publicUrl);
+        updatePlayer(playerIndex, "cedula_photo_url", urlData.publicUrl);
+      } else {
+        console.error("No se pudo obtener la URL pública de la imagen");
+        alert("Error al obtener la URL de la imagen. Por favor, intenta nuevamente.");
+      }
+    } catch (error) {
+      console.error("Error al procesar la foto de cédula:", error);
+      alert("Error al procesar la foto de cédula. Por favor, intenta nuevamente.");
+    } finally {
+      setUploadingPhotos((prev) => ({ ...prev, [playerIndex]: false }));
+    }
   };
 
   const handleSavePlayers = async () => {
@@ -242,6 +298,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
         semester: p.semester,
         jersey_number: p.jersey_number || null,
         is_captain: p.is_captain,
+        cedula_photo_url: p.cedula_photo_url || null,
         team_registration_id: teamRegistrationId, // Asegurar que se use el ID correcto
       }));
 
@@ -267,21 +324,21 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-neutral-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white dark:bg-neutral-800 border-b border-gray-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-neutral-800 rounded-lg max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-2 sm:my-4 mx-2 sm:mx-0">
+        <div className="sticky top-0 bg-white dark:bg-neutral-800 border-b border-gray-200 dark:border-neutral-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white pr-2">
             Inscripciones
           </h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700 transition"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700 transition flex-shrink-0"
           >
-            <X className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {!selectedForm ? (
             <>
               <div>
@@ -492,6 +549,56 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                             />
                             <span className="text-sm text-gray-700 dark:text-gray-300">Capitán</span>
                           </label>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                              Foto de Cédula
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <label
+                                htmlFor={`cedula-photo-${index}`}
+                                className={`flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg cursor-pointer transition ${
+                                  uploadingPhotos[index]
+                                    ? "opacity-50 cursor-not-allowed bg-gray-100 dark:bg-neutral-700"
+                                    : "bg-white dark:bg-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-700"
+                                }`}
+                              >
+                                <Upload className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                <span className="text-sm text-gray-700 dark:text-gray-300">
+                                  {uploadingPhotos[index]
+                                    ? "Subiendo..."
+                                    : player.cedula_photo_url
+                                    ? "Cambiar foto"
+                                    : "Subir foto"}
+                                </span>
+                              </label>
+                              <input
+                                type="file"
+                                id={`cedula-photo-${index}`}
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    handleUploadCedulaPhoto(index, file);
+                                  }
+                                }}
+                                disabled={uploadingPhotos[index]}
+                              />
+                              {player.cedula_photo_url && (
+                                <div className="flex items-center gap-2">
+                                  <ImageIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                  <a
+                                    href={player.cedula_photo_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                                  >
+                                    Ver foto
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     ))}

@@ -53,31 +53,31 @@ export default function AlertModal({
   const displayTitle = title || config.defaultTitle;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl max-w-md w-full">
-        <div className="p-6">
-          <div className="flex items-start gap-4 mb-4">
-            <Icon className={`w-6 h-6 flex-shrink-0 ${config.iconColor}`} />
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl max-w-md w-full mx-2 sm:mx-0">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-start gap-3 sm:gap-4 mb-4">
+            <Icon className={`w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 ${config.iconColor}`} />
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 {displayTitle}
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-line">
+              <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-line break-words">
                 {message}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0"
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0 p-1"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
 
           <div className="flex justify-end">
             <button
               onClick={onClose}
-              className={`px-4 py-2 rounded-lg transition-colors ${config.buttonColor}`}
+              className={`px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm sm:text-base ${config.buttonColor}`}
             >
               {buttonText}
             </button>

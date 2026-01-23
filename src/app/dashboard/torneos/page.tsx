@@ -84,38 +84,68 @@ export default function TorneosPage() {
           name: string;
         }>;
       };
-      type CaptainData = {
-        career_id: number;
-        full_name: string;
-      };
       if (allTeamsData && allTeamsData.length > 0) {
-        const careerIds = (allTeamsData as TeamWithCareers[])
-          .flatMap((team: TeamWithCareers) => team.careers || [])
-          .map((career) => career.id)
-          .filter((id: number) => id);
+        // Obtener los IDs de los equipos
+        const teamIds = (allTeamsData as TeamWithCareers[]).map((team: TeamWithCareers) => team.id);
 
-        const { data: captainsData } = await supabase
-          .from("players")
-          .select("career_id, full_name")
-          .in("career_id", careerIds)
-          .eq("is_captain", true);
+        // Cargar líderes de equipo desde team_leaders
+        const { data: teamLeadersData } = await supabase
+          .from("team_leaders")
+          .select("team_id, user_id")
+          .in("team_id", teamIds);
 
-        const captainsMap = new Map(
-          (captainsData as CaptainData[] | null)?.map((c: CaptainData) => [c.career_id, c.full_name]) || []
-        );
+        type TeamLeaderData = {
+          team_id: number;
+          user_id: string;
+        };
+
+        // Obtener todos los user_ids únicos
+        const userIds = teamLeadersData 
+          ? [...new Set((teamLeadersData as TeamLeaderData[]).map((tl: TeamLeaderData) => tl.user_id))]
+          : [];
+
+        // Cargar los perfiles de los líderes
+        let profilesMap = new Map<string, string>();
+        if (userIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .in("id", userIds);
+
+          if (profilesData) {
+            profilesMap = new Map(
+              (profilesData as Array<{ id: string; full_name: string | null }>).map((p) => [
+                p.id,
+                p.full_name || "Sin nombre"
+              ])
+            );
+          }
+        }
+
+        // Crear un mapa de team_id -> nombres de líderes
+        const leadersMap = new Map<number, string[]>();
+        if (teamLeadersData) {
+          (teamLeadersData as TeamLeaderData[]).forEach((tl: TeamLeaderData) => {
+            const leaderName = profilesMap.get(tl.user_id);
+            if (leaderName) {
+              if (!leadersMap.has(tl.team_id)) {
+                leadersMap.set(tl.team_id, []);
+              }
+              leadersMap.get(tl.team_id)!.push(leaderName);
+            }
+          });
+        }
 
         const teamsWithDetails = (allTeamsData as TeamWithCareers[]).map((team: TeamWithCareers) => {
           const faculty = team.careers && team.careers.length > 0 
             ? team.careers[0].name 
             : "Sin facultad";
 
-          const careerId = team.careers && team.careers.length > 0 
-            ? team.careers[0].id 
-            : null;
-
-          const captain = careerId && captainsMap.has(careerId)
-            ? captainsMap.get(careerId)!
-            : "Sin capitán";
+          // Obtener los líderes del equipo
+          const teamLeaders = leadersMap.get(team.id) || [];
+          const captain = teamLeaders.length > 0
+            ? teamLeaders.join(", ")
+            : "Sin líder de equipo";
 
           return {
             id: team.id,
@@ -468,7 +498,7 @@ export default function TorneosPage() {
                     FACULTAD
                   </th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    CAPITÁN
+                    LÍDER DE EQUIPOS
                   </th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     ESTADO
@@ -606,43 +636,43 @@ export default function TorneosPage() {
 
       {/* Modal: Todos los Equipos */}
       {showAllTeamsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 overflow-y-auto">
+          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] flex flex-col mx-2 sm:mx-0 my-2 sm:my-4">
             {/* Header */}
-            <div className="p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white pr-2">
                 Todos los Equipos
               </h2>
               <button
                 onClick={() => setShowAllTeamsModal(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors flex-shrink-0"
               >
                 <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               {loadingAllTeams ? (
-                <div className="text-center py-12">
+                <div className="text-center py-8 sm:py-12">
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
-                  <p className="mt-2 text-gray-600 dark:text-gray-400">Cargando equipos...</p>
+                  <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">Cargando equipos...</p>
                 </div>
               ) : allTeams.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <table className="w-full text-sm min-w-[640px]">
                     <thead className="bg-gray-50 dark:bg-neutral-800">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           EQUIPO
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           FACULTAD
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          CAPITÁN
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          LÍDER DE EQUIPOS
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           ESTADO
                         </th>
                       </tr>
@@ -653,23 +683,23 @@ export default function TorneosPage() {
                           key={team.id}
                           className="hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition"
                         >
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-red-500 flex items-center justify-center text-white font-semibold text-xs sm:text-sm flex-shrink-0">
                                 {team.name.charAt(0).toUpperCase()}
                               </div>
-                              <span className="font-medium text-gray-900 dark:text-white">
+                              <span className="font-medium text-gray-900 dark:text-white text-xs sm:text-sm truncate">
                                 {team.name}
                               </span>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
                             {team.faculty}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
                             {team.captain}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4">
                             <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-500/10 dark:text-green-400">
                               {team.status}
                             </span>
@@ -701,64 +731,64 @@ export default function TorneosPage() {
 
       {/* Modal: Todos los Resultados */}
       {showAllResultsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 overflow-y-auto">
+          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] flex flex-col mx-2 sm:mx-0 my-2 sm:my-4">
             {/* Header */}
-            <div className="p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white pr-2">
                 Todos los Resultados
               </h2>
               <button
                 onClick={() => setShowAllResultsModal(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors flex-shrink-0"
               >
                 <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               {loadingAllResults ? (
-                <div className="text-center py-12">
+                <div className="text-center py-8 sm:py-12">
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
-                  <p className="mt-2 text-gray-600 dark:text-gray-400">Cargando resultados...</p>
+                  <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">Cargando resultados...</p>
                 </div>
               ) : allResults.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {allResults.map((result) => (
                     <div
                       key={result.id}
-                      className="p-4 border border-gray-200 dark:border-neutral-800 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition-colors"
+                      className="p-3 sm:p-4 border border-gray-200 dark:border-neutral-800 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition-colors"
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                        <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                           {result.sport} - {result.category}
                         </span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
                           {result.date} {result.time && `, ${result.time}`}
                         </span>
                       </div>
-                      <div className="text-base text-gray-700 dark:text-gray-300">
+                      <div className="text-sm sm:text-base text-gray-700 dark:text-gray-300">
                         <span className="font-medium">{result.team1}</span>{" "}
-                        <span className="font-bold text-lg">{result.score1}</span> -{" "}
-                        <span className="font-bold text-lg">{result.score2}</span>{" "}
+                        <span className="font-bold text-base sm:text-lg">{result.score1}</span> -{" "}
+                        <span className="font-bold text-base sm:text-lg">{result.score2}</span>{" "}
                         <span className="font-medium">{result.team2}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <div className="text-center py-8 sm:py-12 text-sm sm:text-base text-gray-500 dark:text-gray-400">
                   No hay resultados disponibles
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="p-6 border-t border-gray-200 dark:border-neutral-800 flex justify-end">
+            <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-neutral-800 flex justify-end">
               <button
                 onClick={() => setShowAllResultsModal(false)}
-                className="px-4 py-2 bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-700 transition-colors"
+                className="px-3 sm:px-4 py-2 bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-700 transition-colors text-sm sm:text-base"
               >
                 Cerrar
               </button>

@@ -16,17 +16,36 @@ export default function ClasificacionViewersPage() {
   const [selectedSportName, setSelectedSportName] = useState<string>("");
   const [selectedGenero, setSelectedGenero] = useState<string | null>(null);
 
-  // Seleccionar el primer deporte por defecto cuando se cargan los deportes
+  // Seleccionar "Fútbol" por defecto cuando se cargan los deportes
   useEffect(() => {
     if (sports.length > 0 && !selectedSport) {
-      const firstSport = sports[0];
+      // Buscar "Fútbol" específicamente
+      const futbolSport = sports.find(
+        (s) => s.name.toLowerCase().includes("futbol") || 
+               s.name.toLowerCase().includes("fútbol") ||
+               s.name.toLowerCase().includes("football")
+      ) || sports[0]; // Si no encuentra Fútbol, usar el primero
+      
       // Usar setTimeout para evitar setState sincrónico en efecto
       setTimeout(() => {
-        setSelectedSport(firstSport.id);
-        setSelectedSportName(firstSport.name);
+        setSelectedSport(futbolSport.id);
+        setSelectedSportName(futbolSport.name);
+        // Establecer "masculino" como género por defecto
+        setSelectedGenero("masculino");
       }, 0);
     }
   }, [sports, selectedSport]);
+
+  // Cuando se selecciona un deporte, establecer "masculino" por defecto si no hay género seleccionado
+  useEffect(() => {
+    if (selectedSport && !selectedGenero) {
+      // Usar setTimeout para evitar setState síncrono en effect
+      const timer = setTimeout(() => {
+        setSelectedGenero("masculino");
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedSport, selectedGenero]);
 
   // Usar el hook con TanStack Query para cargar standings
   const { bomboStandings, loading: loadingStandings, error } = useStandings(
@@ -63,26 +82,26 @@ export default function ClasificacionViewersPage() {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <button
             onClick={() => router.push("/")}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition"
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-3 sm:mb-4 transition text-sm sm:text-base"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>Volver</span>
           </button>
-          <h1 className="text-4xl font-black text-gray-900 dark:text-white mb-2">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 dark:text-white mb-2">
             Tablas de Posiciones
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
             Consulta la clasificación de todos los equipos por disciplina
           </p>
         </div>
 
         {/* Selectores de Disciplina y Género */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="mb-4 sm:mb-6 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Selecciona una disciplina
@@ -90,8 +109,10 @@ export default function ClasificacionViewersPage() {
             <select
               value={selectedSport || ""}
               onChange={(e) => {
-                setSelectedSport(Number(e.target.value) || null);
-                setSelectedGenero(null); // Reset género al cambiar disciplina
+                const sportId = Number(e.target.value) || null;
+                setSelectedSport(sportId);
+                // Establecer "masculino" por defecto al cambiar disciplina
+                setSelectedGenero("masculino");
               }}
               className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
@@ -163,58 +184,58 @@ export default function ClasificacionViewersPage() {
                 </div>
 
                 {/* Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <table className="w-full min-w-[640px] sm:min-w-0">
                     <thead className="bg-gray-50 dark:bg-neutral-900">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Pos
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Equipo
                         </th>
-                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Pts
-                        </th>
-                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           PJ
                         </th>
-                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           G
                         </th>
-                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           E
                         </th>
-                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           P
                         </th>
                         {rules?.usesSets ? (
                           <>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                               Sets G
                             </th>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                               Sets P
                             </th>
                           </>
                         ) : (
                           <>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                               {rules?.metricName === "goles" ? "GF" : "PF"}
                             </th>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                               {rules?.metricName === "goles" ? "GC" : "PC"}
                             </th>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                               {rules?.metricName === "goles" ? "DG" : "DP"}
                             </th>
                           </>
                         )}
                         {rules?.usesCards && (
-                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Fair Play
                           </th>
                         )}
+                        <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Pts
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-700">
@@ -223,43 +244,38 @@ export default function ClasificacionViewersPage() {
                           key={team.teamId}
                           className={teamIndex < 3 ? "bg-blue-50 dark:bg-blue-900/20" : ""}
                         >
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              {teamIndex === 0 && <Trophy className="w-5 h-5 text-yellow-500 mr-2" />}
-                              {teamIndex === 1 && <Trophy className="w-5 h-5 text-gray-400 mr-2" />}
-                              {teamIndex === 2 && <Trophy className="w-5 h-5 text-orange-600 mr-2" />}
-                              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                              {teamIndex === 0 && <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500 mr-1 sm:mr-2 flex-shrink-0" />}
+                              {teamIndex === 1 && <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mr-1 sm:mr-2 flex-shrink-0" />}
+                              {teamIndex === 2 && <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600 mr-1 sm:mr-2 flex-shrink-0" />}
+                              <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                                 {teamIndex + 1}
                               </span>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 min-w-[120px]">
+                            <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                               {team.teamName}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className="text-sm font-bold text-gray-900 dark:text-white">
-                              {team.points}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                          <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                            <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                               {team.matchesPlayed}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                          <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                            <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                               {team.wins}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                          <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                            <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                               {team.draws || 0}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                          <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                            <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                               {team.losses}
                             </span>
                           </td>
@@ -312,6 +328,11 @@ export default function ClasificacionViewersPage() {
                               </span>
                             </td>
                           )}
+                          <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                            <span className="text-xs sm:text-sm font-bold text-blue-600 dark:text-blue-400">
+                              {team.points}
+                            </span>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
