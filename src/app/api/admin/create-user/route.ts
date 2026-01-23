@@ -28,12 +28,28 @@ export async function POST(req: Request) {
       );
     }
 
-    // ⚠️ Si ya existe, obtenemos el usuario
-    const user =
-      authData?.user ??
-      (
-        await supabaseAdmin.auth.admin.getUserByEmail(email)
-      ).data.user;
+    // ⚠️ Si ya existe, obtenemos el usuario usando listUsers (Supabase v2)
+    let user = authData?.user || null;
+    
+    if (!user) {
+      // listUsers no soporta filtros, así que obtenemos usuarios y filtramos por email
+      const { data: usersData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000, // Obtener suficientes usuarios para buscar
+      });
+
+      if (listError) {
+        console.error("Error obteniendo usuario existente:", listError);
+        return NextResponse.json(
+          { error: "Error obteniendo usuario existente" },
+          { status: 500 }
+        );
+      }
+
+      // Filtrar por email en JavaScript
+      const foundUser = usersData?.users?.find((u) => u.email === email);
+      user = foundUser || null;
+    }
 
     if (!user) {
       return NextResponse.json(
