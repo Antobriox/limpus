@@ -29,7 +29,7 @@ type SupabaseOccupiedLeader = {
 type Leader = {
   id: string;
   full_name: string;
-  email: string;
+  email: string | null;
 };
 
 export default function NuevoEquipoPage() {
@@ -153,7 +153,7 @@ export default function NuevoEquipoPage() {
                 profile.full_name ||
                 profile.email?.split("@")[0] ||
                 "Sin nombre",
-              email: profile.email,
+              email: profile.email || null,
             }));
 
             console.log("Líderes finales:", leaders);
