@@ -589,8 +589,8 @@ export default function HomePage() {
                       onClick={() =>
                         setSelectedMatchForDetails({
                           id: match.id,
-                          teamAId: match.team_a_id || 0,
-                          teamBId: match.team_b_id || 0,
+                          teamAId: match.team_a_id ?? 0,
+                          teamBId: match.team_b_id ?? 0,
                           teamAName: match.team_a_name,
                           teamBName: match.team_b_name,
                           sportName: match.sport_name,

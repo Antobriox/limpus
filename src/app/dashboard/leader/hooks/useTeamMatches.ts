@@ -38,8 +38,8 @@ type SupabaseProfile = {
 
 export type TeamMatch = {
   id: number;
-  team_a_id: number;
-  team_b_id: number;
+  team_a_id: number | null;
+  team_b_id: number | null;
   team_a_name: string;
   team_b_name: string;
   scheduled_at: string | null;
@@ -168,8 +168,8 @@ const loadTeamMatches = async (teamId: number): Promise<{
       id: m.id,
       team_a_id: m.team_a,
       team_b_id: m.team_b,
-      team_a_name: teamsMap.get(m.team_a) || "Equipo A",
-      team_b_name: teamsMap.get(m.team_b) || "Equipo B",
+      team_a_name: m.team_a !== null ? (teamsMap.get(m.team_a) || "Equipo A") : "Equipo A",
+      team_b_name: m.team_b !== null ? (teamsMap.get(m.team_b) || "Equipo B") : "Equipo B",
       scheduled_at: m.scheduled_at,
       field: m.field,
       status: m.status,

@@ -29,8 +29,8 @@ export default function ResultadosPage() {
   const [playersTeamB, setPlayersTeamB] = useState<Player[]>([]);
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [resultForm, setResultForm] = useState<MatchResultForm>({
-    score_team_a: 0,
-    score_team_b: 0,
+    score_team_a: null,
+    score_team_b: null,
     goals_team_a: [],
     goals_team_b: [],
     yellow_cards_team_a: [],
@@ -270,8 +270,8 @@ export default function ResultadosPage() {
     sets.sort((a, b) => a.set_number - b.set_number);
 
     setResultForm({
-      score_team_a: result?.score_team_a || 0,
-      score_team_b: result?.score_team_b || 0,
+      score_team_a: result?.score_team_a ?? null,
+      score_team_b: result?.score_team_b ?? null,
       goals_team_a: goalsA,
       goals_team_b: goalsB,
       yellow_cards_team_a: yellowCardsA,
@@ -860,9 +860,9 @@ export default function ResultadosPage() {
                                   type="number"
                                   min="0"
                                   max={usesSets ? 3 : undefined}
-                                  value={resultForm.score_team_a}
+                                  value={resultForm.score_team_a ?? ""}
                                   onChange={(e) => {
-                                    const value = parseInt(e.target.value) || 0;
+                                    const value = e.target.value ? parseInt(e.target.value) : null;
                                     setResultForm({
                                       ...resultForm,
                                       score_team_a: value,
@@ -886,9 +886,9 @@ export default function ResultadosPage() {
                                   type="number"
                                   min="0"
                                   max={usesSets ? 3 : undefined}
-                                  value={resultForm.score_team_b}
+                                  value={resultForm.score_team_b ?? ""}
                                   onChange={(e) => {
-                                    const value = parseInt(e.target.value) || 0;
+                                    const value = e.target.value ? parseInt(e.target.value) : null;
                                     setResultForm({
                                       ...resultForm,
                                       score_team_b: value,

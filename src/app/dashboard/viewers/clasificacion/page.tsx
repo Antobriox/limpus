@@ -107,9 +107,9 @@ export default function ClasificacionViewersPage() {
               Selecciona una disciplina
             </label>
             <select
-              value={selectedSport || ""}
+              value={selectedSport ?? ""}
               onChange={(e) => {
-                const sportId = Number(e.target.value) || null;
+                const sportId = e.target.value ? Number(e.target.value) : null;
                 setSelectedSport(sportId);
                 // Establecer "masculino" por defecto al cambiar disciplina
                 setSelectedGenero("masculino");
@@ -130,7 +130,7 @@ export default function ClasificacionViewersPage() {
                 Selecciona un género
               </label>
               <select
-                value={selectedGenero || ""}
+                value={selectedGenero ?? ""}
                 onChange={(e) => setSelectedGenero(e.target.value || null)}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >

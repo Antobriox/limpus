@@ -9,8 +9,8 @@ export type Sport = {
 
 export type LiveMatch = {
   id: number;
-  team_a_id: number;
-  team_b_id: number;
+  team_a_id: number | null;
+  team_b_id: number | null;
   team_a_name: string;
   team_b_name: string;
   score_a: number | null;
@@ -35,8 +35,8 @@ export type UpcomingMatch = {
 
 export type PastMatch = {
   id: number;
-  team_a_id: number;
-  team_b_id: number;
+  team_a_id: number | null;
+  team_b_id: number | null;
   team_a_name: string;
   team_b_name: string;
   scheduled_at: string | null;
@@ -173,16 +173,16 @@ const loadViewersData = async (): Promise<{
 
       return {
         id: m.id,
-        team_a_id: m.team_a || 0,
-        team_b_id: m.team_b || 0,
-        team_a_name: teamsMap.get(m.team_a) || "Equipo A",
-        team_b_name: teamsMap.get(m.team_b) || "Equipo B",
+        team_a_id: m.team_a,
+        team_b_id: m.team_b,
+        team_a_name: teamsMap.get(m.team_a || 0) || "Equipo A",
+        team_b_name: teamsMap.get(m.team_b || 0) || "Equipo B",
         score_a: scoreA,
         score_b: scoreB,
         sport_name: m.tournaments?.sports?.name || "Deporte",
         status: m.status,
-        genero: m.genero || null,
-        field: m.field || null,
+        genero: m.genero,
+        field: m.field,
       };
     });
   }

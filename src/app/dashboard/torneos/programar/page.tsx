@@ -1231,7 +1231,7 @@ export default function ProgramarPartidosPage() {
                   <input
                     type="text"
                     placeholder="Cancha 1"
-                    value={scheduleForm.field || ""}
+                    value={scheduleForm.field ?? ""}
                     onChange={(e) =>
                       setScheduleForm({ ...scheduleForm, field: e.target.value })
                     }
@@ -1244,7 +1244,7 @@ export default function ProgramarPartidosPage() {
                     Género
                   </label>
                   <select
-                    value={scheduleForm.genero || ""}
+                    value={scheduleForm.genero ?? ""}
                     onChange={(e) =>
                       setScheduleForm({ ...scheduleForm, genero: e.target.value })
                     }

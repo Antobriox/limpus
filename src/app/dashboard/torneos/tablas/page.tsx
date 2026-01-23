@@ -109,7 +109,7 @@ export default function TablasPage() {
             Seleccionar Disciplina
           </label>
           <select
-            value={selectedSport || ""}
+            value={selectedSport ?? ""}
             onChange={(e) => {
               const sportId = e.target.value ? parseInt(e.target.value) : null;
               setSelectedSport(sportId);
@@ -132,7 +132,7 @@ export default function TablasPage() {
               Seleccionar Género
             </label>
             <select
-              value={selectedGenero || ""}
+              value={selectedGenero ?? ""}
               onChange={(e) => setSelectedGenero(e.target.value || null)}
               className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
             >

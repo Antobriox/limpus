@@ -13,7 +13,9 @@ type SupabaseRegistrationForm = {
   is_locked: boolean;
   sports?: {
     name: string;
-  };
+  } | Array<{
+    name: string;
+  }>;
 };
 
 type SupabaseTeamRegistration = {
@@ -25,8 +27,17 @@ type SupabaseTeamRegistration = {
     name: string;
     sports?: {
       name: string;
-    };
-  };
+    } | Array<{
+      name: string;
+    }>;
+  } | Array<{
+    name: string;
+    sports?: {
+      name: string;
+    } | Array<{
+      name: string;
+    }>;
+  }>;
 };
 
 export type RegistrationForm = {
@@ -77,17 +88,21 @@ const loadRegistrationForms = async (): Promise<RegistrationForm[]> => {
   if (error) throw error;
 
   return (
-    (data as SupabaseRegistrationForm[] | null)?.map((f: SupabaseRegistrationForm) => ({
-      id: f.id,
-      name: f.name,
-      sport_id: f.sport_id,
-      sport_name: f.sports?.name || "Desconocido",
-      min_players: f.min_players,
-      max_players: f.max_players,
-      editable_until: f.editable_until,
-      is_locked: f.is_locked,
-      genero: f.genero || null,
-    })) || []
+    (data as SupabaseRegistrationForm[] | null)?.map((f: SupabaseRegistrationForm) => {
+      // Manejar sports como objeto o array
+      const sportsData = Array.isArray(f.sports) ? f.sports[0] : f.sports;
+      return {
+        id: f.id,
+        name: f.name,
+        sport_id: f.sport_id,
+        sport_name: sportsData?.name || "Desconocido",
+        min_players: f.min_players,
+        max_players: f.max_players,
+        editable_until: f.editable_until,
+        is_locked: f.is_locked,
+        genero: f.genero || null,
+      };
+    }) || []
   );
 };
 
@@ -120,11 +135,21 @@ const loadTeamRegistrations = async (teamId: number): Promise<TeamRegistration[]
         .select("*", { count: "exact", head: true })
         .eq("team_registration_id", tr.id);
 
+      // Manejar registration_forms como objeto o array
+      const registrationForm = Array.isArray(tr.registration_forms)
+        ? tr.registration_forms[0]
+        : tr.registration_forms;
+
+      // Manejar sports como objeto o array
+      const sportsData = registrationForm?.sports
+        ? (Array.isArray(registrationForm.sports) ? registrationForm.sports[0] : registrationForm.sports)
+        : undefined;
+
       return {
         id: tr.id,
         form_id: tr.form_id,
-        form_name: tr.registration_forms?.name || "Sin nombre",
-        sport_name: tr.registration_forms?.sports?.name || "Desconocido",
+        form_name: registrationForm?.name || "Sin nombre",
+        sport_name: sportsData?.name || "Desconocido",
         submitted_at: tr.submitted_at,
         approved: tr.approved,
         players_count: count || 0,

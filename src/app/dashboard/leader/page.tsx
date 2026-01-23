@@ -18,8 +18,8 @@ export default function LeaderPage() {
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [selectedMatchForDetails, setSelectedMatchForDetails] = useState<{
     id: number;
-    teamAId: number;
-    teamBId: number;
+    teamAId: number | null;
+    teamBId: number | null;
     teamAName: string;
     teamBName: string;
     sportName: string;

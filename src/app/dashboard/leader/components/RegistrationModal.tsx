@@ -23,12 +23,12 @@ import { useTeamRegistrations, RegistrationForm } from "../hooks/useTeamRegistra
 type Player = {
   id?: number;
   full_name: string;
-  email: string;
-  cedula: string;
-  phone: string;
+  email: string | null;
+  cedula: string | null;
+  phone: string | null;
   career_id: number;
-  semester: number;
-  jersey_number: number;
+  semester: number | null;
+  jersey_number: number | null;
   is_captain: boolean;
   cedula_photo_url?: string | null;
 };
@@ -99,12 +99,12 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
         setPlayers(filteredPlayers.map((p: SupabasePlayer) => ({
           id: p.id,
           full_name: p.full_name,
-          email: p.email || "",
-          cedula: p.cedula || "",
-          phone: p.phone || "",
+          email: p.email,
+          cedula: p.cedula,
+          phone: p.phone,
           career_id: p.career_id,
-          semester: p.semester || 1,
-          jersey_number: p.jersey_number || null,
+          semester: p.semester,
+          jersey_number: p.jersey_number,
           is_captain: p.is_captain || false,
           cedula_photo_url: p.cedula_photo_url || null,
         })));
@@ -146,11 +146,11 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
       ...players,
       {
         full_name: "",
-        email: "",
-        cedula: "",
-        phone: "",
+        email: null,
+        cedula: null,
+        phone: null,
         career_id: careers[0]?.id || 0,
-        semester: 1,
+        semester: null,
         jersey_number: null,
         is_captain: false,
         cedula_photo_url: null,
@@ -291,12 +291,12 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
       // Insertar nuevos jugadores con el team_registration_id correcto
       const playersToInsert = players.map((p) => ({
         full_name: p.full_name.trim(),
-        email: p.email.trim() || null,
-        cedula: p.cedula.trim() || null,
-        phone: p.phone.trim() || null,
+        email: p.email ? p.email.trim() : null,
+        cedula: p.cedula ? p.cedula.trim() : null,
+        phone: p.phone ? p.phone.trim() : null,
         career_id: p.career_id,
         semester: p.semester,
-        jersey_number: p.jersey_number || null,
+        jersey_number: p.jersey_number,
         is_captain: p.is_captain,
         cedula_photo_url: p.cedula_photo_url || null,
         team_registration_id: teamRegistrationId, // Asegurar que se use el ID correcto
@@ -491,22 +491,22 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                           <input
                             type="email"
                             placeholder="Email"
-                            value={player.email}
-                            onChange={(e) => updatePlayer(index, "email", e.target.value)}
+                            value={player.email ?? ""}
+                            onChange={(e) => updatePlayer(index, "email", e.target.value || null)}
                             className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
                           />
                           <input
                             type="text"
                             placeholder="Cédula"
-                            value={player.cedula}
-                            onChange={(e) => updatePlayer(index, "cedula", e.target.value)}
+                            value={player.cedula ?? ""}
+                            onChange={(e) => updatePlayer(index, "cedula", e.target.value || null)}
                             className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
                           />
                           <input
                             type="text"
                             placeholder="Teléfono"
-                            value={player.phone}
-                            onChange={(e) => updatePlayer(index, "phone", e.target.value)}
+                            value={player.phone ?? ""}
+                            onChange={(e) => updatePlayer(index, "phone", e.target.value || null)}
                             className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
                           />
                           <select
@@ -526,8 +526,8 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                             <input
                               type="number"
                               placeholder="Ej: 1, 2, 3..."
-                              value={player.semester}
-                              onChange={(e) => updatePlayer(index, "semester", parseInt(e.target.value) || 1)}
+                              value={player.semester ?? ""}
+                              onChange={(e) => updatePlayer(index, "semester", e.target.value ? parseInt(e.target.value) : null)}
                               min="1"
                               max="12"
                               className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
@@ -536,7 +536,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                           <input
                             type="number"
                             placeholder="Número de camiseta"
-                            value={player.jersey_number || ""}
+                            value={player.jersey_number ?? ""}
                             onChange={(e) => updatePlayer(index, "jersey_number", e.target.value ? parseInt(e.target.value) : null)}
                             className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
                           />

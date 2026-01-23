@@ -15,8 +15,8 @@ import { getDisciplineRulesByName } from "../../torneos/config/disciplineRules";
 
 type MatchDetailsModalProps = {
   matchId: number;
-  teamAId: number;
-  teamBId: number;
+  teamAId: number | null;
+  teamBId: number | null;
   teamAName: string;
   teamBName: string;
   sportName: string;
@@ -77,13 +77,19 @@ export default function MatchDetailsModal({
         .eq("id", matchId)
         .single();
       
-      sportId = matchData?.tournaments?.sport_id;
+      // tournaments es un array, tomar el primer elemento
+      sportId = Array.isArray(matchData?.tournaments) && matchData.tournaments.length > 0
+        ? matchData.tournaments[0].sport_id
+        : undefined;
       const matchGenero = matchData?.genero || genero;
 
       console.log(`Cargando jugadores para partido ${matchId}, deporte ${sportId}, género ${matchGenero}`);
 
       // Cargar jugadores de ambos equipos filtrando por disciplina y género
-      const loadPlayersForTeam = async (teamId: number, sportId?: number, genero?: string | null): Promise<Player[]> => {
+      const loadPlayersForTeam = async (teamId: number | null, sportId?: number, genero?: string | null): Promise<Player[]> => {
+        if (!teamId) {
+          return [];
+        }
         // Si tenemos sportId y genero, buscar la inscripción específica
         if (sportId && genero) {
           const { data: teamRegistrations } = await supabase

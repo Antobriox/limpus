@@ -144,7 +144,7 @@ export default function BracketsPage() {
               Seleccionar Disciplina (para identificar los brackets guardados)
             </label>
             <select
-              value={selectedSport || ""}
+              value={selectedSport ?? ""}
               onChange={(e) => {
                 const sportId = e.target.value ? parseInt(e.target.value) : null;
                 setSelectedSport(sportId);
@@ -168,7 +168,7 @@ export default function BracketsPage() {
               Seleccionar Género <span className="text-red-500">*</span>
             </label>
             <select
-              value={selectedGenero || ""}
+              value={selectedGenero ?? ""}
               onChange={(e) => {
                 const genero = e.target.value || null;
                 setSelectedGenero(genero);

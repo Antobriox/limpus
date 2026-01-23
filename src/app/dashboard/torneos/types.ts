@@ -24,16 +24,16 @@ export type RecentResult = {
   category: string;
   team1: string;
   team2: string;
-  score1: number;
-  score2: number;
+  score1: number | null;
+  score2: number | null;
   date: string;
   time: string;
 };
 
 export type Match = {
   id: number;
-  team_a: number;
-  team_b: number;
+  team_a: number | null;
+  team_b: number | null;
   scheduled_at: string | null;
   started_at?: string | null;
   ended_at?: string | null;

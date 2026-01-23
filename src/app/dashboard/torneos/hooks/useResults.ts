@@ -4,8 +4,8 @@ import { supabase } from "../../../../lib/supabaseClient";
 import { Match } from "../types";
 
 export type MatchResultForm = {
-  score_team_a: number;
-  score_team_b: number;
+  score_team_a: number | null;
+  score_team_b: number | null;
   goals_team_a: Array<{ player_id: number; minute: number; points?: number }>;
   goals_team_b: Array<{ player_id: number; minute: number; points?: number }>;
   yellow_cards_team_a: Array<{ player_id: number; minute: number }>;

@@ -6,9 +6,14 @@ import { useState, useEffect, useCallback } from "react";
 type SupabaseTeamRegistration = {
   id: number;
   team_id: number;
+  approved: boolean | null;
   teams?: {
+    id: number;
     name: string;
-  };
+  } | Array<{
+    id: number;
+    name: string;
+  }>;
 };
 
 type SupabasePlayer = {
@@ -21,9 +26,9 @@ type SupabasePlayer = {
   jersey_number: number | null;
   is_captain: boolean;
   cedula_photo_url?: string | null;
-  careers?: {
+  careers?: Array<{
     name: string;
-  };
+  }>;
 };
 import { supabase } from "../../../../lib/supabaseClient";
 import { X, Users, User, Eye } from "lucide-react";
@@ -99,7 +104,9 @@ export default function ViewRegistrationsModal({
           return {
             id: reg.id,
             team_id: reg.team_id,
-            team_name: (reg.teams as { name: string } | null)?.name || "Equipo desconocido",
+            team_name: (Array.isArray(reg.teams) && reg.teams.length > 0) 
+              ? reg.teams[0].name 
+              : "Equipo desconocido",
             players_count: count || 0,
             approved: reg.approved,
           };
@@ -165,7 +172,9 @@ export default function ViewRegistrationsModal({
           semester: p.semester,
           jersey_number: p.jersey_number,
           is_captain: p.is_captain || false,
-          career_name: p.careers?.name || null,
+          career_name: (Array.isArray(p.careers) && p.careers.length > 0) 
+            ? p.careers[0].name 
+            : null,
           cedula_photo_url: p.cedula_photo_url || null,
         };
       });

@@ -213,8 +213,8 @@ export default function TorneosPage() {
       };
       type MatchResultData = {
         match_id: number;
-        score_team_a: number;
-        score_team_b: number;
+        score_team_a: number | null;
+        score_team_b: number | null;
         confirmed_at: string | null;
         matches: FinishedMatch;
       };
@@ -235,8 +235,8 @@ export default function TorneosPage() {
           const result = (resultsData as MatchResult[] | null)?.find((r: MatchResult) => r.match_id === match.id);
           return {
             match_id: match.id,
-            score_team_a: result?.score_team_a || 0,
-            score_team_b: result?.score_team_b || 0,
+            score_team_a: result?.score_team_a ?? null,
+            score_team_b: result?.score_team_b ?? null,
             confirmed_at: result?.confirmed_at || match.ended_at,
             matches: match,
           };
@@ -305,8 +305,8 @@ export default function TorneosPage() {
             category: "General",
             team1: teamsMap.get(match?.team_a) || "Equipo A",
             team2: teamsMap.get(match?.team_b) || "Equipo B",
-            score1: mr.score_team_a || 0,
-            score2: mr.score_team_b || 0,
+            score1: mr.score_team_a,
+            score2: mr.score_team_b,
             date: dateLabel,
             time: time,
           };
