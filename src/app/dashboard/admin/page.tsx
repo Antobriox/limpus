@@ -100,20 +100,26 @@ export default function DashboardPage() {
         const sportCounts = new Map<number, { name: string; count: number }>();
         
         if (teamRegistrations) {
-          teamRegistrations.forEach((tr: {
-            registration_forms?: {
-              sports?: {
+          // La estructura real de Supabase: registration_forms es un array
+          (teamRegistrations as Array<{
+            id: number;
+            registration_forms: Array<{
+              sport_id: number;
+              sports: Array<{
                 id: number;
                 name: string;
-              };
-            };
-          }) => {
-            const sportId = tr.registration_forms?.sports?.id;
-            const sportName = tr.registration_forms?.sports?.name;
+              }>;
+            }>;
+          }>).forEach((tr) => {
+            // registration_forms es un array, tomar el primero si existe
+            const registrationForm = tr.registration_forms?.[0];
             
-            if (sportId && sportName) {
-              const current = sportCounts.get(sportId) || { name: sportName, count: 0 };
-              sportCounts.set(sportId, { name: sportName, count: current.count + 1 });
+            if (registrationForm?.sports && Array.isArray(registrationForm.sports) && registrationForm.sports.length > 0) {
+              const sport = registrationForm.sports[0];
+              if (sport?.id && sport?.name) {
+                const current = sportCounts.get(sport.id) || { name: sport.name, count: 0 };
+                sportCounts.set(sport.id, { name: sport.name, count: current.count + 1 });
+              }
             }
           });
         }
