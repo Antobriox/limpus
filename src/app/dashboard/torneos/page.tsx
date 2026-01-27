@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AdvancedStatCard from "../../../components/AdvancedStatCard";
 import ActionCard from "../../../components/ActionCard";
@@ -27,8 +27,12 @@ import { useDashboard } from "./hooks/useDashboard";
 
 export default function TorneosPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tournamentIdParam = searchParams.get("tournament");
+  const tournamentId = tournamentIdParam ? parseInt(tournamentIdParam) : undefined;
+
   // Usar el hook con TanStack Query - los datos se cargan automáticamente y se cachean
-  const { tournament, stats, recentTeams, recentResults, loading } = useDashboard();
+  const { tournament, stats, recentTeams, recentResults, loading } = useDashboard(tournamentId);
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [showAllTeamsModal, setShowAllTeamsModal] = useState(false);
   const [showAllResultsModal, setShowAllResultsModal] = useState(false);
@@ -62,6 +66,31 @@ export default function TorneosPage() {
   const loadAllTeams = async () => {
     setLoadingAllTeams(true);
     try {
+      // Obtener el torneo activo para filtrar equipos
+      const activeTournamentId = tournamentId || tournament?.id;
+      
+      const teamIds = new Set<number>();
+      if (activeTournamentId && activeTournamentId > 0) {
+        // Obtener equipos que participan en partidos del torneo activo
+        const { data: matchesData } = await supabase
+          .from("matches")
+          .select("team_a, team_b")
+          .eq("tournament_id", activeTournamentId);
+        
+        if (matchesData) {
+          matchesData.forEach((match) => {
+            if (match.team_a) teamIds.add(match.team_a);
+            if (match.team_b) teamIds.add(match.team_b);
+          });
+        }
+      }
+
+      // Si no hay equipos en el torneo activo, no mostrar nada
+      if (teamIds.size === 0) {
+        setAllTeams([]);
+        return;
+      }
+
       const { data: allTeamsData } = await supabase
         .from("teams")
         .select(`
@@ -73,6 +102,7 @@ export default function TorneosPage() {
             name
           )
         `)
+        .in("id", Array.from(teamIds))
         .order("created_at", { ascending: false });
 
       type TeamWithCareers = {
@@ -170,7 +200,10 @@ export default function TorneosPage() {
   const loadAllResults = async () => {
     setLoadingAllResults(true);
     try {
-      const { data: finishedMatches } = await supabase
+      // Obtener el torneo activo para filtrar resultados
+      const activeTournamentId = tournamentId || tournament?.id;
+      
+      let query = supabase
         .from("matches")
         .select(`
           id,
@@ -189,6 +222,15 @@ export default function TorneosPage() {
         `)
         .eq("status", "finished")
         .order("ended_at", { ascending: false, nullsFirst: false });
+
+      if (activeTournamentId && activeTournamentId > 0) {
+        query = query.eq("tournament_id", activeTournamentId);
+      } else {
+        // Si no hay torneo activo, no mostrar resultados
+        query = query.eq("id", -1); // Query que no devuelve nada
+      }
+
+      const { data: finishedMatches } = await query;
 
       type FinishedMatch = {
         id: number;

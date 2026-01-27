@@ -103,6 +103,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
         >
           Inscripciones
         </Link>
+
+        <Link
+          href="/dashboard/historial"
+          className={itemClass("/dashboard/historial")}
+          onClick={handleLinkClick}
+        >
+          Historial
+        </Link>
       </nav>
 
       {/* User Profile Section */}

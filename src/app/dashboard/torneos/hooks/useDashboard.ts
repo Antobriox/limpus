@@ -5,31 +5,105 @@ import { Tournament, Team, RecentResult, TournamentStats } from "../types";
 
 const DASHBOARD_QUERY_KEY = ["dashboard"];
 
-const loadDashboardData = async (): Promise<{
+const loadDashboardData = async (tournamentId?: number): Promise<{
   tournament: Tournament | null;
   stats: TournamentStats;
   recentTeams: Team[];
   recentResults: RecentResult[];
 }> => {
-  // Cargar torneo activo (el más reciente)
-  const { data: tournaments } = await supabase
-    .from("tournaments")
-    .select("id, name, start_date, end_date")
-    .order("id", { ascending: false })
-    .limit(1);
-
   let tournament: Tournament | null = null;
-  if (tournaments && tournaments.length > 0) {
-    const t = tournaments[0];
-    tournament = {
-      id: t.id,
-      name: t.name || "Torneo",
-      start_date: t.start_date || "",
-      end_date: t.end_date || "",
-      location: undefined,
-      status: "EN CURSO",
-    };
+
+  if (tournamentId) {
+    // Cargar el torneo específico solicitado
+    const { data: tournamentData } = await supabase
+      .from("tournaments")
+      .select("id, name, start_date, end_date")
+      .eq("id", tournamentId)
+      .single();
+
+    if (tournamentData) {
+      tournament = {
+        id: tournamentData.id,
+        name: tournamentData.name || "Torneo",
+        start_date: tournamentData.start_date || "",
+        end_date: tournamentData.end_date || "",
+        location: undefined,
+        status: "FINALIZADO", // Los torneos del historial están finalizados
+      };
+    } else {
+      // Si no se encuentra, cargar el más reciente
+      const { data: tournaments } = await supabase
+        .from("tournaments")
+        .select("id, name, start_date, end_date")
+        .order("id", { ascending: false })
+        .limit(1);
+
+      if (tournaments && tournaments.length > 0) {
+        const t = tournaments[0];
+        tournament = {
+          id: t.id,
+          name: t.name || "Torneo",
+          start_date: t.start_date || "",
+          end_date: t.end_date || "",
+          location: undefined,
+          status: "EN CURSO",
+        };
+      }
+    }
   } else {
+    // Cargar torneo activo (el más reciente por ID máximo)
+    // Agrupar por nombre para identificar el grupo más reciente
+    const { data: allTournaments } = await supabase
+      .from("tournaments")
+      .select("id, name, start_date, end_date")
+      .order("id", { ascending: false });
+
+    if (allTournaments && allTournaments.length > 0) {
+      // Agrupar por nombre
+      type TournamentBasic = {
+        id: number;
+        name: string;
+        start_date: string | null;
+        end_date: string | null;
+      };
+      const tournamentsTyped: TournamentBasic[] = allTournaments as TournamentBasic[];
+      const tournamentsGroupedByName = new Map<string, TournamentBasic[]>();
+      tournamentsTyped.forEach((t) => {
+        if (!tournamentsGroupedByName.has(t.name)) {
+          tournamentsGroupedByName.set(t.name, []);
+        }
+        tournamentsGroupedByName.get(t.name)!.push(t);
+      });
+
+      // Encontrar el grupo con el ID más alto
+      let latestTournament: TournamentBasic | null = null;
+      let maxId = 0;
+
+      for (const tournaments of tournamentsGroupedByName.values()) {
+        const maxIdInGroup = Math.max(...tournaments.map(t => t.id));
+        if (maxIdInGroup > maxId) {
+          maxId = maxIdInGroup;
+          const found = tournaments.find(t => t.id === maxIdInGroup);
+          if (found) {
+            latestTournament = found;
+          }
+        }
+      }
+
+      if (latestTournament) {
+        tournament = {
+          id: latestTournament.id,
+          name: latestTournament.name || "Torneo",
+          start_date: latestTournament.start_date || "",
+          end_date: latestTournament.end_date || "",
+          location: undefined,
+          status: "EN CURSO",
+        };
+      }
+    }
+  }
+
+  if (!tournament) {
     tournament = {
       id: 0,
       name: "Sin torneo activo",
@@ -40,11 +114,31 @@ const loadDashboardData = async (): Promise<{
     };
   }
 
-  // Contar TODOS los equipos
-  const { count } = await supabase
-    .from("teams")
-    .select("*", { count: "exact", head: true });
-  const equiposCount = count || 0;
+  // Obtener el ID del torneo activo (una sola vez)
+  const activeTournamentId = tournamentId || tournament?.id;
+
+  // Contar equipos (si hay un torneo específico, contar solo los que participan en ese torneo)
+  let equiposCount = 0;
+  
+  if (activeTournamentId && activeTournamentId > 0) {
+    // Contar equipos que participan en partidos de este torneo
+    const { data: matchesData } = await supabase
+      .from("matches")
+      .select("team_a, team_b")
+      .eq("tournament_id", activeTournamentId);
+    
+    if (matchesData) {
+      const teamIds = new Set<number>();
+      matchesData.forEach((match) => {
+        if (match.team_a) teamIds.add(match.team_a);
+        if (match.team_b) teamIds.add(match.team_b);
+      });
+      equiposCount = teamIds.size;
+    }
+  } else {
+    // Si no hay torneo activo, no hay equipos
+    equiposCount = 0;
+  }
 
   // Contar equipos nuevos (últimos 7 días)
   const sevenDaysAgo = new Date();
@@ -59,16 +153,30 @@ const loadDashboardData = async (): Promise<{
     .from("sports")
     .select("*", { count: "exact", head: true });
 
-  // Contar partidos finalizados
-  const { count: finishedMatchesCount } = await supabase
-    .from("matches")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "finished");
+  // Contar partidos (filtrar por torneo activo)
+  let finishedMatchesCount = 0;
+  let totalMatchesCount = 0;
+  
+  if (activeTournamentId && activeTournamentId > 0) {
+    // Contar partidos finalizados del torneo activo
+    const { count: finished } = await supabase
+      .from("matches")
+      .select("*", { count: "exact", head: true })
+      .eq("tournament_id", activeTournamentId)
+      .eq("status", "finished");
+    finishedMatchesCount = finished || 0;
 
-  // Contar todos los partidos
-  const { count: totalMatchesCount } = await supabase
-    .from("matches")
-    .select("*", { count: "exact", head: true });
+    // Contar todos los partidos del torneo activo
+    const { count: total } = await supabase
+      .from("matches")
+      .select("*", { count: "exact", head: true })
+      .eq("tournament_id", activeTournamentId);
+    totalMatchesCount = total || 0;
+  } else {
+    // Si no hay torneo activo, no hay partidos
+    finishedMatchesCount = 0;
+    totalMatchesCount = 0;
+  }
 
   const partidosJugadosCount = finishedMatchesCount || 0;
   const partidosTotales = totalMatchesCount || 0;
@@ -180,8 +288,8 @@ const loadDashboardData = async (): Promise<{
     });
   }
 
-  // Cargar resultados recientes (solo partidos finalizados)
-  const { data: finishedMatches } = await supabase
+  // Cargar resultados recientes (solo partidos finalizados del torneo activo)
+  let query = supabase
     .from("matches")
     .select(`
       id,
@@ -201,6 +309,15 @@ const loadDashboardData = async (): Promise<{
     .eq("status", "finished")
     .order("ended_at", { ascending: false, nullsFirst: false })
     .limit(5);
+
+  if (activeTournamentId && activeTournamentId > 0) {
+    query = query.eq("tournament_id", activeTournamentId);
+  } else {
+    // Si no hay torneo activo, no mostrar resultados
+    query = query.eq("id", -1); // Query que no devuelve nada
+  }
+
+  const { data: finishedMatches } = await query;
 
   let recentResults: RecentResult[] = [];
   if (finishedMatches && finishedMatches.length > 0) {
@@ -329,13 +446,13 @@ const loadDashboardData = async (): Promise<{
   };
 };
 
-export const useDashboard = () => {
+export const useDashboard = (tournamentId?: number) => {
   const {
     data,
     isLoading,
   } = useQuery({
-    queryKey: DASHBOARD_QUERY_KEY,
-    queryFn: loadDashboardData,
+    queryKey: [...DASHBOARD_QUERY_KEY, tournamentId],
+    queryFn: () => loadDashboardData(tournamentId),
     // staleTime y gcTime se heredan de la configuración global
   });
 

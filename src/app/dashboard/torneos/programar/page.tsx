@@ -512,9 +512,12 @@ export default function ProgramarPartidosPage() {
 
           if (tournamentsData && tournamentsData.length > 0) {
             const tournamentIds = (tournamentsData as Array<{ id: number }>).map((t) => t.id);
-            filteredMatches = filteredMatches.filter((m: Match) =>
-              m.team_a !== null && m.team_b !== null && (m.tournament_id ? tournamentIds.includes(m.tournament_id) : false)
-            );
+            filteredMatches = filteredMatches.filter((m: Match) => {
+              if (m.team_a === null || m.team_b === null || m.tournament_id === null || m.tournament_id === undefined) {
+                return false;
+              }
+              return tournamentIds.includes(m.tournament_id);
+            });
           } else {
             filteredMatches = [];
           }

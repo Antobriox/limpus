@@ -260,17 +260,6 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
     try {
       console.log(`Guardando jugadores para inscripción ID: ${teamRegistrationId}, Form ID: ${selectedForm.id}, Deporte: ${selectedForm.sport_name}, Género: ${selectedForm.genero}`);
       
-      // Eliminar jugadores existentes SOLO de esta inscripción específica
-      const { error: deleteError } = await supabase
-        .from("players")
-        .delete()
-        .eq("team_registration_id", teamRegistrationId);
-
-      if (deleteError) {
-        console.error("Error eliminando jugadores existentes:", deleteError);
-        throw new Error(`Error al eliminar jugadores existentes: ${deleteError.message}`);
-      }
-
       // Validar que teamRegistrationId existe y corresponde al formulario seleccionado
       if (!teamRegistrationId) {
         throw new Error("No se pudo obtener el ID de la inscripción");
@@ -288,36 +277,134 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
         throw new Error("La inscripción no corresponde al formulario seleccionado");
       }
 
-      // Insertar nuevos jugadores con el team_registration_id correcto
-      const playersToInsert = players.map((p) => ({
-        full_name: p.full_name.trim(),
-        email: p.email ? p.email.trim() : null,
-        cedula: p.cedula ? p.cedula.trim() : null,
-        phone: p.phone ? p.phone.trim() : null,
-        career_id: p.career_id,
-        semester: p.semester,
-        jersey_number: p.jersey_number,
-        is_captain: p.is_captain,
-        cedula_photo_url: p.cedula_photo_url || null,
-        team_registration_id: teamRegistrationId, // Asegurar que se use el ID correcto
-      }));
-
-      console.log(`Insertando ${playersToInsert.length} jugadores con team_registration_id: ${teamRegistrationId} para formulario ID: ${selectedForm.id} (${selectedForm.sport_name} - ${selectedForm.genero})`);
-
-      const { error: insertError } = await supabase
+      // Obtener jugadores existentes de esta inscripción con todos sus datos
+      const { data: existingPlayers } = await supabase
         .from("players")
-        .insert(playersToInsert);
+        .select("*")
+        .eq("team_registration_id", teamRegistrationId);
 
-      if (insertError) {
-        console.error("Error insertando jugadores:", insertError);
-        throw new Error(`Error al guardar jugadores: ${insertError.message}`);
+      const existingPlayerIds = new Set((existingPlayers || []).map((p) => p.id));
+      const currentPlayerIds = new Set(players.filter((p) => p.id).map((p) => p.id!));
+
+      // Separar jugadores en existentes (con ID) y nuevos (sin ID)
+      const playersToUpdate: Array<Player & { id: number }> = [];
+      const playersToInsert: Array<Omit<Player, "id">> = [];
+
+      for (const player of players) {
+        if (player.id && existingPlayerIds.has(player.id)) {
+          // Verificar si realmente hay cambios antes de actualizar
+          const existingPlayer = (existingPlayers || []).find((ep) => ep.id === player.id);
+          if (existingPlayer) {
+            const hasChanges = 
+              existingPlayer.full_name !== player.full_name.trim() ||
+              existingPlayer.email !== (player.email ? player.email.trim() : null) ||
+              existingPlayer.cedula !== (player.cedula ? player.cedula.trim() : null) ||
+              existingPlayer.phone !== (player.phone ? player.phone.trim() : null) ||
+              existingPlayer.career_id !== player.career_id ||
+              existingPlayer.semester !== player.semester ||
+              existingPlayer.jersey_number !== player.jersey_number ||
+              existingPlayer.is_captain !== player.is_captain ||
+              existingPlayer.cedula_photo_url !== (player.cedula_photo_url || null);
+
+            if (hasChanges) {
+              // Solo agregar a actualizar si hay cambios reales
+              playersToUpdate.push({
+                ...player,
+                id: player.id,
+              });
+            }
+          }
+        } else {
+          // Jugador nuevo: insertar
+          playersToInsert.push({
+            full_name: player.full_name.trim(),
+            email: player.email ? player.email.trim() : null,
+            cedula: player.cedula ? player.cedula.trim() : null,
+            phone: player.phone ? player.phone.trim() : null,
+            career_id: player.career_id,
+            semester: player.semester,
+            jersey_number: player.jersey_number,
+            is_captain: player.is_captain,
+            cedula_photo_url: player.cedula_photo_url || null,
+          });
+        }
       }
 
+      // Actualizar jugadores existentes solo si hay cambios
+      for (const player of playersToUpdate) {
+        const { error: updateError } = await supabase
+          .from("players")
+          .update({
+            full_name: player.full_name.trim(),
+            email: player.email ? player.email.trim() : null,
+            cedula: player.cedula ? player.cedula.trim() : null,
+            phone: player.phone ? player.phone.trim() : null,
+            career_id: player.career_id,
+            semester: player.semester,
+            jersey_number: player.jersey_number,
+            is_captain: player.is_captain,
+            cedula_photo_url: player.cedula_photo_url || null,
+            team_registration_id: teamRegistrationId,
+          })
+          .eq("id", player.id);
+
+        if (updateError) {
+          console.error(`Error actualizando jugador ${player.id}:`, updateError);
+          throw new Error(`Error al actualizar jugador: ${updateError.message}`);
+        }
+      }
+
+      // Insertar nuevos jugadores
+      if (playersToInsert.length > 0) {
+        const playersToInsertWithRegistration = playersToInsert.map((p) => ({
+          ...p,
+          team_registration_id: teamRegistrationId,
+        }));
+
+        const { error: insertError } = await supabase
+          .from("players")
+          .insert(playersToInsertWithRegistration);
+
+        if (insertError) {
+          console.error("Error insertando jugadores:", insertError);
+          throw new Error(`Error al guardar jugadores: ${insertError.message}`);
+        }
+      }
+
+      // Eliminar jugadores que ya no están en la lista
+      // PERO solo si no tienen eventos de partidos asociados
+      const playersToDelete = Array.from(existingPlayerIds).filter((id) => !currentPlayerIds.has(id));
+
+      for (const playerId of playersToDelete) {
+        // Verificar si el jugador tiene eventos asociados
+        const { data: eventsData } = await supabase
+          .from("match_events")
+          .select("id")
+          .eq("player_id", playerId)
+          .limit(1);
+
+        // Solo eliminar si no tiene eventos asociados
+        if (!eventsData || eventsData.length === 0) {
+          const { error: deleteError } = await supabase
+            .from("players")
+            .delete()
+            .eq("id", playerId);
+
+          if (deleteError) {
+            console.warn(`No se pudo eliminar jugador ${playerId}:`, deleteError.message);
+            // No lanzar error, solo registrar advertencia
+          }
+        } else {
+          console.log(`Jugador ${playerId} no se eliminó porque tiene eventos de partidos asociados`);
+        }
+      }
+
+      console.log(`Jugadores guardados: ${playersToUpdate.length} actualizados, ${playersToInsert.length} insertados`);
       // alert eliminada"Jugadores guardados exitosamente");
       onClose();
     } catch (error: unknown) {
       console.error("Error al guardar jugadores:", error);
-      // alert eliminada"Error al guardar jugadores: " + error.message);
+      // alert eliminada"Error al guardar jugadores: " + (error instanceof Error ? error.message : "Error desconocido"));
     } finally {
       setSaving(false);
     }

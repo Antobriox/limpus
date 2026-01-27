@@ -401,6 +401,8 @@ export default function NuevoTorneoPage() {
     }
   };
 
+  // Función no utilizada - los datos se mantienen para el historial
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const clearAllTournamentData = async () => {
     try {
       console.log("Iniciando limpieza de datos del torneo...");
@@ -503,37 +505,70 @@ export default function NuevoTorneoPage() {
         console.log("Estadísticas de jugadores eliminadas");
       }
 
-      // 9. Eliminar equipos (teams)
-      const { error: teamsError } = await supabase
-        .from("teams")
-        .delete()
-        .neq("id", 0); // Eliminar todos
-      
-      if (teamsError) {
-        console.error("Error eliminando equipos:", teamsError);
-        throw new Error(`Error eliminando equipos: ${teamsError.message}`);
-      }
-      console.log("Equipos eliminados");
+      // 9. NO eliminar equipos - se mantienen para el historial
+      // Los equipos se conservan para poder verlos en torneos pasados
+      console.log("Equipos preservados (no se eliminan)");
 
-      // 10. Eliminar torneos antiguos
-      const { error: tournamentsError } = await supabase
+      // 10. Eliminar solo el torneo más reciente (por ID máximo)
+      // Esto preserva todos los torneos pasados en el historial
+      // Primero, obtener todos los torneos para identificar el más reciente
+      const { data: allTournaments } = await supabase
         .from("tournaments")
-        .delete()
-        .neq("id", 0); // Eliminar todos
-      
-      if (tournamentsError) {
-        console.error("Error eliminando torneos:", tournamentsError);
-        throw new Error(`Error eliminando torneos: ${tournamentsError.message}`);
-      }
-      console.log("Torneos antiguos eliminados");
+        .select("id, name")
+        .order("id", { ascending: false });
 
-      // 11. Eliminar usuarios con roles de Líder de equipo (2) y Árbitro (3)
-      // Mantener Administradores (1) y otros usuarios
+      if (allTournaments && allTournaments.length > 0) {
+        // Agrupar por nombre para identificar el grupo más reciente
+        type TournamentBasic = {
+          id: number;
+          name: string;
+        };
+        const tournamentsGroupedByName = new Map<string, number[]>();
+        (allTournaments as TournamentBasic[]).forEach((t) => {
+          if (!tournamentsGroupedByName.has(t.name)) {
+            tournamentsGroupedByName.set(t.name, []);
+          }
+          tournamentsGroupedByName.get(t.name)!.push(t.id);
+        });
+
+        // Encontrar el grupo con el ID más alto (el torneo más reciente)
+        let latestTournamentGroupIds: number[] = [];
+        let maxIdInGroup = 0;
+
+        tournamentsGroupedByName.forEach((ids) => {
+          const maxId = Math.max(...ids);
+          if (maxId > maxIdInGroup) {
+            maxIdInGroup = maxId;
+            latestTournamentGroupIds = ids;
+          }
+        });
+
+        // Eliminar solo los torneos del grupo más reciente
+        if (latestTournamentGroupIds.length > 0) {
+          const { error: tournamentsError } = await supabase
+            .from("tournaments")
+            .delete()
+            .in("id", latestTournamentGroupIds);
+          
+          if (tournamentsError) {
+            console.error("Error eliminando torneos:", tournamentsError);
+            throw new Error(`Error eliminando torneos: ${tournamentsError.message}`);
+          }
+          console.log(`Torneo más reciente eliminado (IDs: ${latestTournamentGroupIds.join(", ")}). Torneos pasados preservados en historial.`);
+        } else {
+          console.log("No se encontraron torneos para eliminar");
+        }
+      } else {
+        console.log("No hay torneos existentes para eliminar");
+      }
+
+      // 11. Eliminar solo usuarios con rol de Árbitro (3)
+      // Mantener Líderes de equipo (2) y Administradores (1)
       try {
         const deleteUsersResponse = await fetch("/api/admin/delete-users-by-roles", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ role_ids: [2, 3] }), // Líder de equipo y Árbitro
+          body: JSON.stringify({ role_ids: [3] }), // Solo Árbitro
         });
 
         if (!deleteUsersResponse.ok) {
@@ -543,7 +578,7 @@ export default function NuevoTorneoPage() {
           console.warn("Advertencia al eliminar usuarios:", errorData.error);
         } else {
           const result = await deleteUsersResponse.json();
-          console.log(`Usuarios eliminados: ${result.deleted || 0} de ${result.total || 0}`);
+          console.log(`Usuarios árbitros eliminados: ${result.deleted || 0} de ${result.total || 0}`);
           if (result.errors && result.errors.length > 0) {
             console.warn("Algunos errores al eliminar usuarios:", result.errors);
           }
@@ -553,6 +588,8 @@ export default function NuevoTorneoPage() {
         // No crítico, continuar
         console.warn("Advertencia: No se pudieron eliminar algunos usuarios");
       }
+      
+      console.log("Líderes de equipo preservados (no se eliminan)");
 
       console.log("Limpieza completada exitosamente");
       return true;
@@ -603,8 +640,8 @@ export default function NuevoTorneoPage() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      // 1. Generar PDF del historial ANTES de eliminar datos
-      console.log("Generando PDF del historial antes de eliminar datos...");
+      // 1. Generar PDF del historial (opcional, para documentación)
+      console.log("Generando PDF del historial...");
       const pdfBlob = await generateHistoryPDF();
       
       if (pdfBlob) {
@@ -614,15 +651,15 @@ export default function NuevoTorneoPage() {
         if (uploaded) {
           console.log("PDF del historial guardado exitosamente en documentos");
         } else {
-          console.warn("No se pudo subir el PDF del historial, pero se continuará con la eliminación");
+          console.warn("No se pudo subir el PDF del historial, pero se continuará");
         }
       } else {
-        console.warn("No se pudo generar el PDF del historial, pero se continuará con la eliminación");
+        console.warn("No se pudo generar el PDF del historial, pero se continuará");
       }
 
-      // 3. Limpiar todos los datos del torneo anterior
-      console.log("Limpiando datos del torneo anterior...");
-      await clearAllTournamentData();
+      // 3. NO eliminar datos - todos los datos pasados se mantienen para el historial
+      // La vista principal mostrará automáticamente el nuevo torneo (el más reciente por ID)
+      console.log("Creando nuevo torneo. Los datos pasados se mantienen en el historial.");
 
       // Crear un torneo para cada deporte/disciplina
       const tournamentsToInsert = sports.map((sport) => ({
@@ -648,7 +685,7 @@ export default function NuevoTorneoPage() {
 
       const pdfMessage = pdfBlob ? "\n\nEl historial completo ha sido guardado en la sección de Documentos." : "";
       showAlert(
-        `Torneo "${form.name.trim()}" creado exitosamente para ${sports.length} disciplina(s)\n\nTodos los datos anteriores han sido eliminados.${pdfMessage}`,
+        `Torneo "${form.name.trim()}" creado exitosamente para ${sports.length} disciplina(s)\n\nLos datos anteriores se mantienen en el historial.${pdfMessage}`,
         "success"
       );
       setTimeout(() => {
@@ -766,22 +803,17 @@ export default function NuevoTorneoPage() {
       {/* Modal de Confirmación */}
       <ConfirmModal
         isOpen={showConfirmModal}
-        title="ADVERTENCIA"
+        title="Crear Nuevo Torneo"
         message={
-          "Esto eliminará TODOS los datos del torneo anterior:\n\n" +
-          "• Todos los equipos\n" +
-          "• Todos los partidos y resultados\n" +
-          "• Todos los brackets/sorteos\n" +
-          "• Todas las inscripciones\n" +
-          "• Todos los torneos anteriores\n" +
-          "• Todos los LÍDERES DE EQUIPO\n" +
-          "• Todos los ÁRBITROS\n\n" +
-          "Los ADMINISTRADORES se mantendrán intactos.\n\n" +
-          "¿Estás seguro de que quieres continuar?"
+          "Se creará un nuevo torneo con las siguientes disciplinas:\n\n" +
+          `• ${sports.length} disciplina(s) incluidas\n\n` +
+          "Los datos anteriores se mantendrán en el historial.\n" +
+          "La vista principal mostrará solo el nuevo torneo.\n\n" +
+          "¿Deseas continuar?"
         }
         confirmText="Continuar"
         cancelText="Cancelar"
-        variant="danger"
+        variant="info"
         onConfirm={handleConfirmCreate}
         onCancel={() => setShowConfirmModal(false)}
       />
