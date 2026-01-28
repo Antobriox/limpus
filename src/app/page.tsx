@@ -7,6 +7,8 @@ import { useUser } from "../hooks/useUser";
 import { useViewersData } from "./dashboard/viewers/hooks/useViewersData";
 import { Calendar, Clock, MapPin, Eye, X } from "lucide-react";
 import MatchDetailsModal from "./dashboard/leader/components/MatchDetailsModal";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 
 // Función para obtener el icono según el deporte
 const getSportIcon = (sportName: string) => {
@@ -108,97 +110,176 @@ export default function HomePage() {
     return date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
   };
 
+  const [listRef] = useAutoAnimate();
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-900">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Cargando...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full mx-auto mb-4"
+          />
+          <p className="text-gray-600 dark:text-gray-400 font-medium">Cargando...</p>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-neutral-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Header */}
-      <div className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50">
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50"
+      >
         {user ? (
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={handleLogout}
             className="bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-700 transition font-medium shadow-md text-xs sm:text-sm"
           >
             Cerrar Sesión
-          </button>
+          </motion.button>
         ) : (
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => router.push("/login")}
-            className="bg-blue-600 text-white px-4 sm:px-6 py-1.5 sm:py-2 rounded-lg hover:bg-blue-700 transition font-medium shadow-md text-xs sm:text-sm"
+            className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 sm:px-6 py-1.5 sm:py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition font-medium shadow-lg hover:shadow-xl text-xs sm:text-sm"
           >
             Iniciar Sesión
-          </button>
+          </motion.button>
         )}
-      </div>
+      </motion.div>
 
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-blue-600 to-blue-800 text-white py-12 sm:py-16 md:py-20 px-4 sm:px-6">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white py-12 sm:py-16 md:py-20 px-4 sm:px-6 shadow-xl"
+      >
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black mb-3 sm:mb-4">{tournamentName}</h1>
-          <p className="text-base sm:text-lg md:text-xl text-blue-100 px-4">Sé testigo de la pasión. Sigue la acción.</p>
-          <button
+          <motion.h1
+            initial={{ scale: 0.9 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-3xl sm:text-4xl md:text-5xl font-black mb-3 sm:mb-4"
+          >
+            {tournamentName}
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-base sm:text-lg md:text-xl text-blue-100 px-4"
+          >
+            Sé testigo de la pasión. Sigue la acción.
+          </motion.p>
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => router.push("/dashboard/viewers/clasificacion")}
-            className="mt-6 sm:mt-8 bg-white text-blue-600 px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg font-bold hover:bg-blue-50 transition text-sm sm:text-base"
+            className="mt-6 sm:mt-8 bg-white text-blue-600 px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl font-bold hover:bg-blue-50 transition text-sm sm:text-base shadow-lg hover:shadow-xl"
           >
             Ver Clasificación
-          </button>
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 md:py-12 space-y-8 sm:space-y-10 md:space-y-12">
         
         {/* Explora los Deportes */}
-        <section id="deportes" className="text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-6 sm:mb-8">
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          id="deportes"
+          className="text-center"
+        >
+          <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-6 sm:mb-8">
             Explora los Deportes
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 justify-items-center">
-            {sports.map((sport) => (
-              <div
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 justify-items-center" ref={listRef}>
+            {sports.map((sport, index) => (
+              <motion.div
                 key={sport.id}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3 + index * 0.05 }}
+                whileHover={{ y: -8, scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => handleSportClick(sport.id)}
-                className="bg-white dark:bg-neutral-800 rounded-lg p-4 sm:p-6 md:p-8 text-center hover:shadow-lg transition cursor-pointer border border-gray-200 dark:border-neutral-700 w-full max-w-[180px] sm:max-w-[200px]"
+                className="bg-white dark:bg-neutral-800 rounded-xl p-4 sm:p-6 md:p-8 text-center hover:shadow-xl transition cursor-pointer border-2 border-gray-200 dark:border-neutral-700 hover:border-blue-500 dark:hover:border-blue-400 w-full max-w-[180px] sm:max-w-[200px] shadow-lg hover:shadow-2xl"
               >
-                <div className="text-5xl sm:text-6xl md:text-7xl mb-3 sm:mb-4 md:mb-6 flex justify-center">{getSportIcon(sport.name)}</div>
-                <p className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base md:text-lg">{sport.name}</p>
-              </div>
+                <motion.div
+                  whileHover={{ rotate: 360 }}
+                  transition={{ duration: 0.6 }}
+                  className="text-5xl sm:text-6xl md:text-7xl mb-3 sm:mb-4 md:mb-6 flex justify-center"
+                >
+                  {getSportIcon(sport.name)}
+                </motion.div>
+                <p className="font-bold text-gray-900 dark:text-white text-sm sm:text-base md:text-lg">{sport.name}</p>
+              </motion.div>
             ))}
           </div>
-        </section>
+        </motion.section>
 
         {/* Partidos en Vivo */}
-        <section id="en-vivo">
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          id="en-vivo"
+        >
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
               Partidos en Vivo
             </h2>
             {liveMatches.length > 0 && (
-              <span className="bg-red-500 text-white px-3 py-1 rounded-full text-xs sm:text-sm font-bold">
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 py-1 rounded-full text-xs sm:text-sm font-bold shadow-lg"
+              >
                 {liveMatches.length} {liveMatches.length === 1 ? "EN VIVO" : "EN VIVO"}
-              </span>
+              </motion.span>
             )}
           </div>
           
           {liveMatches.length === 0 ? (
-            <div className="bg-white dark:bg-neutral-800 rounded-lg p-6 sm:p-8 text-center border border-gray-200 dark:border-neutral-700">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-neutral-800 rounded-xl p-6 sm:p-8 text-center border border-gray-200 dark:border-neutral-700 shadow-lg"
+            >
               <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">No hay partidos en vivo en este momento</p>
-            </div>
+            </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              {liveMatches.map((match) => (
-                <div
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6" ref={listRef}>
+              {liveMatches.map((match, index) => (
+                <motion.div
                   key={match.id}
-                  className="bg-white dark:bg-neutral-800 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-neutral-700 shadow-sm hover:shadow-md transition-shadow"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ y: -8, scale: 1.02 }}
+                  className="bg-white dark:bg-neutral-800 rounded-xl p-4 sm:p-6 border-2 border-gray-200 dark:border-neutral-700 shadow-lg hover:shadow-2xl transition-all relative overflow-hidden group"
                 >
+                  {/* Gradient overlay on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-red-500/0 to-red-500/0 group-hover:from-red-500/5 group-hover:to-red-500/5 transition-all duration-300 rounded-xl" />
+                  
+                  <div className="relative z-10">
                   <div className="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">
@@ -242,7 +323,9 @@ export default function HomePage() {
                     </div>
                   )}
                   
-                  <button 
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() =>
                       setSelectedMatchForDetails({
                         id: match.id,
@@ -254,40 +337,58 @@ export default function HomePage() {
                         genero: match.genero || null,
                       })
                     }
-                    className="w-full bg-blue-600 text-white py-2.5 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition text-sm sm:text-base"
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2.5 sm:py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition text-sm sm:text-base shadow-lg hover:shadow-xl"
                   >
                     Ver Ahora
-                  </button>
-                </div>
+                  </motion.button>
+                  </div>
+                </motion.div>
               ))}
             </div>
           )}
-        </section>
+        </motion.section>
 
         {/* Próximos Partidos */}
-        <section id="proximos">
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          id="proximos"
+        >
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
               Próximos Partidos
             </h2>
             {upcomingMatches.length > 0 && (
-              <span className="text-sm text-gray-500 dark:text-gray-400">
+              <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
                 {upcomingMatches.length} {upcomingMatches.length === 1 ? "partido" : "partidos"}
               </span>
             )}
           </div>
           
           {upcomingMatches.length === 0 ? (
-            <div className="bg-white dark:bg-neutral-800 rounded-lg p-6 sm:p-8 text-center border border-gray-200 dark:border-neutral-700">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-neutral-800 rounded-xl p-6 sm:p-8 text-center border border-gray-200 dark:border-neutral-700 shadow-lg"
+            >
               <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">No hay partidos programados</p>
-            </div>
+            </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              {upcomingMatches.map((match) => (
-                <div
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6" ref={listRef}>
+              {upcomingMatches.map((match, index) => (
+                <motion.div
                   key={match.id}
-                  className="bg-white dark:bg-neutral-800 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-neutral-700 shadow-sm hover:shadow-md transition-shadow"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ y: -8, scale: 1.02 }}
+                  className="bg-white dark:bg-neutral-800 rounded-xl p-4 sm:p-6 border-2 border-gray-200 dark:border-neutral-700 shadow-lg hover:shadow-2xl transition-all relative overflow-hidden group"
                 >
+                  {/* Gradient overlay on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/5 group-hover:to-purple-500/5 transition-all duration-300 rounded-xl" />
+                  
+                  <div className="relative z-10">
                   <div className="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">
@@ -334,43 +435,61 @@ export default function HomePage() {
                   </div>
                   
                   {match.referee && (
-                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate font-medium">
                       Árbitro: {match.referee}
                     </div>
                   )}
-                </div>
+                  </div>
+                </motion.div>
               ))}
             </div>
           )}
-        </section>
+        </motion.section>
 
         {/* Historial de Partidos */}
-        <section id="historial">
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          id="historial"
+        >
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
               Historial de Partidos
             </h2>
             {pastMatches.length > 0 && (
-              <span className="text-sm text-gray-500 dark:text-gray-400">
+              <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
                 {pastMatches.length} {pastMatches.length === 1 ? "partido" : "partidos"}
               </span>
             )}
           </div>
           
           {!pastMatches || pastMatches.length === 0 ? (
-            <div className="bg-white dark:bg-neutral-800 rounded-lg p-6 sm:p-8 text-center border border-gray-200 dark:border-neutral-700">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-neutral-800 rounded-xl p-6 sm:p-8 text-center border border-gray-200 dark:border-neutral-700 shadow-lg"
+            >
               <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">No hay partidos jugados aún</p>
-            </div>
+            </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              {pastMatches.map((match) => {
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6" ref={listRef}>
+              {pastMatches.map((match, index) => {
                 const hasResult = match.score_a !== null && match.score_b !== null;
 
                 return (
-                  <div
+                  <motion.div
                     key={match.id}
-                    className="bg-white dark:bg-neutral-800 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-neutral-700 shadow-sm hover:shadow-md transition-shadow"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    whileHover={{ y: -8, scale: 1.02 }}
+                    className="bg-white dark:bg-neutral-800 rounded-xl p-4 sm:p-6 border-2 border-gray-200 dark:border-neutral-700 shadow-lg hover:shadow-2xl transition-all relative overflow-hidden group"
                   >
+                    {/* Gradient overlay on hover */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-green-500/0 to-green-500/0 group-hover:from-green-500/5 group-hover:to-green-500/5 transition-all duration-300 rounded-xl" />
+                    
+                    <div className="relative z-10">
                     <div className="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">
@@ -424,7 +543,9 @@ export default function HomePage() {
                       )}
                     </div>
                     
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                       onClick={() =>
                         setSelectedMatchForDetails({
                           id: match.id,
@@ -436,34 +557,53 @@ export default function HomePage() {
                           genero: match.genero || null,
                         })
                       }
-                      className="w-full bg-blue-600 text-white py-2.5 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition text-sm sm:text-base flex items-center justify-center gap-2"
+                      className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2.5 sm:py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                     >
                       <Eye className="w-4 h-4" />
                       Ver Detalles
-                    </button>
-                  </div>
+                    </motion.button>
+                    </div>
+                  </motion.div>
                 );
               })}
             </div>
           )}
-        </section>
+        </motion.section>
       </div>
 
       {/* Modal de Partidos por Disciplina */}
-      {selectedSport && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white dark:bg-neutral-800 rounded-lg max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white dark:bg-neutral-800 border-b border-gray-200 dark:border-neutral-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white pr-2">
-                Partidos de {sports.find((s) => s.id === selectedSport)?.name}
-              </h2>
-              <button
-                onClick={handleCloseModal}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700 transition flex-shrink-0"
-              >
-                <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400" />
-              </button>
-            </div>
+      <AnimatePresence>
+        {selectedSport && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleCloseModal}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto pointer-events-none"
+            >
+              <div className="bg-white dark:bg-neutral-800 rounded-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto pointer-events-auto border border-gray-200 dark:border-neutral-700 shadow-2xl">
+                <div className="sticky top-0 bg-white/95 dark:bg-neutral-800/95 backdrop-blur-md border-b border-gray-200 dark:border-neutral-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent pr-2">
+                    Partidos de {sports.find((s) => s.id === selectedSport)?.name}
+                  </h2>
+                  <motion.button
+                    whileHover={{ scale: 1.1, rotate: 90 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={handleCloseModal}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700 transition flex-shrink-0"
+                  >
+                    <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400" />
+                  </motion.button>
+                </div>
 
             <div className="p-4 sm:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -525,7 +665,7 @@ export default function HomePage() {
                           genero: match.genero || null,
                         })
                       }
-                      className="w-full bg-blue-600 text-white py-2.5 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition text-sm sm:text-base"
+                      className="w-full bg-blue-600 text-white py-2.5 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition text-sm sm:text-base cursor-pointer"
                     >
                       Ver Ahora
                     </button>
@@ -687,16 +827,22 @@ export default function HomePage() {
 
               {/* Sin partidos */}
               {filteredMatches.live.length === 0 && filteredMatches.upcoming.length === 0 && filteredMatches.past.length === 0 && (
-                <div className="text-center py-12">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-center py-12"
+                >
                   <p className="text-gray-500 dark:text-gray-400">
                     No hay partidos programados para {sports.find((s) => s.id === selectedSport)?.name} en este momento
                   </p>
-                </div>
+                </motion.div>
               )}
             </div>
           </div>
-        </div>
-      )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Modal de Detalles del Partido */}
       {selectedMatchForDetails && (

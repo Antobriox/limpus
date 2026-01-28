@@ -3,7 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
-import { Calendar, Trophy, Users, ArrowRight } from "lucide-react";
+import { Calendar, Trophy, Users, ArrowRight, Clock, CheckCircle2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { cn } from "../../../lib/utils";
 
 type TournamentHistory = {
   id: number; // ID del primer torneo (para navegación)
@@ -24,6 +27,7 @@ export default function HistorialPage() {
   const router = useRouter();
   const [tournaments, setTournaments] = useState<TournamentHistory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [listRef] = useAutoAnimate();
 
   useEffect(() => {
     loadHistory();
@@ -254,94 +258,195 @@ export default function HistorialPage() {
     });
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+      },
+    },
+  };
+
+  const cardVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        duration: 0.4,
+        ease: [0.4, 0, 0.2, 1] as const,
+      },
+    },
+  };
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Historial de Torneos
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+        <motion.div
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="mb-8"
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <motion.div
+              whileHover={{ rotate: 360 }}
+              transition={{ duration: 0.6 }}
+            >
+              <Trophy className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+            </motion.div>
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+              Historial de Torneos
+            </h1>
+          </div>
+          <p className="text-gray-600 dark:text-gray-400 text-lg">
             Consulta los torneos pasados y accede a toda su información
           </p>
-        </div>
-
+        </motion.div>
 
         {/* Lista de torneos */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600 dark:text-gray-400">Cargando historial...</p>
-          </div>
-        ) : tournaments.length === 0 ? (
-          <div className="bg-white dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700 p-12 text-center">
-            <Trophy className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">
-              No hay torneos en el historial
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-              Los torneos aparecerán aquí una vez que hayan finalizado
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tournaments.map((tournament) => (
-              <div
-                key={tournament.id}
-                onClick={() => handleTournamentClick(tournament.id)}
-                className="bg-white dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700 p-6 hover:shadow-lg transition-all cursor-pointer hover:border-blue-500 dark:hover:border-blue-400"
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-center py-20"
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="inline-block w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full"
+              />
+              <p className="mt-6 text-gray-600 dark:text-gray-400 text-lg font-medium">
+                Cargando historial...
+              </p>
+            </motion.div>
+          ) : tournaments.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-neutral-800 rounded-2xl border border-gray-200 dark:border-neutral-700 p-16 text-center shadow-lg"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                      {tournament.name}
-                    </h3>
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      {tournament.disciplines.map((discipline, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-medium"
+                <Trophy className="w-16 h-16 text-gray-400 mx-auto mb-6" />
+              </motion.div>
+              <p className="text-gray-600 dark:text-gray-400 text-lg font-medium mb-2">
+                No hay torneos en el historial
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-500">
+                Los torneos aparecerán aquí una vez que hayan finalizado
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="list"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              ref={listRef}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
+              {tournaments.map((tournament, index) => (
+                <motion.div
+                  key={tournament.id}
+                  variants={cardVariants}
+                  whileHover={{ y: -8, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleTournamentClick(tournament.id)}
+                  className={cn(
+                    "group relative bg-white dark:bg-neutral-800 rounded-2xl border border-gray-200 dark:border-neutral-700",
+                    "p-6 cursor-pointer overflow-hidden",
+                    "hover:shadow-2xl hover:shadow-blue-500/10 dark:hover:shadow-blue-500/20",
+                    "transition-all duration-300",
+                    "hover:border-blue-500 dark:hover:border-blue-400"
+                  )}
+                >
+                  {/* Gradient overlay on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/0 group-hover:from-blue-500/5 group-hover:to-purple-500/5 transition-all duration-300 rounded-2xl" />
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          {tournament.name}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-2 mb-4">
+                          {tournament.disciplines.map((discipline, idx) => (
+                            <motion.span
+                              key={idx}
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: index * 0.05 + idx * 0.02 }}
+                              className="px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-100 to-blue-50 dark:from-blue-900/50 dark:to-blue-800/50 text-blue-800 dark:text-blue-200 text-xs font-semibold shadow-sm"
+                            >
+                              {discipline.sport_name}
+                            </motion.span>
+                          ))}
+                        </div>
+                      </div>
+                      <motion.div
+                        whileHover={{ x: 5 }}
+                        className="flex-shrink-0"
+                      >
+                        <ArrowRight className="w-6 h-6 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
+                      </motion.div>
+                    </div>
+
+                    <div className="space-y-3 text-sm mb-4">
+                      <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+                        <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/30">
+                          <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900 dark:text-white">Inicio:</div>
+                          <div>{formatDate(tournament.start_date)}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+                        <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-900/30">
+                          <Clock className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900 dark:text-white">Fin:</div>
+                          <div>{formatDate(tournament.end_date)}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-200 dark:border-neutral-700">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                          <div className="p-1.5 rounded-lg bg-green-50 dark:bg-green-900/30">
+                            <Users className="w-4 h-4 text-green-600 dark:text-green-400" />
+                          </div>
+                          <span className="font-medium">
+                            {tournament.finished_matches} / {tournament.matches_count} partidos
+                          </span>
+                        </div>
+                        <motion.span
+                          whileHover={{ scale: 1.05 }}
+                          className="px-3 py-1.5 rounded-full bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 text-green-800 dark:text-green-200 text-xs font-bold flex items-center gap-1.5 shadow-sm"
                         >
-                          {discipline.sport_name}
-                        </span>
-                      ))}
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Finalizado
+                        </motion.span>
+                      </div>
                     </div>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                </div>
-
-                <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 flex-shrink-0" />
-                    <div>
-                      <div className="font-medium">Inicio:</div>
-                      <div>{formatDate(tournament.start_date)}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 flex-shrink-0" />
-                    <div>
-                      <div className="font-medium">Fin:</div>
-                      <div>{formatDate(tournament.end_date)}</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-neutral-700">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                      <Users className="w-4 h-4" />
-                      <span>{tournament.finished_matches} / {tournament.matches_count} partidos</span>
-                    </div>
-                    <span className="px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs font-semibold">
-                      Finalizado
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -12,6 +12,8 @@ type SupabasePlayer = {
 import { supabase } from "../../../../lib/supabaseClient";
 import { X } from "lucide-react";
 import { getDisciplineRulesByName } from "../../torneos/config/disciplineRules";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 
 type MatchDetailsModalProps = {
   matchId: number;
@@ -271,20 +273,41 @@ export default function MatchDetailsModal({
     }
   });
 
+  const [listRef] = useAutoAnimate();
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-neutral-800 rounded-lg max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-2 sm:my-4 mx-2 sm:mx-0">
-        <div className="sticky top-0 bg-white dark:bg-neutral-800 border-b border-gray-200 dark:border-neutral-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
-          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white pr-2">
-            Detalles del Partido
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700 transition flex-shrink-0"
-          >
-            <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400" />
-          </button>
-        </div>
+    <AnimatePresence>
+      <motion.div
+        key="overlay"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+      />
+      <motion.div
+        key="modal"
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto pointer-events-none"
+      >
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-2 sm:my-4 mx-2 sm:mx-0 pointer-events-auto border border-gray-200 dark:border-neutral-700 shadow-2xl">
+          <div className="sticky top-0 bg-white/95 dark:bg-neutral-800/95 backdrop-blur-md border-b border-gray-200 dark:border-neutral-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent pr-2">
+              Detalles del Partido
+            </h2>
+            <motion.button
+              whileHover={{ scale: 1.1, rotate: 90 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700 transition flex-shrink-0 cursor-pointer"
+            >
+              <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400" />
+            </motion.button>
+          </div>
 
         <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Información del partido */}
@@ -299,7 +322,11 @@ export default function MatchDetailsModal({
 
           {loading ? (
             <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="inline-block w-8 h-8 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full"
+              />
             </div>
           ) : (
             <>
@@ -314,30 +341,25 @@ export default function MatchDetailsModal({
                       No hay {scoreLabel.toLowerCase()} registrados
                     </p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2" ref={listRef}>
                       {goalsA.map((goal, index) => {
-                        // Encontrar el evento original para usar su ID como key
-                        const originalEvent = events.find(
-                          (e) =>
-                            e.event_type === "goal" &&
-                            e.team_id === teamAId &&
-                            e.player_id === goal.player_id &&
-                            (isBasketball
-                              ? e.value === (goal.points! * 1000 + goal.minute)
-                              : e.value === goal.minute)
-                        );
+                        // Crear una key única usando player_id, minute, points e index
+                        const uniqueKey = `goal-a-${goal.player_id}-${goal.minute}-${goal.points || 0}-${index}`;
                         return (
-                        <div
-                          key={originalEvent?.id || `goal-a-${index}`}
-                          className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
+                        <motion.div
+                          key={uniqueKey}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-neutral-900 dark:to-neutral-800 rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm hover:shadow-md transition-all"
                         >
-                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                             {getPlayerName(goal.player_id, "a")}
                             {scoreLabel === "Puntos" && goal.points
                               ? ` - ${goal.points} ${goal.points === 1 ? "punto" : "puntos"}${goal.minute > 0 ? ` (Minuto ${goal.minute}')` : ""}`
                               : ` - Minuto ${goal.minute}'`}
                           </span>
-                        </div>
+                        </motion.div>
                         );
                       })}
                     </div>
@@ -356,30 +378,25 @@ export default function MatchDetailsModal({
                       No hay {scoreLabel.toLowerCase()} registrados
                     </p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2" ref={listRef}>
                       {goalsB.map((goal, index) => {
-                        // Encontrar el evento original para usar su ID como key
-                        const originalEvent = events.find(
-                          (e) =>
-                            e.event_type === "goal" &&
-                            e.team_id === teamBId &&
-                            e.player_id === goal.player_id &&
-                            (isBasketball
-                              ? e.value === (goal.points! * 1000 + goal.minute)
-                              : e.value === goal.minute)
-                        );
+                        // Crear una key única usando player_id, minute, points e index
+                        const uniqueKey = `goal-b-${goal.player_id}-${goal.minute}-${goal.points || 0}-${index}`;
                         return (
-                        <div
-                          key={originalEvent?.id || `goal-b-${index}`}
-                          className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
+                        <motion.div
+                          key={uniqueKey}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-neutral-900 dark:to-neutral-800 rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm hover:shadow-md transition-all"
                         >
-                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                             {getPlayerName(goal.player_id, "b")}
                             {scoreLabel === "Puntos" && goal.points
                               ? ` - ${goal.points} ${goal.points === 1 ? "punto" : "puntos"}${goal.minute > 0 ? ` (Minuto ${goal.minute}')` : ""}`
                               : ` - Minuto ${goal.minute}'`}
                           </span>
-                        </div>
+                        </motion.div>
                         );
                       })}
                     </div>
@@ -400,25 +417,22 @@ export default function MatchDetailsModal({
                         No hay tarjetas amarillas registradas
                       </p>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-2" ref={listRef}>
                         {yellowCardsA.map((card, index) => {
-                          // Encontrar el evento original para usar su ID como key
-                          const originalEvent = events.find(
-                            (e) =>
-                              e.event_type === "yellow_card" &&
-                              e.team_id === teamAId &&
-                              e.player_id === card.player_id &&
-                              e.value === card.minute
-                          );
+                          // Crear una key única usando player_id, minute e index
+                          const uniqueKey = `yellow-a-${card.player_id}-${card.minute}-${index}`;
                           return (
-                          <div
-                            key={originalEvent?.id || `yellow-a-${index}`}
-                            className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
+                          <motion.div
+                            key={uniqueKey}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 rounded-xl border border-yellow-200 dark:border-yellow-700 shadow-sm hover:shadow-md transition-all"
                           >
-                            <span className="text-sm text-gray-700 dark:text-gray-300">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                               {getPlayerName(card.player_id, "a")} - Minuto {card.minute}&apos;
                             </span>
-                          </div>
+                          </motion.div>
                           );
                         })}
                       </div>
@@ -435,25 +449,22 @@ export default function MatchDetailsModal({
                         No hay tarjetas amarillas registradas
                       </p>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-2" ref={listRef}>
                         {yellowCardsB.map((card, index) => {
-                          // Encontrar el evento original para usar su ID como key
-                          const originalEvent = events.find(
-                            (e) =>
-                              e.event_type === "yellow_card" &&
-                              e.team_id === teamBId &&
-                              e.player_id === card.player_id &&
-                              e.value === card.minute
-                          );
+                          // Crear una key única usando player_id, minute e index
+                          const uniqueKey = `yellow-b-${card.player_id}-${card.minute}-${index}`;
                           return (
-                          <div
-                            key={originalEvent?.id || `yellow-b-${index}`}
-                            className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
+                          <motion.div
+                            key={uniqueKey}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 rounded-xl border border-yellow-200 dark:border-yellow-700 shadow-sm hover:shadow-md transition-all"
                           >
-                            <span className="text-sm text-gray-700 dark:text-gray-300">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                               {getPlayerName(card.player_id, "b")} - Minuto {card.minute}&apos;
                             </span>
-                          </div>
+                          </motion.div>
                           );
                         })}
                       </div>
@@ -475,25 +486,22 @@ export default function MatchDetailsModal({
                         No hay tarjetas rojas registradas
                       </p>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-2" ref={listRef}>
                         {redCardsA.map((card, index) => {
-                          // Encontrar el evento original para usar su ID como key
-                          const originalEvent = events.find(
-                            (e) =>
-                              e.event_type === "red_card" &&
-                              e.team_id === teamAId &&
-                              e.player_id === card.player_id &&
-                              e.value === card.minute
-                          );
+                          // Crear una key única usando player_id, minute e index
+                          const uniqueKey = `red-a-${card.player_id}-${card.minute}-${index}`;
                           return (
-                          <div
-                            key={originalEvent?.id || `red-a-${index}`}
-                            className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
+                          <motion.div
+                            key={uniqueKey}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="flex items-center justify-between p-3 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-xl border border-red-200 dark:border-red-700 shadow-sm hover:shadow-md transition-all"
                           >
-                            <span className="text-sm text-gray-700 dark:text-gray-300">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                               {getPlayerName(card.player_id, "a")} - Minuto {card.minute}&apos;
                             </span>
-                          </div>
+                          </motion.div>
                           );
                         })}
                       </div>
@@ -510,25 +518,22 @@ export default function MatchDetailsModal({
                         No hay tarjetas rojas registradas
                       </p>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-2" ref={listRef}>
                         {redCardsB.map((card, index) => {
-                          // Encontrar el evento original para usar su ID como key
-                          const originalEvent = events.find(
-                            (e) =>
-                              e.event_type === "red_card" &&
-                              e.team_id === teamBId &&
-                              e.player_id === card.player_id &&
-                              e.value === card.minute
-                          );
+                          // Crear una key única usando player_id, minute e index
+                          const uniqueKey = `red-b-${card.player_id}-${card.minute}-${index}`;
                           return (
-                          <div
-                            key={originalEvent?.id || `red-b-${index}`}
-                            className="flex items-center justify-between p-2 bg-gray-50 dark:bg-neutral-900 rounded"
+                          <motion.div
+                            key={uniqueKey}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="flex items-center justify-between p-3 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-xl border border-red-200 dark:border-red-700 shadow-sm hover:shadow-md transition-all"
                           >
-                            <span className="text-sm text-gray-700 dark:text-gray-300">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                               {getPlayerName(card.player_id, "b")} - Minuto {card.minute}&apos;
                             </span>
-                          </div>
+                          </motion.div>
                           );
                         })}
                       </div>
@@ -552,7 +557,8 @@ export default function MatchDetailsModal({
             </>
           )}
         </div>
-      </div>
-    </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
   );
 }

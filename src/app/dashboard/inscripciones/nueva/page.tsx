@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import { cn } from "../../../../lib/utils";
+import { toast } from "sonner";
 
 type Sport = {
   id: number;
@@ -44,22 +47,22 @@ export default function NuevaInscripcionPage() {
 
   const createInscripcion = async () => {
     if (!form.name) {
-      // alert eliminada"El nombre del formulario es requerido");
+      toast.error("El nombre del formulario es requerido");
       return;
     }
 
     if (!form.sport_id) {
-      // alert eliminada"Debes seleccionar un deporte");
+      toast.error("Debes seleccionar un deporte");
       return;
     }
 
     if (!form.genero) {
-      // alert eliminada"Debes seleccionar un género");
+      toast.error("Debes seleccionar un género");
       return;
     }
 
     if (form.min_players > form.max_players) {
-      // alert eliminada"El mínimo no puede ser mayor al máximo");
+      toast.error("El mínimo no puede ser mayor al máximo");
       return;
     }
 
@@ -85,34 +88,43 @@ export default function NuevaInscripcionPage() {
     setLoading(false);
 
     if (error) {
-      // alert eliminadaerror.message);
+      toast.error(error.message);
       return;
     }
 
     // Invalidar la query de inscripciones para que se actualice la lista
     queryClient.invalidateQueries({ queryKey: ["registrationForms"] });
     
+    toast.success("Inscripción creada correctamente");
     router.push("/dashboard/inscripciones");
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+      >
+        <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
           Nueva Inscripción
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
           Crea un formulario de inscripción para un deporte
         </p>
-      </div>
+      </motion.div>
 
-      <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg p-4 sm:p-6 space-y-4 max-w-2xl">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-xl p-4 sm:p-6 space-y-4 max-w-2xl shadow-lg"
+      >
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Nombre del formulario <span className="text-red-500">*</span>
           </label>
           <input
-            className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
             placeholder="Nombre del formulario"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -120,11 +132,11 @@ export default function NuevaInscripcionPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
             Deporte <span className="text-red-500">*</span>
           </label>
           <select
-            className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
             value={form.sport_id}
             onChange={(e) => setForm({ ...form, sport_id: e.target.value })}
           >
@@ -138,11 +150,11 @@ export default function NuevaInscripcionPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
             Género <span className="text-red-500">*</span>
           </label>
           <select
-            className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
             value={form.genero}
             onChange={(e) => setForm({ ...form, genero: e.target.value })}
           >
@@ -153,12 +165,12 @@ export default function NuevaInscripcionPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
             Editable hasta (opcional)
           </label>
           <input
             type="datetime-local"
-            className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
             value={form.editable_until}
             onChange={(e) =>
               setForm({ ...form, editable_until: e.target.value })
@@ -171,12 +183,12 @@ export default function NuevaInscripcionPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               Mínimo de jugadores
             </label>
             <input
               type="number"
-              className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
               value={form.min_players}
               onChange={(e) =>
                 setForm({
@@ -188,12 +200,12 @@ export default function NuevaInscripcionPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               Máximo de jugadores
             </label>
             <input
               type="number"
-              className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
               value={form.max_players}
               onChange={(e) =>
                 setForm({
@@ -206,22 +218,29 @@ export default function NuevaInscripcionPage() {
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-neutral-800">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => router.back()}
-            className="px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+            className="px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-all shadow-sm hover:shadow-md cursor-pointer"
           >
             Cancelar
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileHover={{ scale: loading ? 1 : 1.05 }}
+            whileTap={{ scale: loading ? 1 : 0.95 }}
             onClick={createInscripcion}
             disabled={loading}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className={cn(
+              "bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2.5 rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 transition-all font-semibold shadow-lg hover:shadow-xl cursor-pointer",
+              loading && "cursor-not-allowed"
+            )}
           >
             {loading ? "Creando..." : "Crear inscripción"}
-          </button>
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

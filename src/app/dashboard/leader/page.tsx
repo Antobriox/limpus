@@ -9,6 +9,7 @@ import { Calendar, Clock, MapPin, Trophy, Users, TrendingUp, Award, Target, File
 import { useState } from "react";
 import RegistrationModal from "./components/RegistrationModal";
 import MatchDetailsModal from "./components/MatchDetailsModal";
+import { motion } from "framer-motion";
 
 export default function LeaderPage() {
   const router = useRouter();
@@ -49,35 +50,57 @@ export default function LeaderPage() {
 
   if (loadingTeam) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-900">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Cargando información del equipo...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full mx-auto mb-4"
+          />
+          <p className="text-gray-600 dark:text-gray-400 font-medium">Cargando información del equipo...</p>
+        </motion.div>
       </div>
     );
   }
 
   if (!teamInfo) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-900">
-        <div className="text-center max-w-md mx-auto px-6">
-          <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center max-w-md mx-auto px-6"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+          >
+            <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          </motion.div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             No tienes un equipo asignado
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
             Contacta con un administrador para que te asigne a un equipo.
           </p>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-neutral-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-6 sm:py-8 px-4 sm:px-6">
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white py-6 sm:py-8 px-4 sm:px-6 shadow-xl"
+      >
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
@@ -86,15 +109,17 @@ export default function LeaderPage() {
                 {teamInfo.careers.length > 0 ? teamInfo.careers.join(" / ") : "Sin carreras"}
               </p>
             </div>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={handleLogout}
-              className="bg-white/20 hover:bg-white/30 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition font-medium text-sm sm:text-base whitespace-nowrap"
+              className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition font-medium text-sm sm:text-base whitespace-nowrap shadow-lg cursor-pointer"
             >
               Cerrar Sesión
-            </button>
+            </motion.button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {/* Estadísticas del Equipo */}
@@ -229,13 +254,9 @@ export default function LeaderPage() {
                 )}
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Capitán</h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  {teamInfo.captain || "Sin capitán asignado"}
-                </p>
                 <button
                   onClick={() => setShowRegistrationModal(true)}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium mt-3 cursor-pointer"
                 >
                   <FileText className="w-4 h-4" />
                   Llenar Inscripción

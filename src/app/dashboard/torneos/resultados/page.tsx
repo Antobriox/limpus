@@ -10,6 +10,9 @@ import { getDisciplineRulesByName } from "../config/disciplineRules";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useQueryClient } from "@tanstack/react-query";
 import ConfirmModal from "../../../../components/ConfirmModal";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { cn } from "../../../../lib/utils";
 
 export default function ResultadosPage() {
   const router = useRouter();
@@ -610,20 +613,28 @@ export default function ResultadosPage() {
     return player ? player.full_name : "Jugador desconocido";
   };
 
+  const [listRef] = useAutoAnimate();
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Header */}
-      <div className="mb-6">
-        <button
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="mb-6"
+      >
+        <motion.button
+          whileHover={{ x: -5 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition-colors"
+          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 mb-4 transition font-medium"
         >
           <ArrowLeft className="w-5 h-5" />
           <span>Volver</span>
-        </button>
+        </motion.button>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-2">
               Publicar Resultados
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
@@ -631,38 +642,63 @@ export default function ResultadosPage() {
             </p>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Información del torneo */}
       {tournament && (
-        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg">
-          <p className="text-sm text-gray-700 dark:text-gray-300">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border border-blue-200 dark:border-blue-900 rounded-xl shadow-sm"
+        >
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
             <strong>Torneo:</strong> {tournament.name}
           </p>
-        </div>
+        </motion.div>
       )}
 
       {/* Lista de partidos programados */}
       {loading ? (
         <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">Cargando partidos...</p>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="inline-block w-8 h-8 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full"
+          />
+          <p className="mt-2 text-gray-600 dark:text-gray-400 font-medium">Cargando partidos...</p>
         </div>
       ) : scheduledMatches.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700">
-          <Trophy className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">No hay partidos programados</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center py-12 bg-white dark:bg-neutral-800 rounded-xl border border-gray-200 dark:border-neutral-700 shadow-lg"
+        >
+          <motion.div
+            animate={{ rotate: [0, 10, -10, 0] }}
+            transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+          >
+            <Trophy className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+          </motion.div>
+          <p className="text-gray-600 dark:text-gray-400 font-medium">No hay partidos programados</p>
+        </motion.div>
       ) : (
-        <div className="space-y-4">
-          {(() => {
-            return scheduledMatches.map((match: Match) => {
+        <div className="space-y-4" ref={listRef}>
+          {scheduledMatches.map((match: Match, index: number) => {
             const scheduledDate = match.scheduled_at ? new Date(match.scheduled_at) : null;
             return (
-              <div
+              <motion.div
                 key={match.id}
-                className="p-4 bg-white dark:bg-neutral-900 rounded-lg border border-gray-200 dark:border-neutral-700 hover:shadow-md transition-shadow"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ y: -4, scale: 1.01 }}
+                className="p-4 bg-white dark:bg-neutral-900 rounded-xl border-2 border-gray-200 dark:border-neutral-700 hover:border-blue-500 dark:hover:border-blue-400 shadow-lg hover:shadow-xl transition-all relative overflow-hidden group"
               >
+                {/* Gradient overlay on hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/5 group-hover:to-purple-500/5 transition-all duration-300 rounded-xl" />
+                
+                <div className="relative z-10">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="mb-3">
@@ -716,44 +752,54 @@ export default function ResultadosPage() {
                     {/* Controles de estado del partido */}
                     <div className="flex flex-wrap items-center gap-2 mt-4">
                       {match.status === "scheduled" || match.status === "pending" ? (
-                        <button
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={(e) => handleStartMatch(match.id, e)}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm whitespace-nowrap"
+                          className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all text-sm whitespace-nowrap font-semibold shadow-md hover:shadow-lg"
                         >
                           Comenzar Partido
-                        </button>
+                        </motion.button>
                       ) : match.status === "in_progress" || match.status === "suspended" ? (
                         <>
                           {match.status === "in_progress" && (
-                            <button
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
                               onClick={(e) => handleHalfTime(match.id, e)}
-                              className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm whitespace-nowrap"
+                              className="px-4 py-2 bg-gradient-to-r from-yellow-600 to-yellow-700 text-white rounded-xl hover:from-yellow-700 hover:to-yellow-800 transition-all text-sm whitespace-nowrap font-semibold shadow-md hover:shadow-lg"
                             >
                               Entretiempo
-                            </button>
+                            </motion.button>
                           )}
                           {match.status === "suspended" && (
-                            <button
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
                               onClick={(e) => handleStartMatch(match.id, e)}
-                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm whitespace-nowrap"
+                              className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all text-sm whitespace-nowrap font-semibold shadow-md hover:shadow-lg"
                             >
                               Reanudar Partido
-                            </button>
+                            </motion.button>
                           )}
-                          <button
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                             onClick={() => handleOpenResultModal(match)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm whitespace-nowrap"
+                            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all text-sm whitespace-nowrap font-semibold shadow-md hover:shadow-lg"
                           >
                             Publicar Resultado
-                          </button>
+                          </motion.button>
                         </>
                       ) : match.status === "finished" ? (
-                        <button
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={() => handleOpenResultModal(match)}
-                          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm whitespace-nowrap"
+                          className="px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all text-sm whitespace-nowrap font-semibold shadow-md hover:shadow-lg"
                         >
                           Ver Resultado
-                        </button>
+                        </motion.button>
                       ) : null}
                       
                       {/* Select para cambiar estado manualmente */}
@@ -779,31 +825,49 @@ export default function ResultadosPage() {
                     </div>
                   </div>
                 </div>
-              </div>
+                </div>
+              </motion.div>
             );
-          });
-          })()}
+          })}
         </div>
       )}
 
       {/* Modal para ingresar resultados */}
-      {showResultModal && selectedMatch && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-2 sm:my-8 mx-2 sm:mx-0">
-            <div className="p-4 sm:p-6">
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white pr-2">
-                  Publicar Resultado
-                </h2>
-                <button
-                  onClick={() => setShowResultModal(false)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0 p-1"
-                >
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+      <AnimatePresence>
+        {showResultModal && selectedMatch && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowResultModal(false)}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto pointer-events-none"
+            >
+              <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-2 sm:my-8 mx-2 sm:mx-0 pointer-events-auto border border-gray-200 dark:border-neutral-700">
+                <div className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between mb-4 sm:mb-6">
+                    <h2 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent pr-2">
+                      Publicar Resultado
+                    </h2>
+                    <motion.button
+                      whileHover={{ scale: 1.1, rotate: 90 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => setShowResultModal(false)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </motion.button>
+                  </div>
 
               {/* Información del partido */}
               <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 dark:bg-neutral-800 rounded-lg">
@@ -1855,23 +1919,29 @@ export default function ResultadosPage() {
 
                   {/* Botones de acción */}
                   <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-neutral-800">
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => setShowResultModal(false)}
-                      className="px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                      className="px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-all shadow-sm hover:shadow-md font-medium"
                     >
                       Cancelar
-                    </button>
-                    <button
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: saving || isFinished ? 1 : 1.05 }}
+                      whileTap={{ scale: saving || isFinished ? 1 : 0.95 }}
                       onClick={handleSaveResult}
                       disabled={saving || isFinished}
-                      className={`px-4 py-2 rounded-lg transition-colors ${
+                      className={cn(
+                        "px-6 py-2.5 rounded-xl transition-all font-semibold shadow-lg hover:shadow-xl",
                         isFinished
                           ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                          : "bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      }`}
+                          : "bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed",
+                        (saving || isFinished) && "cursor-not-allowed"
+                      )}
                     >
                       {saving ? "Guardando..." : isFinished ? "Resultado Finalizado" : "Guardar Resultado"}
-                    </button>
+                    </motion.button>
                   </div>
                       </>
                     );
@@ -1880,8 +1950,10 @@ export default function ResultadosPage() {
               )}
             </div>
           </div>
-        </div>
-      )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Modal de confirmación para publicar resultados */}
       <ConfirmModal

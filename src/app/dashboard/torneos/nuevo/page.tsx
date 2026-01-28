@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import ConfirmModal from "../../../../components/ConfirmModal";
 import AlertModal from "../../../../components/AlertModal";
 import jsPDF from "jspdf";
+import { motion } from "framer-motion";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { cn } from "../../../../lib/utils";
 
 type Sport = {
   id: number;
@@ -703,20 +706,30 @@ export default function NuevoTorneoPage() {
     }
   };
 
+  const [listRef] = useAutoAnimate();
+
   return (
-    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+      >
+        <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
           Nuevo Torneo
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
           Crea un nuevo torneo que incluirá todas las disciplinas disponibles
         </p>
-      </div>
+      </motion.div>
 
       {/* Form */}
-      <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg p-4 sm:p-6 space-y-6 max-w-2xl">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-xl p-4 sm:p-6 space-y-6 max-w-2xl shadow-lg"
+      >
         {/* Nombre del Torneo */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -724,7 +737,7 @@ export default function NuevoTorneoPage() {
           </label>
           <input
             type="text"
-            className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
             placeholder="Ej: Copa Universitaria 2024"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -732,23 +745,32 @@ export default function NuevoTorneoPage() {
         </div>
 
         {/* Información de disciplinas */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <p className="text-sm text-blue-800 dark:text-blue-300">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3 }}
+          className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 shadow-sm"
+        >
+          <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
             <strong>Disciplinas incluidas:</strong> Este torneo incluirá todas las disciplinas registradas ({sports.length} disciplina{sports.length !== 1 ? 's' : ''}).
           </p>
           {sports.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {sports.map((sport) => (
-                <span
+            <div className="mt-2 flex flex-wrap gap-2" ref={listRef}>
+              {sports.map((sport, index) => (
+                <motion.span
                   key={sport.id}
-                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.4 + index * 0.05 }}
+                  whileHover={{ scale: 1.1 }}
+                  className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/40 text-blue-800 dark:text-blue-300 shadow-sm hover:shadow-md transition-all"
                 >
                   {sport.name}
-                </span>
+                </motion.span>
               ))}
             </div>
           )}
-        </div>
+        </motion.div>
 
         {/* Fechas */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -758,7 +780,7 @@ export default function NuevoTorneoPage() {
             </label>
             <input
               type="date"
-              className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
               value={form.start_date}
               onChange={(e) =>
                 setForm({ ...form, start_date: e.target.value })
@@ -767,12 +789,12 @@ export default function NuevoTorneoPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               Fecha de Fin <span className="text-red-500">*</span>
             </label>
             <input
               type="date"
-              className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
               value={form.end_date}
               onChange={(e) =>
                 setForm({ ...form, end_date: e.target.value })
@@ -783,22 +805,29 @@ export default function NuevoTorneoPage() {
 
         {/* Botones */}
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-neutral-800">
-          <button
+          <motion.button
+            whileHover={{ scale: loading ? 1 : 1.05 }}
+            whileTap={{ scale: loading ? 1 : 0.95 }}
             onClick={() => router.back()}
-            className="px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+            className="px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-all shadow-sm hover:shadow-md font-medium"
             disabled={loading}
           >
             Cancelar
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: loading ? 1 : 1.05 }}
+            whileTap={{ scale: loading ? 1 : 0.95 }}
             onClick={createTournament}
             disabled={loading}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className={cn(
+              "bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2.5 rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 transition-all font-semibold shadow-lg hover:shadow-xl",
+              loading && "cursor-not-allowed"
+            )}
           >
             {loading ? "Creando..." : "Crear Torneo"}
-          </button>
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Modal de Confirmación */}
       <ConfirmModal

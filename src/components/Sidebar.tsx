@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Trophy, X } from "lucide-react";
+import { Trophy, X, Users, UsersRound, FileText, History, LogOut } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useUser } from "../hooks/useUser";
+import { motion } from "framer-motion";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { cn } from "../lib/utils";
 
 interface SidebarProps {
   onClose?: () => void;
@@ -16,6 +19,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const router = useRouter();
   const { user } = useUser();
   const [profile, setProfile] = useState<{ full_name: string; email: string } | null>(null);
+  const [parent] = useAutoAnimate();
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -52,11 +56,13 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const itemClass = (path: string) => {
     const isActive = pathname.startsWith(path);
     
-    return `block px-4 py-2 rounded-md transition-colors ${
+    return cn(
+      "relative flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium text-sm",
+      "group overflow-hidden",
       isActive
-        ? "bg-blue-600 text-white"
-        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800"
-    }`;
+        ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/20"
+        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-blue-600 dark:hover:text-blue-400"
+    );
   };
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "Usuario";
@@ -68,57 +74,95 @@ export default function Sidebar({ onClose }: SidebarProps) {
     }
   };
 
+  const navItems = [
+    { href: "/dashboard/torneos", label: "Torneos", icon: Trophy },
+    { href: "/dashboard/usuarios", label: "Usuarios", icon: Users },
+    { href: "/dashboard/equipos", label: "Equipos", icon: UsersRound },
+    { href: "/dashboard/inscripciones", label: "Inscripciones", icon: FileText },
+    { href: "/dashboard/historial", label: "Historial", icon: History },
+  ];
+
   return (
-    <aside className="w-64 sm:w-64 bg-white dark:bg-neutral-900 border-r border-gray-200 dark:border-gray-700 h-screen p-4 flex flex-col">
-      <div className="mb-6 flex items-center justify-between">
+    <motion.aside
+      initial={{ x: -20, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="w-64 sm:w-64 bg-white dark:bg-neutral-900 border-r border-gray-200 dark:border-gray-700 h-screen p-4 flex flex-col shadow-lg"
+    >
+      <motion.div 
+        initial={{ y: -10, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1 }}
+        className="mb-6 flex items-center justify-between"
+      >
         <div className="flex items-center gap-2 font-bold text-lg text-gray-900 dark:text-white">
-          <Trophy className="w-6 h-6" /> Olimpiadas U
+          <motion.div
+            whileHover={{ rotate: 360 }}
+            transition={{ duration: 0.6 }}
+          >
+            <Trophy className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+          </motion.div>
+          <span className="bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">
+            Olimpiadas U
+          </span>
         </div>
         <button
           onClick={onClose}
-          className="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-gray-400"
+          className="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-gray-400 transition-colors"
           aria-label="Cerrar menú"
         >
           <X className="w-5 h-5" />
         </button>
-      </div>
+      </motion.div>
 
-      <nav className="space-y-1 flex-1">
-        <Link href="/dashboard/torneos" className={itemClass("/dashboard/torneos")} onClick={handleLinkClick}>
-          Torneos
-        </Link>
-
-        <Link href="/dashboard/usuarios" className={itemClass("/dashboard/usuarios")} onClick={handleLinkClick}>
-          Usuarios
-        </Link>
-
-        <Link href="/dashboard/equipos" className={itemClass("/dashboard/equipos")} onClick={handleLinkClick}>
-          Equipos
-        </Link>
-
-        <Link
-          href="/dashboard/inscripciones"
-          className={itemClass("/dashboard/inscripciones")}
-          onClick={handleLinkClick}
-        >
-          Inscripciones
-        </Link>
-
-        <Link
-          href="/dashboard/historial"
-          className={itemClass("/dashboard/historial")}
-          onClick={handleLinkClick}
-        >
-          Historial
-        </Link>
+      <nav className="space-y-2 flex-1" ref={parent}>
+        {navItems.map((item, index) => {
+          const Icon = item.icon;
+          const isActive = pathname.startsWith(item.href);
+          
+          return (
+            <motion.div
+              key={item.href}
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.1 + index * 0.05 }}
+            >
+              <Link 
+                href={item.href} 
+                className={itemClass(item.href)} 
+                onClick={handleLinkClick}
+              >
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                <span>{item.label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeIndicator"
+                    className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-500 rounded-lg -z-10"
+                    initial={false}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                )}
+              </Link>
+            </motion.div>
+          );
+        })}
       </nav>
 
       {/* User Profile Section */}
-      <div className="mt-auto border-t border-gray-200 dark:border-gray-700 pt-4">
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="mt-auto border-t border-gray-200 dark:border-gray-700 pt-4"
+      >
         <div className="flex gap-3 items-center mb-4">
-          <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+          <motion.div
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm shadow-lg"
+          >
             {initials}
-          </div>
+          </motion.div>
           <div className="flex flex-col flex-1 min-w-0">
             <p className="text-gray-900 dark:text-white text-base font-medium leading-normal truncate">
               {displayName}
@@ -128,13 +172,16 @@ export default function Sidebar({ onClose }: SidebarProps) {
             </p>
           </div>
         </div>
-        <button
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={logout}
-          className="w-full px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors text-sm font-medium"
+          className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 transition-all text-sm font-medium shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
         >
+          <LogOut className="w-4 h-4" />
           Cerrar sesión
-        </button>
-      </div>
-    </aside>
+        </motion.button>
+      </motion.div>
+    </motion.aside>
   );
 }

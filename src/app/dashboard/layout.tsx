@@ -9,6 +9,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "../../lib/queryClient";
+import { motion } from "framer-motion";
 
 export default function DashboardLayout({
   children,
@@ -69,11 +70,14 @@ export default function DashboardLayout({
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex h-screen bg-gray-50 dark:bg-neutral-950">
+      <div className="flex h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
         {/* Overlay para móviles */}
         {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -90,7 +94,7 @@ export default function DashboardLayout({
         {/* Main Content */}
         <div className="flex flex-col flex-1 overflow-hidden lg:ml-0">
           <Topbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-          <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-neutral-950 min-h-0">
+          <main className="flex-1 overflow-y-auto bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 min-h-0">
             {children}
           </main>
         </div>

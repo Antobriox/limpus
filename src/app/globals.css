@@ -60,3 +60,27 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #404040 #1a1a1a;
 }
+
+/* Cursor pointer para todos los botones y elementos interactivos */
+button,
+[role="button"],
+a[href],
+input[type="submit"],
+input[type="button"],
+input[type="reset"],
+select,
+label[for],
+.motion-button,
+[onclick] {
+  cursor: pointer;
+}
+
+/* Excepciones para elementos deshabilitados */
+button:disabled,
+[role="button"][aria-disabled="true"],
+input[type="submit"]:disabled,
+input[type="button"]:disabled,
+input[type="reset"]:disabled,
+select:disabled {
+  cursor: not-allowed;
+}

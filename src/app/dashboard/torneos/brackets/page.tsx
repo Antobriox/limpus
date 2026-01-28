@@ -7,6 +7,9 @@ import { ArrowLeft, Network } from "lucide-react";
 import { Tournament } from "../types";
 import { useBrackets } from "../hooks/useBrackets";
 import { supabase } from "../../../../lib/supabaseClient";
+import { motion } from "framer-motion";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { cn } from "../../../../lib/utils";
 
 export default function BracketsPage() {
   const router = useRouter();
@@ -113,20 +116,28 @@ export default function BracketsPage() {
   };
 
 
+  const [listRef] = useAutoAnimate();
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Header */}
-      <div className="mb-6">
-        <button
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="mb-6"
+      >
+        <motion.button
+          whileHover={{ x: -5 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition-colors"
+          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 mb-4 transition font-medium cursor-pointer"
         >
           <ArrowLeft className="w-5 h-5" />
           <span>Volver</span>
-        </button>
+        </motion.button>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-2">
               Generar Brackets
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
@@ -134,13 +145,18 @@ export default function BracketsPage() {
             </p>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Selector de disciplina y género */}
-      <div className="mb-6">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="mb-6"
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               Seleccionar Disciplina (para identificar los brackets guardados)
             </label>
             <select
@@ -152,7 +168,7 @@ export default function BracketsPage() {
                 setSelectedGenero(null); // Limpiar género al cambiar disciplina
                 // Los brackets guardados se cargarán automáticamente en el useEffect
               }}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+              className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
             >
               <option value="">Seleccionar disciplina...</option>
               {sports.map((sport) => (
@@ -164,7 +180,7 @@ export default function BracketsPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               Seleccionar Género <span className="text-red-500">*</span>
             </label>
             <select
@@ -174,7 +190,7 @@ export default function BracketsPage() {
                 setSelectedGenero(genero);
                 setBombos([]); // Limpiar brackets al cambiar género
               }}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+              className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
             >
               <option value="">Seleccionar género...</option>
               <option value="masculino">Masculino</option>
@@ -185,11 +201,16 @@ export default function BracketsPage() {
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
           Nota: Los brackets se generan con los equipos que selecciones manualmente, filtrados por género.
         </p>
-      </div>
+      </motion.div>
 
       {/* Información del torneo */}
       {tournament && selectedSport && (
-        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border border-blue-200 dark:border-blue-900 rounded-xl shadow-sm"
+        >
           <p className="text-sm text-gray-700 dark:text-gray-300">
             <strong>Torneo:</strong> {tournament.name}
           </p>
@@ -222,37 +243,50 @@ export default function BracketsPage() {
               )}
             </p>
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* Selección de equipos */}
       {!loadingSaved && bombos.length === 0 && selectedSport && allTeams.length > 0 && (
-        <div className="mb-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mb-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-xl p-4 shadow-lg"
+        >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Seleccionar Equipos para los Brackets
             </h3>
             <div className="flex gap-2">
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={selectAllTeams}
-                className="px-3 py-1 text-sm border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                className="px-3 py-1.5 text-sm border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-all shadow-sm hover:shadow-md font-medium cursor-pointer"
               >
                 Seleccionar Todos
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={deselectAllTeams}
-                className="px-3 py-1 text-sm border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                className="px-3 py-1.5 text-sm border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-all shadow-sm hover:shadow-md font-medium cursor-pointer"
               >
                 Deseleccionar Todos
-              </button>
+              </motion.button>
             </div>
           </div>
           <div className="max-h-96 overflow-y-auto">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {allTeams.map((team) => (
-                <label
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" ref={listRef}>
+              {allTeams.map((team, index) => (
+                <motion.label
                   key={team.id}
-                  className="flex items-center p-3 border border-gray-200 dark:border-neutral-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.02 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="flex items-center p-3 border-2 border-gray-200 dark:border-neutral-700 rounded-xl cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:border-blue-500 dark:hover:border-blue-400 transition-all shadow-sm hover:shadow-md"
                 >
                   <input
                     type="checkbox"
@@ -260,22 +294,27 @@ export default function BracketsPage() {
                     onChange={() => toggleTeamSelection(team.id)}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-neutral-700 dark:border-neutral-600"
                   />
-                  <span className="ml-3 text-sm font-medium text-gray-900 dark:text-white">
+                  <span className="ml-3 text-sm font-semibold text-gray-900 dark:text-white">
                     {team.name}
                   </span>
-                </label>
+                </motion.label>
               ))}
             </div>
           </div>
           <div className="mt-4 text-center">
-            <button
+            <motion.button
+              whileHover={{ scale: selectedTeams.size === 0 || !selectedGenero ? 1 : 1.05 }}
+              whileTap={{ scale: selectedTeams.size === 0 || !selectedGenero ? 1 : 0.95 }}
               onClick={() => generateBombos()}
               disabled={selectedTeams.size === 0 || !selectedGenero}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2 mx-auto"
+              className={cn(
+                "px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center gap-2 mx-auto shadow-lg hover:shadow-xl cursor-pointer",
+                (selectedTeams.size === 0 || !selectedGenero) && "cursor-not-allowed"
+              )}
             >
               <Network className="w-5 h-5" />
               Generar Brackets
-            </button>
+            </motion.button>
             {!selectedGenero && (
               <p className="mt-2 text-sm text-red-600 dark:text-red-400">
                 Debes seleccionar un género para generar los brackets
@@ -287,45 +326,72 @@ export default function BracketsPage() {
               </p>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Mensaje de carga */}
       {loadingSaved && (
-        <div className="mb-6 text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">Cargando brackets guardados...</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mb-6 text-center"
+        >
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="inline-block w-8 h-8 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full"
+          />
+          <p className="mt-2 text-gray-600 dark:text-gray-400 font-medium">Cargando brackets guardados...</p>
+        </motion.div>
       )}
 
       {/* Bombos generados */}
       {!loadingSaved && bombos.length > 0 && (
-        <div className="mb-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="mb-6"
+        >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Fases de Grupo (Bombos)
             </h3>
             {savedDrawId && (
-              <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm font-medium">
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="px-3 py-1 bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/30 text-green-700 dark:text-green-300 rounded-full text-sm font-semibold shadow-sm"
+              >
                 ✓ Brackets Guardados
-              </span>
+              </motion.span>
             )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" ref={listRef}>
             {bombos.map((bombo, bomboIndex) => (
-              <div
+              <motion.div
                 key={bomboIndex}
-                className={`border border-gray-200 dark:border-neutral-800 rounded-lg p-4 bg-gray-50 dark:bg-neutral-800 min-h-[200px] ${savedDrawId ? '' : ''}`}
-                onDragOver={savedDrawId ? undefined : (e) => {
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.6 + bomboIndex * 0.1 }}
+                whileHover={{ y: -4, scale: 1.02 }}
+                className={`border-2 border-gray-200 dark:border-neutral-800 rounded-xl p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-neutral-800 dark:to-neutral-700 min-h-[200px] shadow-lg hover:shadow-xl transition-all ${savedDrawId ? '' : ''}`}
+                onDragOver={savedDrawId ? undefined : (e: React.DragEvent<HTMLDivElement>) => {
                   e.preventDefault();
-                  e.currentTarget.classList.add("bg-blue-50", "dark:bg-blue-950/20");
+                  if (e.currentTarget) {
+                    e.currentTarget.classList.add("bg-blue-50", "dark:bg-blue-950/20");
+                  }
                 }}
-                onDragLeave={savedDrawId ? undefined : (e) => {
-                  e.currentTarget.classList.remove("bg-blue-50", "dark:bg-blue-950/20");
+                onDragLeave={savedDrawId ? undefined : (e: React.DragEvent<HTMLDivElement>) => {
+                  if (e.currentTarget) {
+                    e.currentTarget.classList.remove("bg-blue-50", "dark:bg-blue-950/20");
+                  }
                 }}
-                onDrop={savedDrawId ? undefined : (e) => {
+                onDrop={savedDrawId ? undefined : (e: React.DragEvent<HTMLDivElement>) => {
                   e.preventDefault();
-                  e.currentTarget.classList.remove("bg-blue-50", "dark:bg-blue-950/20");
+                  if (e.currentTarget) {
+                    e.currentTarget.classList.remove("bg-blue-50", "dark:bg-blue-950/20");
+                  }
                   
                   const draggedTeamId = parseInt(e.dataTransfer.getData("teamId"));
                   const sourceBomboIndex = parseInt(e.dataTransfer.getData("sourceBomboIndex"));
@@ -359,48 +425,71 @@ export default function BracketsPage() {
                     {bombo.length} {bombo.length === 1 ? "equipo" : "equipos"}
                   </p>
                 </div>
-                <div className="space-y-2">
-                  {bombo.map((team) => (
-                    <div
+                <div className="space-y-2" ref={listRef}>
+                  {bombo.map((team, teamIndex) => (
+                    <motion.div
                       key={team.id}
-                      draggable={!savedDrawId}
-                      onDragStart={savedDrawId ? undefined : (e) => {
-                        e.dataTransfer.setData("teamId", team.id.toString());
-                        e.dataTransfer.setData("sourceBomboIndex", bomboIndex.toString());
-                        e.currentTarget.style.opacity = "0.5";
-                      }}
-                      onDragEnd={savedDrawId ? undefined : (e) => {
-                        e.currentTarget.style.opacity = "1";
-                      }}
-                      className={`p-2 bg-white dark:bg-neutral-900 rounded border border-gray-200 dark:border-neutral-700 transition-colors ${
-                        savedDrawId 
-                          ? "cursor-default" 
-                          : "cursor-move hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:border-blue-300 dark:hover:border-blue-700"
-                      }`}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.7 + bomboIndex * 0.1 + teamIndex * 0.05 }}
+                      whileHover={savedDrawId ? {} : { scale: 1.05, x: 5 }}
                     >
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        {team.name}
-                      </p>
-                    </div>
+                      <div
+                        draggable={!savedDrawId}
+                        onDragStart={savedDrawId ? undefined : (e: React.DragEvent<HTMLDivElement>) => {
+                          e.dataTransfer.setData("teamId", team.id.toString());
+                          e.dataTransfer.setData("sourceBomboIndex", bomboIndex.toString());
+                          if (e.currentTarget) {
+                            (e.currentTarget as HTMLDivElement).style.opacity = "0.5";
+                          }
+                        }}
+                        onDragEnd={savedDrawId ? undefined : (e: React.DragEvent<HTMLDivElement>) => {
+                          if (e.currentTarget) {
+                            (e.currentTarget as HTMLDivElement).style.opacity = "1";
+                          }
+                        }}
+                        className={cn(
+                          "p-3 bg-white dark:bg-neutral-900 rounded-xl border-2 transition-all shadow-sm hover:shadow-md",
+                          savedDrawId 
+                            ? "cursor-default border-gray-200 dark:border-neutral-700" 
+                            : "cursor-move hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:border-blue-300 dark:hover:border-blue-700"
+                        )}
+                      >
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {team.name}
+                        </p>
+                      </div>
+                    </motion.div>
                   ))}
                   {bombo.length === 0 && (
-                    <div className="p-4 text-center text-sm text-gray-400 dark:text-gray-500 border-2 border-dashed border-gray-300 dark:border-neutral-700 rounded">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="p-4 text-center text-sm text-gray-400 dark:text-gray-500 border-2 border-dashed border-gray-300 dark:border-neutral-700 rounded-xl"
+                    >
                       Arrastra equipos aquí
-                    </div>
+                    </motion.div>
                   )}
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Botones de acción */}
       {!loadingSaved && bombos.length > 0 && (
-        <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-neutral-800">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="flex flex-col sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-neutral-800"
+        >
           {savedDrawId ? (
             // Si hay brackets guardados, solo mostrar "Limpiar" (eliminar)
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={async () => {
                 // Confirmación eliminada
                 {
@@ -411,30 +500,40 @@ export default function BracketsPage() {
                   }
                 }
               }}
-              className="px-4 py-2 border border-red-300 dark:border-red-700 rounded-lg bg-white dark:bg-neutral-800 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              className="px-4 py-2.5 border-2 border-red-300 dark:border-red-700 rounded-xl bg-white dark:bg-neutral-800 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all shadow-sm hover:shadow-md font-medium"
             >
               Limpiar (Eliminar)
-            </button>
+            </motion.button>
           ) : (
             // Si no hay brackets guardados, mostrar opciones para generar nuevos
             <>
-              <button
+              <motion.button
+                whileHover={{ scale: !selectedGenero ? 1 : 1.05 }}
+                whileTap={{ scale: !selectedGenero ? 1 : 0.95 }}
                 onClick={() => generateBombos()}
                 disabled={!selectedGenero}
-                className="px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={cn(
+                    "px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-all shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer",
+                    !selectedGenero && "cursor-not-allowed"
+                  )}
               >
                 Regenerar
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: generating || !selectedGenero ? 1 : 1.05 }}
+                whileTap={{ scale: generating || !selectedGenero ? 1 : 0.95 }}
                 onClick={handleSave}
                 disabled={generating || !selectedGenero}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={cn(
+                    "px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl cursor-pointer",
+                    (generating || !selectedGenero) && "cursor-not-allowed"
+                  )}
               >
                 {generating ? "Guardando..." : "Guardar Brackets"}
-              </button>
+              </motion.button>
             </>
           )}
-        </div>
+        </motion.div>
       )}
     </div>
   );

@@ -5,40 +5,57 @@ import Link from "next/link";
 import { useRegistrationForms } from "./hooks/useRegistrationForms";
 import ViewRegistrationsModal from "./components/ViewRegistrationsModal";
 import { Eye } from "lucide-react";
+import { motion } from "framer-motion";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 
 export default function InscripcionesPage() {
   // Usar el hook con TanStack Query - los datos se cargan automáticamente y se cachean
   const { forms, loading, toggleStatus, deleteForm } = useRegistrationForms();
   const [selectedForm, setSelectedForm] = useState<{ id: number; name: string } | null>(null);
 
+  const [listRef] = useAutoAnimate();
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64 text-gray-400">
-        Cargando formularios…
+      <div className="flex justify-center items-center h-64 text-gray-400 dark:text-gray-500">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full"
+        />
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+      >
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
             Formularios de Inscripción
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Gestiona las inscripciones por deporte
           </p>
         </div>
 
-        <Link
-          href="/dashboard/inscripciones/nueva"
-          className="bg-blue-600 hover:bg-blue-700 transition text-white px-4 sm:px-5 py-2 rounded-lg text-sm font-medium whitespace-nowrap"
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
-          + Nueva inscripción
-        </Link>
-      </div>
+          <Link
+            href="/dashboard/inscripciones/nueva"
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition text-white px-4 sm:px-5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap shadow-lg hover:shadow-xl"
+          >
+            + Nueva inscripción
+          </Link>
+        </motion.div>
+      </motion.div>
 
       {/* Empty state */}
       {forms.length === 0 && (
@@ -49,25 +66,33 @@ export default function InscripcionesPage() {
 
       {/* Table */}
       {forms.length > 0 && (
-        <div className="bg-white border border-gray-200 dark:bg-neutral-900 dark:border-neutral-800 rounded-lg overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white border border-gray-200 dark:bg-neutral-900 dark:border-neutral-800 rounded-xl overflow-hidden shadow-lg"
+        >
           <div className="overflow-x-auto -mx-4 sm:mx-0">
             <table className="w-full text-sm min-w-[800px]">
-              <thead className="bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-gray-300">
+              <thead className="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-neutral-800 dark:to-neutral-700 text-gray-700 dark:text-gray-300">
                 <tr>
-                  <th className="px-4 sm:px-6 py-3 text-left">Nombre</th>
-                  <th className="px-4 sm:px-6 py-3 text-center">Género</th>
-                  <th className="px-4 sm:px-6 py-3 text-center">Jugadores</th>
-                  <th className="px-4 sm:px-6 py-3 text-center">Editable hasta</th>
-                  <th className="px-4 sm:px-6 py-3 text-center">Estado</th>
-                  <th className="px-4 sm:px-6 py-3 text-right">Acciones</th>
+                  <th className="px-4 sm:px-6 py-3 text-left font-semibold">Nombre</th>
+                  <th className="px-4 sm:px-6 py-3 text-center font-semibold">Género</th>
+                  <th className="px-4 sm:px-6 py-3 text-center font-semibold">Jugadores</th>
+                  <th className="px-4 sm:px-6 py-3 text-center font-semibold">Editable hasta</th>
+                  <th className="px-4 sm:px-6 py-3 text-center font-semibold">Estado</th>
+                  <th className="px-4 sm:px-6 py-3 text-right font-semibold">Acciones</th>
                 </tr>
               </thead>
 
-            <tbody>
-              {forms.map((f) => (
-                <tr
+            <tbody ref={listRef}>
+              {forms.map((f, index) => (
+                <motion.tr
                   key={f.id}
-                  className="border-t border-gray-200 dark:border-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="border-b border-gray-200 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
                 >
                   <td className="px-4 sm:px-6 py-3 font-medium text-gray-900 dark:text-white">
                     {f.name}
@@ -114,42 +139,50 @@ export default function InscripcionesPage() {
                   </td>
 
                   <td className="px-4 sm:px-6 py-3 text-right space-x-2 sm:space-x-3">
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
                       onClick={() => setSelectedForm({ id: f.id, name: f.name })}
-                      className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 transition text-xs sm:text-sm"
+                      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition text-xs sm:text-sm font-medium cursor-pointer"
                       title="Ver equipos inscritos"
                     >
                       <Eye className="w-4 h-4" />
                       Ver
-                    </button>
+                    </motion.button>
 
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
                       onClick={() => toggleStatus(f.id, f.is_locked)}
-                      className="text-blue-400 hover:text-blue-300 transition text-xs sm:text-sm"
+                      className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition text-xs sm:text-sm font-medium cursor-pointer"
                     >
                       {f.is_locked ? "Abrir" : "Cerrar"}
-                    </button>
+                    </motion.button>
 
-                    <a
+                    <motion.a
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
                       href={`/dashboard/inscripciones/${f.id}`}
-                      className="text-yellow-400 hover:text-yellow-300 transition text-xs sm:text-sm"
+                      className="text-yellow-600 hover:text-yellow-500 dark:text-yellow-400 dark:hover:text-yellow-300 transition text-xs sm:text-sm font-medium cursor-pointer"
                     >
                       Editar
-                    </a>
+                    </motion.a>
 
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
                       onClick={() => deleteForm(f.id)}
-                      className="text-red-400 hover:text-red-300 transition text-xs sm:text-sm"
+                      className="text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 transition text-xs sm:text-sm font-medium cursor-pointer"
                     >
                       Eliminar
-                    </button>
+                    </motion.button>
                   </td>
-                </tr>
+                </motion.tr>
               ))}
             </tbody>
           </table>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Modal para ver inscripciones */}

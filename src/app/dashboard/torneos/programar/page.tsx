@@ -3,6 +3,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Printer, Plus, Search, Calendar, ChevronDown, X, Clock } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { cn } from "../../../../lib/utils";
 
 // Tipos para datos de Supabase
 type SupabaseDrawResult = {
@@ -1008,13 +1011,19 @@ export default function ProgramarPartidosPage() {
     }
   };
 
+  const [listRef] = useAutoAnimate();
+
   return (
-    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Header */}
-      <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg p-6">
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-xl p-6 shadow-lg"
+      >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-1">
               Programación de Partidos
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -1022,31 +1031,40 @@ export default function ProgramarPartidosPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={exportCalendarToPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-neutral-800 border-2 border-gray-300 dark:border-neutral-700 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-all shadow-sm hover:shadow-md font-medium cursor-pointer"
             >
               <Printer className="w-4 h-4" />
               <span>Exportar Calendario</span>
-            </button>
-            <button
-                onClick={async () => {
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={async () => {
                 // Recargar deportes y administradores antes de abrir el modal
                 await loadSports();
                 await loadAdministrators();
                 setShowNewMatchModal(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all font-semibold shadow-lg hover:shadow-xl cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Crear Nuevo Partido</span>
-            </button>
+            </motion.button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Barra de Filtros */}
-      <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg p-4 shadow-sm">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-xl p-4 shadow-lg"
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* DISCIPLINA */}
           <div>
@@ -1135,36 +1153,57 @@ export default function ProgramarPartidosPage() {
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Modal Editar Partido */}
-      {showEditMatchModal && selectedMatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto mx-2 sm:mx-0 my-2 sm:my-4">
-            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-neutral-800">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white pr-2">
-                  Editar Partido: {selectedMatch.teams?.name || "Equipo A"} vs{" "}
-                  {selectedMatch.teams1?.name || "Equipo B"}
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowEditMatchModal(false);
-                    setSelectedMatch(null);
-                    setScheduleForm({
-                      scheduled_at: "",
-                      referee: "",
-                      assistant: "",
-                      status: "",
-                      field: "",
-                    });
-                  }}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0 p-1"
-                >
-                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
-                </button>
-              </div>
-            </div>
+      <AnimatePresence>
+        {showEditMatchModal && selectedMatch && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowEditMatchModal(false);
+                setSelectedMatch(null);
+              }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto pointer-events-none"
+            >
+              <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto mx-2 sm:mx-0 my-2 sm:my-4 pointer-events-auto border border-gray-200 dark:border-neutral-700">
+                <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-neutral-800">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-lg sm:text-xl font-semibold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent pr-2">
+                      Editar Partido: {selectedMatch.teams?.name || "Equipo A"} vs{" "}
+                      {selectedMatch.teams1?.name || "Equipo B"}
+                    </h2>
+                    <motion.button
+                      whileHover={{ scale: 1.1, rotate: 90 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => {
+                        setShowEditMatchModal(false);
+                        setSelectedMatch(null);
+                        setScheduleForm({
+                          scheduled_at: "",
+                          referee: "",
+                          assistant: "",
+                          status: "",
+                          field: "",
+                        });
+                      }}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                    </motion.button>
+                  </div>
+                </div>
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1274,14 +1313,21 @@ export default function ProgramarPartidosPage() {
                 </div>
               </div>
               <div className="flex gap-3 mt-6">
-                <button
+                <motion.button
+                  whileHover={{ scale: savingSchedule || !scheduleForm.scheduled_at ? 1 : 1.05 }}
+                  whileTap={{ scale: savingSchedule || !scheduleForm.scheduled_at ? 1 : 0.95 }}
                   onClick={handleSchedule}
                   disabled={savingSchedule || !scheduleForm.scheduled_at}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={cn(
+                    "px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl",
+                    (savingSchedule || !scheduleForm.scheduled_at) && "cursor-not-allowed"
+                  )}
                 >
                   {savingSchedule ? "Guardando..." : "Guardar Cambios"}
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => {
                     setShowEditMatchModal(false);
                     setSelectedMatch(null);
@@ -1293,49 +1339,69 @@ export default function ProgramarPartidosPage() {
                       field: "",
                     });
                   }}
-                  className="px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                  className="px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-all shadow-sm hover:shadow-md font-medium"
                 >
                   Cancelar
-                </button>
+                </motion.button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Partidos Pendientes - Solo se muestra si hay partidos pendientes */}
-      {pendingMatches.length > 0 && (
-        <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-neutral-800">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Partidos Pendientes ({pendingMatches.length})
-            </h2>
-          </div>
-          <div className="p-4 sm:p-6">
-            <div className="space-y-2">
-              {pendingMatches.map((match) => (
-                <div
-                  key={match.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors"
-                >
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                    {match.teams?.name || "Equipo A"} vs {match.teams1?.name || "Equipo B"}
-                  </div>
-                  <button
-                    onClick={() => handleSelectMatch(match)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                  >
-                    Programar
-                  </button>
-                </div>
-              ))}
+      <AnimatePresence>
+        {pendingMatches.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-lg"
+          >
+            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-neutral-800">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Partidos Pendientes ({pendingMatches.length})
+              </h2>
             </div>
-          </div>
-        </div>
-      )}
+            <div className="p-4 sm:p-6">
+              <div className="space-y-2" ref={listRef}>
+                {pendingMatches.map((match, index) => (
+                  <motion.div
+                    key={match.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ scale: 1.02, x: 5 }}
+                    className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-neutral-800 dark:to-neutral-700 rounded-xl border-2 border-gray-200 dark:border-neutral-700 hover:border-blue-500 dark:hover:border-blue-400 transition-all shadow-sm hover:shadow-md"
+                  >
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {match.teams?.name || "Equipo A"} vs {match.teams1?.name || "Equipo B"}
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleSelectMatch(match)}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all text-sm font-semibold shadow-md hover:shadow-lg"
+                    >
+                      Programar
+                    </motion.button>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Partidos Programados */}
-      <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg overflow-hidden">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-lg"
+      >
         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-neutral-800">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Partidos Programados ({scheduledMatches.length})
@@ -1343,8 +1409,8 @@ export default function ProgramarPartidosPage() {
         </div>
         <div className="p-4 sm:p-6">
           {scheduledMatches.length > 0 ? (
-            <div className="space-y-2">
-              {scheduledMatches.map((match: Match) => {
+            <div className="space-y-2" ref={listRef}>
+              {scheduledMatches.map((match: Match, index: number) => {
                 const scheduledDate = match.scheduled_at
                   ? new Date(match.scheduled_at)
                   : null;
@@ -1355,9 +1421,13 @@ export default function ProgramarPartidosPage() {
                 // El estado del partido se muestra directamente en el JSX más abajo
 
                 return (
-                  <div
+                  <motion.div
                     key={match.id}
-                    className="p-4 bg-gray-50 dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ scale: 1.01, y: -4 }}
+                    className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-neutral-800 dark:to-neutral-700 rounded-xl border-2 border-gray-200 dark:border-neutral-700 hover:border-blue-500 dark:hover:border-blue-400 transition-all shadow-sm hover:shadow-lg"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
@@ -1451,61 +1521,87 @@ export default function ProgramarPartidosPage() {
 
                       {/* Botones de Acción */}
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                        <button
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={() => handleSelectMatch(match)}
-                          className="px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors text-sm whitespace-nowrap"
+                          className="px-4 py-2 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-all text-sm whitespace-nowrap shadow-sm hover:shadow-md font-medium"
                         >
                           Editar
-                        </button>
-                        <button
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={() => handleDeleteMatch(match.id)}
-                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm whitespace-nowrap"
+                          className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all text-sm whitespace-nowrap shadow-md hover:shadow-lg font-semibold"
                         >
                           Eliminar
-                        </button>
+                        </motion.button>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
           ) : (
-            <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-8">
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-gray-500 dark:text-gray-400 text-sm text-center py-8"
+            >
               No hay partidos programados
-            </p>
+            </motion.p>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* Modal para Crear Nuevo Partido */}
-      {showNewMatchModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-neutral-900 rounded-lg p-4 sm:p-6 max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto mx-2 sm:mx-0 my-2 sm:my-4">
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white pr-2">
-                Crear Nuevo Partido
-              </h2>
-              <button
-                onClick={() => {
-                  setShowNewMatchModal(false);
-                  setNewMatchForm({
-                    disciplina: "",
-                    bombo: "",
-                    team_a: "",
-                    team_b: "",
-                    scheduled_at: "",
-                    status: "",
-                    referee: "",
-                    assistant: "",
-                    cancha: "",
-                    genero: "",
-                  });
-                }}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors flex-shrink-0"
-              >
-                <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              </button>
-            </div>
+      <AnimatePresence>
+        {showNewMatchModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowNewMatchModal(false)}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto pointer-events-none"
+            >
+              <div className="bg-white dark:bg-neutral-900 rounded-2xl p-4 sm:p-6 max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto mx-2 sm:mx-0 my-2 sm:my-4 pointer-events-auto border border-gray-200 dark:border-neutral-700 shadow-2xl">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-semibold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent pr-2">
+                    Crear Nuevo Partido
+                  </h2>
+                  <motion.button
+                    whileHover={{ scale: 1.1, rotate: 90 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                      setShowNewMatchModal(false);
+                      setNewMatchForm({
+                        disciplina: "",
+                        bombo: "",
+                        team_a: "",
+                        team_b: "",
+                        scheduled_at: "",
+                        status: "",
+                        referee: "",
+                        assistant: "",
+                        cancha: "",
+                        genero: "",
+                      });
+                    }}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors flex-shrink-0"
+                  >
+                    <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                  </motion.button>
+                </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Disciplina */}
@@ -1764,14 +1860,21 @@ export default function ProgramarPartidosPage() {
             </div>
 
             <div className="flex gap-3 mt-6">
-              <button
+              <motion.button
+                whileHover={{ scale: creatingMatch || !newMatchForm.disciplina || !newMatchForm.genero || !newMatchForm.team_a || !newMatchForm.team_b ? 1 : 1.05 }}
+                whileTap={{ scale: creatingMatch || !newMatchForm.disciplina || !newMatchForm.genero || !newMatchForm.team_a || !newMatchForm.team_b ? 1 : 0.95 }}
                 onClick={handleCreateMatch}
                 disabled={creatingMatch || !newMatchForm.disciplina || !newMatchForm.genero || !newMatchForm.team_a || !newMatchForm.team_b}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className={cn(
+                  "px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl",
+                  (creatingMatch || !newMatchForm.disciplina || !newMatchForm.genero || !newMatchForm.team_a || !newMatchForm.team_b) && "cursor-not-allowed"
+                )}
               >
                 {creatingMatch ? "Creando..." : "Crear Partido"}
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setShowNewMatchModal(false);
                   setNewMatchForm({
@@ -1787,14 +1890,16 @@ export default function ProgramarPartidosPage() {
                     genero: "",
                   });
                 }}
-                className="px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                className="px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-all shadow-sm hover:shadow-md font-medium"
               >
                 Cancelar
-              </button>
+              </motion.button>
             </div>
           </div>
-        </div>
-      )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -4,7 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "../../lib/supabaseClient";
-import { Eye, EyeOff, GraduationCap, Mail } from "lucide-react";
+import { Eye, EyeOff, GraduationCap, Mail, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { cn } from "../../lib/utils";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -26,19 +29,27 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setError("Correo o contraseña incorrectos");
+      const errorMessage = "Correo o contraseña incorrectos";
+      setError(errorMessage);
+      toast.error(errorMessage);
       setLoading(false);
       return;
     }
 
+    toast.success("¡Bienvenido de nuevo!");
     // 👉 una vez logeado, vamos a /
     router.replace("/");
   };
 
   return (
-    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 font-display">
+    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 font-display bg-gradient-to-br from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900">
       {/* LEFT PANEL */}
-      <div className="relative hidden md:flex flex-col justify-center bg-[#0d0f15] p-8 lg:p-10 text-white">
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative hidden md:flex flex-col justify-center bg-gradient-to-br from-[#0d0f15] to-[#1a1d26] p-8 lg:p-10 text-white overflow-hidden"
+      >
         <div className="absolute inset-0">
           <Image
             src="/img/login-bg.png"
@@ -46,85 +57,124 @@ export default function LoginPage() {
             className="object-cover opacity-20"
             alt="Olimpiadas Universitarias"
           />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10" />
         </div>
 
-        <div className="relative z-10 max-w-md space-y-4 lg:space-y-6">
-          <div className="flex items-center gap-3">
-            <GraduationCap className="w-8 h-8 lg:w-10 lg:h-10" />
-            <span className="text-xl lg:text-2xl font-bold tracking-tight">
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="relative z-10 max-w-md space-y-4 lg:space-y-6"
+        >
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="flex items-center gap-3"
+          >
+            <motion.div
+              whileHover={{ rotate: 360 }}
+              transition={{ duration: 0.6 }}
+            >
+              <GraduationCap className="w-8 h-8 lg:w-10 lg:h-10 text-blue-400" />
+            </motion.div>
+            <span className="text-xl lg:text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
               Olimpiadas Universitarias
             </span>
-          </div>
+          </motion.div>
 
           <h1 className="text-3xl lg:text-4xl font-black leading-tight">
             La plataforma para la próxima generación de líderes.
           </h1>
 
-          <p className="text-gray-300 text-sm lg:text-base">
+          <p className="text-gray-300 text-sm lg:text-base leading-relaxed">
             Accede a tus eventos, gestiona equipos y compite al más alto nivel
             académico y deportivo.
           </p>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* RIGHT PANEL */}
-      <div className="flex items-center justify-center bg-white dark:bg-[#18181B] px-4 sm:px-6 py-8 sm:py-12">
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12"
+      >
         <div className="w-full max-w-md space-y-6 sm:space-y-8">
           {/* Header */}
-          <div>
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white">
+          <motion.div
+            initial={{ y: -10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <h2 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
               Bienvenido de nuevo
             </h2>
-            <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-2">
               Accede a la Plataforma de Olimpiadas Universitarias
             </p>
-          </div>
+          </motion.div>
 
           {/* Form */}
-          <form onSubmit={login} className="space-y-4 sm:space-y-6">
+          <motion.form
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            onSubmit={login}
+            className="space-y-4 sm:space-y-6"
+          >
             {/* Email */}
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-white">
                 Correo Electrónico
               </label>
-              <div className="flex rounded-lg border border-gray-300 dark:border-neutral-700 overflow-hidden focus-within:border-blue-600 dark:focus-within:border-blue-500">
+              <div className="flex rounded-xl border-2 border-gray-300 dark:border-neutral-700 overflow-hidden focus-within:border-blue-600 dark:focus-within:border-blue-500 transition-all shadow-sm hover:shadow-md">
                 <input
                   type="email"
                   required
                   placeholder="correo@universidad.edu"
-                  className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base"
+                  className="flex-1 px-4 py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
-                <div className="flex items-center px-3 sm:px-4 text-gray-400 dark:text-gray-500">
-                  <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
+                <div className="flex items-center px-4 text-blue-600 dark:text-blue-400">
+                  <Mail className="w-5 h-5" />
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Password */}
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.5 }}
+            >
+              <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-white">
                 Contraseña
               </label>
-              <div className="flex rounded-lg border border-gray-300 dark:border-neutral-700 overflow-hidden focus-within:border-blue-600 dark:focus-within:border-blue-500">
+              <div className="flex rounded-xl border-2 border-gray-300 dark:border-neutral-700 overflow-hidden focus-within:border-blue-600 dark:focus-within:border-blue-500 transition-all shadow-sm hover:shadow-md">
                 <input
                   type={showPassword ? "text" : "password"}
                   required
                   placeholder="Ingresa tu contraseña"
-                  className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base"
+                  className="flex-1 px-4 py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
-                <button
+                <motion.button
                   type="button"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => setShowPassword(!showPassword)}
-                  className="px-3 sm:px-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                  className="px-4 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
-                </button>
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </motion.button>
               </div>
-            </div>
+            </motion.div>
 
             {/* Remember + Forgot */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
@@ -146,41 +196,70 @@ export default function LoginPage() {
 
             {/* Error */}
             {error && (
-              <p className="text-red-600 text-sm">{error}</p>
+              <motion.p
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-red-600 dark:text-red-400 text-sm font-medium bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800"
+              >
+                {error}
+              </motion.p>
             )}
 
             {/* Submit */}
-            <button
+            <motion.button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-blue-600 py-3 sm:py-4 font-bold text-white hover:bg-blue-700 transition text-sm sm:text-base disabled:opacity-50"
+              whileHover={{ scale: loading ? 1 : 1.02 }}
+              whileTap={{ scale: loading ? 1 : 0.98 }}
+              className={cn(
+                "w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 py-3.5 sm:py-4 font-bold text-white",
+                "hover:from-blue-700 hover:to-blue-800 transition-all text-sm sm:text-base",
+                "disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl cursor-pointer"
+              )}
             >
-              {loading ? "Ingresando..." : "Ingresar"}
-            </button>
-          </form>
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Ingresando...
+                </span>
+              ) : (
+                "Ingresar"
+              )}
+            </motion.button>
+          </motion.form>
 
           {/* Footer */}
-          <div className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400"
+          >
             ¿No tienes una cuenta?{" "}
-            <a href="/registro" className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
+            <a href="/registro" className="text-blue-600 dark:text-blue-400 font-semibold hover:underline transition-colors">
               Regístrate aquí
             </a>
-          </div>
+          </motion.div>
 
-          <footer className="pt-4 sm:pt-6 text-center text-xs text-gray-400 dark:text-gray-500">
+          <motion.footer
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7 }}
+            className="pt-4 sm:pt-6 text-center text-xs text-gray-400 dark:text-gray-500"
+          >
             © 2025 Limpus
             <div className="mt-2 flex flex-wrap justify-center gap-2 sm:gap-4">
-              <a href="#" className="hover:underline">
+              <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                 Términos
               </a>
               <span>•</span>
-              <a href="#" className="hover:underline">
+              <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                 Soporte Técnico
               </a>
             </div>
-          </footer>
+          </motion.footer>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
