@@ -189,47 +189,140 @@ export const useMatches = (tournament: Tournament | null) => {
         id: number;
         name: string;
       };
-      const refereeRole = rolesData?.find(
-        (r: SupabaseRole) =>
-          r.name.toLowerCase().includes("arbitro") ||
-          r.name.toLowerCase().includes("árbitro") ||
-          r.name.toLowerCase() === "arbitro"
+      
+      console.log("Todos los roles encontrados:", rolesData);
+      
+      // Buscar el rol de árbitro (más flexible)
+      // Primero intentar por ID (3 = Árbitro según el código)
+      let refereeRole = rolesData?.find((r: SupabaseRole) => r.id === 3);
+      
+      // Si no se encuentra por ID, buscar por nombre
+      if (!refereeRole) {
+        refereeRole = rolesData?.find(
+          (r: SupabaseRole) => {
+            const nameLower = r.name.toLowerCase();
+            return (
+              nameLower.includes("arbitro") ||
+              nameLower.includes("árbitro") ||
+              nameLower === "arbitro" ||
+              nameLower === "árbitro"
+            );
+          }
+        );
+      }
+
+      console.log("Rol de árbitro encontrado:", refereeRole);
+
+      // Buscar el rol de líder de equipo para excluirlo
+      const leaderRole = rolesData?.find(
+        (r: SupabaseRole) => {
+          const nameLower = r.name.toLowerCase();
+          return (
+            nameLower === "lider_equipo" ||
+            nameLower === "líder de equipo" ||
+            nameLower === "lider de equipo" ||
+            nameLower.includes("lider") ||
+            nameLower.includes("líder")
+          );
+        }
       );
 
+      console.log("Rol de líder encontrado:", leaderRole);
+
+      // Función para filtrar árbitros inválidos
+      const filterValidReferees = (profiles: Array<{ id: string; full_name: string | null; email: string | null }> | null) => {
+        if (!profiles) return [];
+        return profiles.filter((profile) => {
+          const name = profile.full_name?.trim().toLowerCase() || "";
+          // Excluir nombres que sean placeholders o vacíos
+          return (
+            name !== "" &&
+            name !== "seleccionar árbitro" &&
+            name !== "seleccionar arbitro" &&
+            name !== "seleccionar" &&
+            profile.id !== ""
+          );
+        });
+      };
+
+      // Si no hay rol de árbitro, no cargar nada
       if (!refereeRole) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name, email")
-          .order("full_name");
-        setReferees(profiles || []);
+        console.warn("No se encontró el rol de árbitro. Roles disponibles:", rolesData);
+        setReferees([]);
         return;
       }
 
-      const { data: userRoles } = await supabase
+      // Obtener solo usuarios con rol de árbitro
+      const { data: userRoles, error: userRolesError } = await supabase
         .from("user_roles")
         .select("user_id")
         .eq("role_id", refereeRole.id);
 
+      if (userRolesError) {
+        console.error("Error obteniendo user_roles:", userRolesError);
+        setReferees([]);
+        return;
+      }
+
       type SupabaseUserRole = {
         user_id: string;
       };
+      
+      console.log("User roles con rol de árbitro:", userRoles);
+      
       if (userRoles && userRoles.length > 0) {
         const userIds = (userRoles as SupabaseUserRole[]).map((ur: SupabaseUserRole) => ur.user_id);
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name, email")
-          .in("id", userIds)
-          .order("full_name");
-        setReferees(profiles || []);
+        
+        // Si hay rol de líder, excluir esos usuarios también
+        let userIdsToExclude: string[] = [];
+        if (leaderRole) {
+          const { data: leaderUserRoles } = await supabase
+            .from("user_roles")
+            .select("user_id")
+            .eq("role_id", leaderRole.id);
+          
+          if (leaderUserRoles) {
+            userIdsToExclude = (leaderUserRoles as SupabaseUserRole[]).map((ur: SupabaseUserRole) => ur.user_id);
+            console.log("IDs de líderes de equipo a excluir:", userIdsToExclude);
+          }
+        }
+        
+        // Filtrar IDs de árbitros excluyendo líderes de equipo
+        const filteredUserIds = userIds.filter(id => !userIdsToExclude.includes(id));
+        
+        console.log("IDs de árbitros (después de excluir líderes):", filteredUserIds);
+        console.log("Total de árbitros antes de filtrar:", userIds.length);
+        console.log("Total de árbitros después de excluir líderes:", filteredUserIds.length);
+        
+        if (filteredUserIds.length > 0) {
+          const { data: profiles, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id, full_name, email")
+            .in("id", filteredUserIds)
+            .order("full_name");
+          
+          if (profilesError) {
+            console.error("Error obteniendo perfiles:", profilesError);
+            setReferees([]);
+            return;
+          }
+          
+          console.log("Perfiles de árbitros encontrados:", profiles);
+          const filtered = filterValidReferees(profiles);
+          console.log("Árbitros después de filtrar nombres inválidos:", filtered);
+          setReferees(filtered);
+        } else {
+          console.warn("No hay árbitros después de filtrar líderes de equipo. IDs originales:", userIds);
+          setReferees([]);
+        }
       } else {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name, email")
-          .order("full_name");
-        setReferees(profiles || []);
+        // No hay usuarios con rol de árbitro
+        console.warn("No se encontraron usuarios con rol de árbitro. Verifica que haya usuarios asignados al rol ID:", refereeRole.id);
+        setReferees([]);
       }
     } catch (error) {
       console.error("Error cargando árbitros:", error);
+      setReferees([]);
     }
   };
 

@@ -9,6 +9,7 @@ import { useResults, MatchResultForm, Player } from "../hooks/useResults";
 import { getDisciplineRulesByName } from "../config/disciplineRules";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useQueryClient } from "@tanstack/react-query";
+import ConfirmModal from "../../../../components/ConfirmModal";
 
 export default function ResultadosPage() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function ResultadosPage() {
 
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [playersTeamA, setPlayersTeamA] = useState<Player[]>([]);
   const [playersTeamB, setPlayersTeamB] = useState<Player[]>([]);
   const [loadingPlayers, setLoadingPlayers] = useState(false);
@@ -586,6 +588,15 @@ export default function ResultadosPage() {
       return;
     }
 
+    // Mostrar modal de confirmación
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmSaveResult = async () => {
+    setShowConfirmModal(false);
+    
+    if (!selectedMatch) return;
+    
     const success = await saveMatchResult(selectedMatch.id, resultForm);
     if (success) {
       setShowResultModal(false);
@@ -1871,6 +1882,24 @@ export default function ResultadosPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de confirmación para publicar resultados */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        title="Confirmar Publicación de Resultado"
+        message={
+          selectedMatch
+            ? `¿Estás seguro de que deseas publicar el resultado del partido?\n\n` +
+              `Marcador: ${resultForm.score_team_a ?? 0} - ${resultForm.score_team_b ?? 0}\n\n` +
+              `Una vez publicado, el resultado será visible para todos los usuarios y el partido se marcará como finalizado.`
+            : "¿Estás seguro de que deseas publicar este resultado?"
+        }
+        confirmText="Sí, Publicar"
+        cancelText="Cancelar"
+        variant="info"
+        onConfirm={handleConfirmSaveResult}
+        onCancel={() => setShowConfirmModal(false)}
+      />
     </div>
   );
 }

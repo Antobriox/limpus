@@ -1209,11 +1209,17 @@ export default function ProgramarPartidosPage() {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
                   >
                     <option value="">Seleccionar árbitro</option>
-                    {referees.map((ref) => (
-                      <option key={ref.id} value={ref.id}>
-                        {ref.full_name || ref.email}
+                    {referees.length === 0 ? (
+                      <option value="" disabled>
+                        No hay árbitros disponibles. Asigna el rol de árbitro a usuarios en la sección de Usuarios.
                       </option>
-                    ))}
+                    ) : (
+                      referees.map((ref) => (
+                        <option key={ref.id} value={ref.id}>
+                          {ref.full_name || ref.email}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div>
@@ -1691,11 +1697,17 @@ export default function ProgramarPartidosPage() {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
                 >
                   <option value="">Seleccionar árbitro</option>
-                  {referees.map((ref) => (
-                    <option key={ref.id} value={ref.id}>
-                      {ref.full_name || ref.email}
+                  {referees.length === 0 ? (
+                    <option value="" disabled>
+                      No hay árbitros disponibles. Asigna el rol de árbitro a usuarios en la sección de Usuarios.
                     </option>
-                  ))}
+                  ) : (
+                    referees.map((ref) => (
+                      <option key={ref.id} value={ref.id}>
+                        {ref.full_name || ref.email}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 

@@ -38,6 +38,7 @@ export default function NuevoEquipoPage() {
   const [loading, setLoading] = useState(false);
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const [occupiedLeaders, setOccupiedLeaders] = useState<Set<string>>(new Set());
+  const [nameError, setNameError] = useState<string>("");
 
   const [careerInput, setCareerInput] = useState("");
   const [careers, setCareers] = useState<string[]>([]);
@@ -263,9 +264,31 @@ export default function NuevoEquipoPage() {
       return;
     }
 
+    setNameError(""); // Limpiar error previo
     setLoading(true);
 
     try {
+      // Verificar si ya existe un equipo con el mismo nombre (ignorando mayúsculas/minúsculas)
+      const teamNameTrimmed = form.name.trim();
+      const { data: existingTeams, error: checkError } = await supabase
+        .from("teams")
+        .select("id, name");
+
+      if (checkError) {
+        console.error("Error verificando equipos existentes:", checkError);
+      } else if (existingTeams) {
+        // Verificar si hay un equipo con el mismo nombre (case-insensitive)
+        const duplicateTeam = existingTeams.find(
+          (team) => team.name.trim().toLowerCase() === teamNameTrimmed.toLowerCase()
+        );
+
+        if (duplicateTeam) {
+          setLoading(false);
+          setNameError(`Equipo ya existente: "${duplicateTeam.name}"`);
+          return;
+        }
+      }
+
       // Obtener el usuario actual
       const {
         data: { user },
@@ -275,7 +298,7 @@ export default function NuevoEquipoPage() {
       const { data: teamData, error: teamError } = await supabase
         .from("teams")
         .insert({
-          name: form.name.trim(),
+          name: teamNameTrimmed,
           created_by: user?.id || null,
         })
         .select()
@@ -392,11 +415,21 @@ export default function NuevoEquipoPage() {
           </label>
           <input
             type="text"
-            className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+              nameError
+                ? "border-red-500 dark:border-red-500"
+                : "border-gray-300 dark:border-neutral-700"
+            }`}
             placeholder="Ej: Los Leones"
             value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            onChange={(e) => {
+              setForm({ ...form, name: e.target.value });
+              setNameError(""); // Limpiar error al escribir
+            }}
           />
+          {nameError && (
+            <p className="mt-1 text-sm text-red-500 dark:text-red-400">{nameError}</p>
+          )}
         </div>
 
         {/* Carreras */}
@@ -452,44 +485,35 @@ export default function NuevoEquipoPage() {
           </label>
 
           <div className="border border-gray-300 dark:border-neutral-700 rounded-lg p-3 max-h-48 overflow-y-auto bg-white dark:bg-neutral-800">
-            {leaders.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                No hay líderes disponibles
-              </p>
-            ) : (
-              leaders.map((leader) => {
-                const isOccupied = occupiedLeaders.has(leader.id);
+            {(() => {
+              // Filtrar solo líderes disponibles (no ocupados)
+              const availableLeaders = leaders.filter((leader) => !occupiedLeaders.has(leader.id));
+              
+              if (availableLeaders.length === 0) {
                 return (
-                  <label
-                    key={leader.id}
-                    className={`flex items-center space-x-2 p-2 rounded ${
-                      isOccupied
-                        ? "opacity-50 cursor-not-allowed bg-gray-100 dark:bg-neutral-800"
-                        : "cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-700"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={form.selectedLeaders.includes(leader.id)}
-                      onChange={() => toggleLeader(leader.id)}
-                      disabled={isOccupied}
-                      className={isOccupied ? "cursor-not-allowed" : ""}
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm">{leader.full_name}</p>
-                        {isOccupied && (
-                          <span className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 rounded-full">
-                            Ocupado
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500">{leader.email}</p>
-                    </div>
-                  </label>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                    No hay líderes disponibles
+                  </p>
                 );
-              })
-            )}
+              }
+              
+              return availableLeaders.map((leader) => (
+                <label
+                  key={leader.id}
+                  className="flex items-center space-x-2 p-2 rounded cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-700"
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.selectedLeaders.includes(leader.id)}
+                    onChange={() => toggleLeader(leader.id)}
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm">{leader.full_name}</p>
+                    <p className="text-xs text-gray-500">{leader.email}</p>
+                  </div>
+                </label>
+              ));
+            })()}
           </div>
         </div>
 
