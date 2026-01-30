@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Trophy, X, Users, UsersRound, FileText, History, LogOut } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useUser } from "../hooks/useUser";
@@ -17,9 +17,13 @@ interface SidebarProps {
 export default function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editionParam = searchParams.get("edition");
   const { user } = useUser();
   const [profile, setProfile] = useState<{ full_name: string; email: string } | null>(null);
   const [parent] = useAutoAnimate();
+
+  const isViewingHistorial = editionParam != null && editionParam !== "";
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -39,9 +43,55 @@ export default function Sidebar({ onClose }: SidebarProps) {
     loadProfile();
   }, [user]);
 
-  const logout = async () => {
-    await supabase.auth.signOut();
-    router.replace("/login");
+  const logout = () => {
+    // Ocultar INMEDIATAMENTE todo el contenido
+    document.body.style.opacity = "0";
+    document.body.style.pointerEvents = "none";
+    
+    // Mostrar loader
+    const loader = document.createElement("div");
+    loader.style.cssText = `
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgb(239 246 255) 0%, rgb(255 255 255) 50%, rgb(239 246 255) 100%);
+    `;
+    loader.innerHTML = `
+      <div style="text-align: center;">
+        <div style="
+          width: 48px;
+          height: 48px;
+          border: 4px solid rgb(191 219 254);
+          border-top-color: rgb(37 99 235);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 16px;
+        "></div>
+        <p style="color: rgb(75 85 99); font-weight: 500;">Cerrando sesión...</p>
+      </div>
+      <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (prefers-color-scheme: dark) {
+          div:first-child {
+            background: linear-gradient(135deg, rgb(10 10 10) 0%, rgb(23 23 23) 50%, rgb(10 10 10) 100%) !important;
+          }
+          p { color: rgb(156 163 175) !important; }
+          div > div:first-child {
+            border-color: rgb(30 58 138) !important;
+            border-top-color: rgb(96 165 250) !important;
+          }
+        }
+      </style>
+    `;
+    document.body.appendChild(loader);
+    
+    // Cerrar sesión y redirigir
+    supabase.auth.signOut().finally(() => {
+      window.location.replace("/");
+    });
   };
 
   const getInitials = (name: string) => {
@@ -53,9 +103,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
     return name.substring(0, 2).toUpperCase();
   };
 
-  const itemClass = (path: string) => {
-    const isActive = pathname.startsWith(path);
-    
+  const itemClass = (pathForActive: string, isActive: boolean) => {
     return cn(
       "relative flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium text-sm",
       "group overflow-hidden",
@@ -74,13 +122,30 @@ export default function Sidebar({ onClose }: SidebarProps) {
     }
   };
 
+  // Enlaces del sidebar SIEMPRE al torneo actual (sin ?edition=).
+  // Si estás viendo historial (?edition=X), al hacer clic en Torneos/Equipos/Inscripciones/Usuarios
+  // navegamos a la ruta limpia para forzar vista del torneo actual.
   const navItems = [
     { href: "/dashboard/torneos", label: "Torneos", icon: Trophy },
     { href: "/dashboard/usuarios", label: "Usuarios", icon: Users },
     { href: "/dashboard/equipos", label: "Equipos", icon: UsersRound },
     { href: "/dashboard/inscripciones", label: "Inscripciones", icon: FileText },
     { href: "/dashboard/historial", label: "Historial", icon: History },
-  ];
+  ].map((item) => {
+    const isTorneoActualSection = ["/dashboard/torneos", "/dashboard/usuarios", "/dashboard/equipos", "/dashboard/inscripciones"].includes(item.href);
+    const isActive =
+      pathname.startsWith(item.href) &&
+      (!isViewingHistorial || !isTorneoActualSection);
+    return { ...item, href: item.href, isActive, isTorneoActualSection };
+  });
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string, isTorneoActualSection: boolean) => {
+    handleLinkClick();
+    if (isViewingHistorial && isTorneoActualSection) {
+      e.preventDefault();
+      router.push(href);
+    }
+  };
 
   return (
     <motion.aside
@@ -118,8 +183,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
       <nav className="space-y-2 flex-1" ref={parent}>
         {navItems.map((item, index) => {
           const Icon = item.icon;
-          const isActive = pathname.startsWith(item.href);
-          
           return (
             <motion.div
               key={item.href}
@@ -129,12 +192,12 @@ export default function Sidebar({ onClose }: SidebarProps) {
             >
               <Link 
                 href={item.href} 
-                className={itemClass(item.href)} 
-                onClick={handleLinkClick}
+                className={itemClass(item.href, item.isActive)} 
+                onClick={(e) => handleNavClick(e, item.href, item.isTorneoActualSection ?? false)}
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
                 <span>{item.label}</span>
-                {isActive && (
+                {item.isActive && (
                   <motion.div
                     layoutId="activeIndicator"
                     className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-500 rounded-lg -z-10"

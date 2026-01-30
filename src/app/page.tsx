@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 import { useUser } from "../hooks/useUser";
+import { useTheme } from "../contexts/ThemeContext";
+import { useRealtimeSubscription } from "../hooks/useRealtimeSubscription";
 import { useViewersData } from "./dashboard/viewers/hooks/useViewersData";
-import { Calendar, Clock, MapPin, Eye, X } from "lucide-react";
+import { Calendar, Clock, MapPin, Eye, X, Sun, Moon } from "lucide-react";
 import MatchDetailsModal from "./dashboard/leader/components/MatchDetailsModal";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { cn } from "../lib/utils";
 
 // Función para obtener el icono según el deporte
 const getSportIcon = (sportName: string) => {
@@ -27,15 +29,44 @@ const getSportIcon = (sportName: string) => {
 
 export default function HomePage() {
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
   const { user, roles, loading: userLoading } = useUser();
   const { tournamentName, sports, liveMatches, upcomingMatches, pastMatches = [], loading } = useViewersData();
   
+  // 🔥 ACTIVAR ACTUALIZACIONES EN TIEMPO REAL
+  useRealtimeSubscription();
+  
   const [selectedSport, setSelectedSport] = useState<number | null>(null);
-  const [filteredMatches, setFilteredMatches] = useState<{
-    live: typeof liveMatches;
-    upcoming: typeof upcomingMatches;
-    past: typeof pastMatches;
-  }>({ live: [], upcoming: [], past: [] });
+  
+  // 🔥 CALCULAR FILTROS con useMemo (evita re-renders innecesarios)
+  const filteredMatches = useMemo(() => {
+    if (!selectedSport) {
+      return { live: [], upcoming: [], past: [] };
+    }
+    
+    const sport = sports.find((s) => s.id === selectedSport);
+    if (!sport) {
+      return { live: [], upcoming: [], past: [] };
+    }
+    
+    const filteredLive = liveMatches.filter((m) => 
+      m.sport_name.toLowerCase() === sport.name.toLowerCase() ||
+      m.sport_name.toLowerCase().includes(sport.name.toLowerCase()) ||
+      sport.name.toLowerCase().includes(m.sport_name.toLowerCase())
+    );
+    const filteredUpcoming = upcomingMatches.filter((m) =>
+      m.sport_name.toLowerCase() === sport.name.toLowerCase() ||
+      m.sport_name.toLowerCase().includes(sport.name.toLowerCase()) ||
+      sport.name.toLowerCase().includes(m.sport_name.toLowerCase())
+    );
+    const filteredPast = pastMatches.filter((m) =>
+      m.sport_name.toLowerCase() === sport.name.toLowerCase() ||
+      m.sport_name.toLowerCase().includes(sport.name.toLowerCase()) ||
+      sport.name.toLowerCase().includes(m.sport_name.toLowerCase())
+    );
+    
+    return { live: filteredLive, upcoming: filteredUpcoming, past: filteredPast };
+  }, [liveMatches, upcomingMatches, pastMatches, selectedSport, sports]);
   
   const [selectedMatchForDetails, setSelectedMatchForDetails] = useState<{
     id: number;
@@ -47,54 +78,83 @@ export default function HomePage() {
     genero?: string | null;
   } | null>(null);
 
-  // Redirigir usuarios autenticados según su rol
+  // Redirigir usuarios autenticados según su rol INMEDIATAMENTE
   useEffect(() => {
     if (userLoading) return;
     
     if (user && roles.length > 0) {
-    if (roles.includes("administrador")) {
-        router.replace("/dashboard/torneos");
-    } else if (roles.includes("lider_equipo")) {
-      router.replace("/dashboard/leader");
-    } else if (roles.includes("arbitro")) {
-        router.replace("/dashboard/general");
+      // Redirección INMEDIATA con window.location (sin esperar a React)
+      if (roles.includes("administrador")) {
+        window.location.replace("/dashboard/torneos");
+      } else if (roles.includes("lider_equipo")) {
+        window.location.replace("/dashboard/leader");
+      } else if (roles.includes("arbitro")) {
+        window.location.replace("/dashboard/general");
       }
-      // Si es viewer o no tiene rol específico, se queda en la página pública
+      // Si es viewer, se queda en la página pública (no hace nada)
     }
-  }, [user, roles, userLoading, router]);
+  }, [user, roles, userLoading]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
+  // Funciones de manejo (definidas antes de los returns)
+  const handleLogout = () => {
+    // Ocultar INMEDIATAMENTE todo el contenido
+    document.body.style.opacity = "0";
+    document.body.style.pointerEvents = "none";
+    
+    // Mostrar loader
+    const loader = document.createElement("div");
+    loader.style.cssText = `
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgb(249 250 251) 0%, rgb(255 255 255) 50%, rgb(249 250 251) 100%);
+    `;
+    loader.innerHTML = `
+      <div style="text-align: center;">
+        <div style="
+          width: 48px;
+          height: 48px;
+          border: 4px solid rgb(191 219 254);
+          border-top-color: rgb(37 99 235);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 16px;
+        "></div>
+        <p style="color: rgb(75 85 99); font-weight: 500;">Cerrando sesión...</p>
+      </div>
+      <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (prefers-color-scheme: dark) {
+          div:first-child {
+            background: linear-gradient(135deg, rgb(10 10 10) 0%, rgb(23 23 23) 50%, rgb(10 10 10) 100%) !important;
+          }
+          p { color: rgb(156 163 175) !important; }
+          div > div:first-child {
+            border-color: rgb(30 58 138) !important;
+            border-top-color: rgb(96 165 250) !important;
+          }
+        }
+      </style>
+    `;
+    document.body.appendChild(loader);
+    
+    // Cerrar sesión y redirigir
+    supabase.auth.signOut().finally(() => {
+      window.location.replace("/");
+    });
   };
 
   const handleSportClick = (sportId: number) => {
+    // Solo actualizar el deporte seleccionado - useMemo recalculará filteredMatches automáticamente
     setSelectedSport(sportId);
-    // Filtrar partidos por disciplina
-    const sport = sports.find((s) => s.id === sportId);
-    if (sport) {
-      const filteredLive = liveMatches.filter((m) => 
-        m.sport_name.toLowerCase() === sport.name.toLowerCase() ||
-        m.sport_name.toLowerCase().includes(sport.name.toLowerCase()) ||
-        sport.name.toLowerCase().includes(m.sport_name.toLowerCase())
-      );
-      const filteredUpcoming = upcomingMatches.filter((m) =>
-        m.sport_name.toLowerCase() === sport.name.toLowerCase() ||
-        m.sport_name.toLowerCase().includes(sport.name.toLowerCase()) ||
-        sport.name.toLowerCase().includes(m.sport_name.toLowerCase())
-      );
-      const filteredPast = pastMatches.filter((m) =>
-        m.sport_name.toLowerCase() === sport.name.toLowerCase() ||
-        m.sport_name.toLowerCase().includes(sport.name.toLowerCase()) ||
-        sport.name.toLowerCase().includes(m.sport_name.toLowerCase())
-      );
-      setFilteredMatches({ live: filteredLive, upcoming: filteredUpcoming, past: filteredPast });
-    }
   };
 
   const handleCloseModal = () => {
+    // Solo limpiar el deporte seleccionado - useMemo devolverá arrays vacíos automáticamente
     setSelectedSport(null);
-    setFilteredMatches({ live: [], upcoming: [], past: [] });
   };
 
   const formatDate = (dateString: string | null) => {
@@ -110,8 +170,30 @@ export default function HomePage() {
     return date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
   };
 
-  const [listRef] = useAutoAnimate();
+  // Si está cargando o es usuario autenticado no-viewer, mostrar loader
+  const isAuthenticatedNonViewer = user && roles.length > 0 && 
+    (roles.includes("administrador") || roles.includes("lider_equipo") || roles.includes("arbitro"));
+  
+  if (userLoading || isAuthenticatedNonViewer) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full mx-auto mb-4"
+          />
+          <p className="text-gray-600 dark:text-gray-400 font-medium">Cargando...</p>
+        </motion.div>
+      </div>
+    );
+  }
 
+  // Mostrar loader mientras carga datos de viewers
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
@@ -132,19 +214,37 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
-      {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 relative">
+      {/* Header: tema + sesión */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50"
+        className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50 flex items-center gap-2"
       >
+        <motion.button
+          type="button"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={toggleTheme}
+          className={cn(
+            "p-2.5 rounded-lg transition-all cursor-pointer",
+            "bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm border border-gray-200 dark:border-neutral-700",
+            "hover:bg-gray-100 dark:hover:bg-neutral-700 shadow-md hover:shadow-lg"
+          )}
+          aria-label="Cambiar tema"
+        >
+          {theme === "dark" ? (
+            <Sun className="w-5 h-5 text-yellow-500" />
+          ) : (
+            <Moon className="w-5 h-5 text-blue-600" />
+          )}
+        </motion.button>
         {user ? (
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleLogout}
-            className="bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-700 transition font-medium shadow-md text-xs sm:text-sm"
+            className="bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-700 transition font-medium shadow-md text-xs sm:text-sm cursor-pointer"
           >
             Cerrar Sesión
           </motion.button>
@@ -210,7 +310,7 @@ export default function HomePage() {
           <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-6 sm:mb-8">
             Explora los Deportes
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 justify-items-center" ref={listRef}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 justify-items-center">
             {sports.map((sport, index) => (
               <motion.div
                 key={sport.id}
@@ -266,7 +366,7 @@ export default function HomePage() {
               <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">No hay partidos en vivo en este momento</p>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6" ref={listRef}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               {liveMatches.map((match, index) => (
                 <motion.div
                   key={match.id}
@@ -307,9 +407,7 @@ export default function HomePage() {
                       <p className="font-bold text-gray-900 dark:text-white text-sm sm:text-base truncate">{match.team_a_name}</p>
                     </div>
                     <div className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 dark:text-white mx-2 sm:mx-4 whitespace-nowrap">
-                      {match.score_a !== null && match.score_b !== null 
-                        ? `${match.score_a} - ${match.score_b}`
-                        : "0 - 0"}
+                      {`${match.score_a ?? 0} - ${match.score_b ?? 0}`}
                     </div>
                     <div className="flex-1 text-right min-w-0">
                       <p className="font-bold text-gray-900 dark:text-white text-sm sm:text-base truncate">{match.team_b_name}</p>
@@ -375,7 +473,7 @@ export default function HomePage() {
               <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">No hay partidos programados</p>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6" ref={listRef}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               {upcomingMatches.map((match, index) => (
                 <motion.div
                   key={match.id}
@@ -473,7 +571,7 @@ export default function HomePage() {
               <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">No hay partidos jugados aún</p>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6" ref={listRef}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               {pastMatches.map((match, index) => {
                 const hasResult = match.score_a !== null && match.score_b !== null;
 
@@ -639,9 +737,7 @@ export default function HomePage() {
                         <p className="font-bold text-gray-900 dark:text-white text-sm sm:text-base truncate">{match.team_a_name}</p>
                       </div>
                       <div className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 dark:text-white mx-2 sm:mx-4 whitespace-nowrap">
-                        {match.score_a !== null && match.score_b !== null 
-                          ? `${match.score_a} - ${match.score_b}`
-                          : "0 - 0"}
+                        {`${match.score_a ?? 0} - ${match.score_b ?? 0}`}
                       </div>
                       <div className="flex-1 text-right min-w-0">
                         <p className="font-bold text-gray-900 dark:text-white text-sm sm:text-base truncate">{match.team_b_name}</p>

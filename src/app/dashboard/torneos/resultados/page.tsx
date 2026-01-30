@@ -50,19 +50,20 @@ export default function ResultadosPage() {
 
   const loadTournament = async () => {
     try {
-      const { data: tournaments } = await supabase
-        .from("tournaments")
+      // Obtener la edición activa
+      const { data: activeEdition } = await supabase
+        .from("tournament_editions")
         .select("id, name, start_date, end_date")
-        .order("id", { ascending: false })
-        .limit(1);
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
 
-      if (tournaments && tournaments.length > 0) {
-        const t = tournaments[0];
+      if (activeEdition) {
         setTournament({
-          id: t.id,
-          name: t.name || "Torneo",
-          start_date: t.start_date || "",
-          end_date: t.end_date || "",
+          id: activeEdition.id,
+          name: activeEdition.name || "Torneo",
+          start_date: activeEdition.start_date || "",
+          end_date: activeEdition.end_date || "",
           location: undefined,
           status: "EN CURSO",
         });

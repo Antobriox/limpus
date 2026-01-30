@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useParams, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -67,6 +68,16 @@ export default function EditInscripcionPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+      <motion.button
+        type="button"
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        onClick={() => router.push("/dashboard/inscripciones")}
+        className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Volver
+      </motion.button>
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}

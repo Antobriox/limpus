@@ -27,6 +27,8 @@ type ViewRegistrationsModalProps = {
   formName: string;
   isOpen: boolean;
   onClose: () => void;
+  tournamentStart?: string | null;
+  tournamentEnd?: string | null;
 };
 
 type TeamRegistration = {
@@ -55,6 +57,8 @@ export default function ViewRegistrationsModal({
   formName,
   isOpen,
   onClose,
+  tournamentStart,
+  tournamentEnd,
 }: ViewRegistrationsModalProps) {
   const [teamRegistrations, setTeamRegistrations] = useState<TeamRegistration[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
@@ -65,8 +69,7 @@ export default function ViewRegistrationsModal({
   const loadTeamRegistrations = useCallback(async () => {
     setLoading(true);
     try {
-      // Cargar todas las inscripciones de equipos para este formulario
-      const { data: registrations, error } = await supabase
+      let query = supabase
         .from("team_registrations")
         .select(`
           id,
@@ -79,6 +82,11 @@ export default function ViewRegistrationsModal({
         `)
         .eq("form_id", formId)
         .order("submitted_at", { ascending: false });
+
+      if (tournamentStart) query = query.gte("submitted_at", tournamentStart);
+      if (tournamentEnd) query = query.lte("submitted_at", tournamentEnd + "T23:59:59.999Z");
+
+      const { data: registrations, error } = await query;
 
       if (error) throw error;
 
@@ -116,7 +124,7 @@ export default function ViewRegistrationsModal({
     } finally {
       setLoading(false);
     }
-  }, [formId]);
+  }, [formId, tournamentStart, tournamentEnd]);
 
   useEffect(() => {
     if (isOpen && formId) {

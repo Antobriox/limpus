@@ -37,15 +37,15 @@ type SupabaseMatchEvent = {
   value: number | null;
 };
 
-// Query key factory para standings
-const standingsQueryKey = (sportId: number, sportName: string, tournamentId?: number, genero?: string | null) => 
-  ["standings", sportId, sportName, tournamentId, genero];
+// Query key factory para standings (tournamentIds = IDs de la edición a mostrar)
+const standingsQueryKey = (sportId: number, sportName: string, tournamentIds?: number[], genero?: string | null) =>
+  ["standings", sportId, sportName, tournamentIds ?? [], genero];
 
-// Función para cargar standings
+// Función para cargar standings (tournamentIds = torneos de la edición actual o histórica)
 const loadStandingsQuery = async (
   sportId: number,
   sportName: string,
-  tournamentId?: number,
+  tournamentIds?: number[],
   genero?: string | null
 ): Promise<BomboStandings[]> => {
   // Obtener reglas de la disciplina
@@ -74,9 +74,9 @@ const loadStandingsQuery = async (
   
   console.log(`Buscando partidos finalizados para ${sportName} (ID: ${sportId})${genero ? ` - Género: ${genero}` : ''}`);
 
-  // Filtrar por torneo si se especifica
-  if (tournamentId) {
-    matchesQuery = matchesQuery.eq("tournament_id", tournamentId);
+  // Filtrar por torneos de la edición (actual o histórica)
+  if (tournamentIds && tournamentIds.length > 0) {
+    matchesQuery = matchesQuery.in("tournament_id", tournamentIds);
   }
 
   // Filtrar por género si se especifica
@@ -112,22 +112,28 @@ const loadStandingsQuery = async (
   // Buscar brackets guardados para esta disciplina
   const allTeamIds = new Set<number>();
   let bomboMap: Map<number, Set<number>> | undefined;
-  
-  // Obtener TODOS los torneos
-  const { data: tournaments } = await supabase
-    .from("tournaments")
-    .select("id")
-    .order("id", { ascending: false });
 
-  if (tournaments && tournaments.length > 0) {
-    const tournamentIds = tournaments.map(t => t.id);
-    console.log(`Total de torneos encontrados: ${tournamentIds.length}`);
+  // Usar torneos de la edición si se pasaron; si no, todos los torneos (comportamiento legacy)
+  let idsToUse: number[];
+  if (tournamentIds && tournamentIds.length > 0) {
+    idsToUse = tournamentIds;
+    console.log(`Usando torneos de la edición: ${idsToUse.length} torneos`);
+  } else {
+    const { data: allTournaments } = await supabase
+      .from("tournaments")
+      .select("id")
+      .order("id", { ascending: false });
+    idsToUse = (allTournaments ?? []).map((t: { id: number }) => t.id);
+    console.log(`Total de torneos encontrados: ${idsToUse.length}`);
+  }
+
+  if (idsToUse.length > 0) {
     
-    // Buscar todos los draws de TODOS los torneos
+    // Buscar draws de los torneos de esta edición
     const { data: draws } = await supabase
       .from("draws")
       .select("id, name, tournament_id")
-      .in("tournament_id", tournamentIds)
+      .in("tournament_id", idsToUse)
       .order("created_at", { ascending: false });
 
     console.log(`Total de draws encontrados: ${draws?.length || 0}`, draws?.map(d => d.name));
@@ -435,7 +441,7 @@ const loadStandingsQuery = async (
 export const useStandings = (
   sportId: number | null,
   sportName: string | null,
-  tournamentId?: number,
+  tournamentIds?: number[],
   genero?: string | null
 ) => {
   const {
@@ -444,9 +450,9 @@ export const useStandings = (
     isFetching,
     error,
   } = useQuery({
-    queryKey: standingsQueryKey(sportId || 0, sportName || "", tournamentId, genero),
-    queryFn: () => loadStandingsQuery(sportId!, sportName!, tournamentId, genero),
-    enabled: !!sportId && !!sportName && genero !== undefined, // Solo ejecutar si tenemos sportId, sportName y género seleccionado
+    queryKey: standingsQueryKey(sportId || 0, sportName || "", tournamentIds, genero),
+    queryFn: () => loadStandingsQuery(sportId!, sportName!, tournamentIds, genero),
+    enabled: !!sportId && !!sportName && genero !== undefined,
     // staleTime y gcTime se heredan de la configuración global
   });
 

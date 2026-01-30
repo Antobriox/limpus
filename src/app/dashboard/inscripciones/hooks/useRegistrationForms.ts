@@ -15,7 +15,10 @@ export type Form = {
 
 const REGISTRATION_FORMS_QUERY_KEY = ["registrationForms"];
 
-const loadFormsQuery = async (): Promise<Form[]> => {
+const loadFormsQuery = async (editionId: number | null): Promise<Form[]> => {
+  if (editionId == null || editionId <= 0) {
+    return [];
+  }
   const { data } = await supabase
     .from("registration_forms")
     .select(`
@@ -28,20 +31,21 @@ const loadFormsQuery = async (): Promise<Form[]> => {
       is_locked,
       created_at
     `)
+    .eq("edition_id", editionId)
     .order("id", { ascending: false });
 
   return data || [];
 };
 
-export const useRegistrationForms = () => {
+export const useRegistrationForms = (editionId: number | null) => {
   const queryClient = useQueryClient();
 
   const {
     data: forms = [],
     isLoading,
   } = useQuery({
-    queryKey: REGISTRATION_FORMS_QUERY_KEY,
-    queryFn: loadFormsQuery,
+    queryKey: [...REGISTRATION_FORMS_QUERY_KEY, editionId],
+    queryFn: () => loadFormsQuery(editionId),
   });
 
   const toggleStatusMutation = useMutation({

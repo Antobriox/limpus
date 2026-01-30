@@ -38,11 +38,12 @@ type Player = {
 
 type RegistrationModalProps = {
   teamId: number;
+  editionId: number | null;
   onClose: () => void;
 };
 
-export default function RegistrationModal({ teamId, onClose }: RegistrationModalProps) {
-  const { forms, registrations, loadingForms, createRegistration, isCreating } = useTeamRegistrations(teamId);
+export default function RegistrationModal({ teamId, editionId, onClose }: RegistrationModalProps) {
+  const { forms, registrations, loadingForms, createRegistration, isCreating } = useTeamRegistrations(teamId, editionId);
   const [selectedForm, setSelectedForm] = useState<RegistrationForm | null>(null);
   const [teamRegistrationId, setTeamRegistrationId] = useState<number | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);

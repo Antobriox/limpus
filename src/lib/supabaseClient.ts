@@ -9,8 +9,12 @@ export const supabase = createClient(
       autoRefreshToken: true,
       detectSessionInUrl: true,
       storage: typeof window !== "undefined" ? window.localStorage : undefined,
-      // Manejar errores de refresh token silenciosamente
       flowType: "pkce",
+    },
+    realtime: {
+      params: {
+        eventsPerSecond: 10, // Limitar eventos para optimizar rendimiento
+      },
     },
   }
 );

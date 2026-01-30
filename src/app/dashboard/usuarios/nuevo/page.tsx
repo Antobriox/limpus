@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { cn } from "../../../../lib/utils";
@@ -13,7 +14,7 @@ export default function NuevoUsuarioPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [roleId, setRoleId] = useState<number>(2); // ✅ number
+  const [roleId, setRoleId] = useState<number>(1); // Por defecto Administrador para que el usuario aparezca en la lista
   const [loading, setLoading] = useState(false);
 
   const submit = async () => {
@@ -26,16 +27,16 @@ export default function NuevoUsuarioPage() {
         full_name: fullName,
         email,
         password,
-        role_id: roleId, // ✅ number
+        role_id: roleId,
       }),
     });
 
-    await res.json();
+    const data = await res.json();
     setLoading(false);
 
     if (!res.ok) {
-      const data = await res.json();
-      toast.error(data.error || "Error al crear el usuario");
+      const msg = data.detail ? `${data.error}: ${data.detail}` : (data.error || "Error al crear el usuario");
+      toast.error(msg);
       return;
     }
 
@@ -48,6 +49,16 @@ export default function NuevoUsuarioPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+      <motion.button
+        type="button"
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        onClick={() => router.push("/dashboard/usuarios")}
+        className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Volver
+      </motion.button>
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -114,6 +125,7 @@ export default function NuevoUsuarioPage() {
             onChange={(e) => setRoleId(Number(e.target.value))}
           >
             <option value={1}>Administrador</option>
+            <option value={4}>Viewers</option>
             <option value={2}>Líder de equipo</option>
             <option value={3}>Árbitro</option>
           </select>

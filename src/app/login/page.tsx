@@ -10,9 +10,27 @@ import { cn } from "../../lib/utils";
 import { toast } from "sonner";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  // Lazy initializer: carga el email desde localStorage en el render inicial
+  const [email, setEmail] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedEmail = localStorage.getItem("rememberedEmail");
+      const savedRememberMe = localStorage.getItem("rememberMe") === "true";
+      return (savedEmail && savedRememberMe) ? savedEmail : "";
+    }
+    return "";
+  });
+  
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Lazy initializer: carga rememberMe desde localStorage en el render inicial
+  const [rememberMe, setRememberMe] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem("rememberMe") === "true";
+    }
+    return false;
+  });
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,6 +52,15 @@ export default function LoginPage() {
       toast.error(errorMessage);
       setLoading(false);
       return;
+    }
+
+    // Guardar o eliminar email según "Recordarme"
+    if (rememberMe) {
+      localStorage.setItem("rememberedEmail", email);
+      localStorage.setItem("rememberMe", "true");
+    } else {
+      localStorage.removeItem("rememberedEmail");
+      localStorage.removeItem("rememberMe");
     }
 
     toast.success("¡Bienvenido de nuevo!");
@@ -137,7 +164,7 @@ export default function LoginPage() {
                   required
                   placeholder="correo@universidad.edu"
                   className="flex-1 px-4 py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base"
-                  value={email}
+                  value={email || ""}
                   onChange={(e) => setEmail(e.target.value)}
                 />
                 <div className="flex items-center px-4 text-blue-600 dark:text-blue-400">
@@ -161,7 +188,7 @@ export default function LoginPage() {
                   required
                   placeholder="Ingresa tu contraseña"
                   className="flex-1 px-4 py-3 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base"
-                  value={password}
+                  value={password || ""}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <motion.button
@@ -178,10 +205,12 @@ export default function LoginPage() {
 
             {/* Remember + Forgot */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-              <label className="flex items-center gap-2 text-sm text-gray-900 dark:text-white">
+              <label className="flex items-center gap-2 text-sm text-gray-900 dark:text-white cursor-pointer">
                 <input
                   type="checkbox"
-                  className="rounded border-gray-300 dark:border-neutral-700 text-blue-600 dark:text-blue-500"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="rounded border-gray-300 dark:border-neutral-700 text-blue-600 dark:text-blue-500 cursor-pointer"
                 />
                 Recordarme
               </label>

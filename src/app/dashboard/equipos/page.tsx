@@ -1,17 +1,22 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
-import { Search } from "lucide-react";
+import { Search, ArrowLeft } from "lucide-react";
 import { useTeams } from "./hooks/useTeams";
+import { useDashboard } from "../torneos/hooks/useDashboard";
 import { motion } from "framer-motion";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 
 export default function EquiposPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editionParam = searchParams.get("edition");
+  const editionId = editionParam ? parseInt(editionParam, 10) : undefined;
+
   const [searchTerm, setSearchTerm] = useState("");
-  // Usar el hook con TanStack Query - los datos se cargan automáticamente y se cachean
-  const { teams, loading, deleteTeam } = useTeams();
+  const { currentEditionId } = useDashboard(editionId);
+  const { teams, loading, deleteTeam } = useTeams(currentEditionId);
 
   // Filtrar equipos basándose en el término de búsqueda
   const filteredTeams = useMemo(() => {
@@ -44,6 +49,18 @@ export default function EquiposPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+      {editionId && (
+        <motion.button
+          type="button"
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          onClick={() => router.push(`/dashboard/torneos?edition=${editionId}`)}
+          className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Volver
+        </motion.button>
+      )}
       {/* Header */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
@@ -59,14 +76,16 @@ export default function EquiposPage() {
           </p>
         </div>
 
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => router.push("/dashboard/equipos/nuevoequipo")}
-          className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition text-white px-4 sm:px-5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap shadow-lg hover:shadow-xl cursor-pointer"
-        >
-          + Nuevo equipo
-        </motion.button>
+        {!editionId && (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => router.push("/dashboard/equipos/nuevoequipo")}
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition text-white px-4 sm:px-5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap shadow-lg hover:shadow-xl cursor-pointer"
+          >
+            + Nuevo equipo
+          </motion.button>
+        )}
       </motion.div>
 
       {/* Barra de búsqueda */}
@@ -91,7 +110,8 @@ export default function EquiposPage() {
       {/* Empty state */}
       {teams.length === 0 && (
         <div className="bg-gray-100 border border-gray-200 dark:bg-neutral-900 dark:border-neutral-800 rounded-lg p-10 text-center text-gray-500 dark:text-gray-400">
-          No hay equipos registrados todavía.
+          <p className="font-medium">No hay equipos en este torneo todavía.</p>
+          <p className="mt-1 text-sm">Crea equipos con el botón &quot;Nuevo equipo&quot; para que aparezcan aquí.</p>
         </div>
       )}
 
@@ -150,23 +170,26 @@ export default function EquiposPage() {
                     </td>
 
                     <td className="px-4 sm:px-6 py-3 text-right space-x-2 sm:space-x-3">
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => router.push(`/dashboard/equipos/${team.id}`)}
-                        className="text-yellow-600 hover:text-yellow-500 dark:text-yellow-400 dark:hover:text-yellow-300 transition text-xs sm:text-sm font-medium cursor-pointer"
-                      >
-                        Editar
-                      </motion.button>
-
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => deleteTeam(team.id)}
-                        className="text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 transition text-xs sm:text-sm font-medium cursor-pointer"
-                      >
-                        Eliminar
-                      </motion.button>
+                      {!editionId && (
+                        <>
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => router.push(`/dashboard/equipos/${team.id}`)}
+                            className="text-yellow-600 hover:text-yellow-500 dark:text-yellow-400 dark:hover:text-yellow-300 transition text-xs sm:text-sm font-medium cursor-pointer"
+                          >
+                            Editar
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => deleteTeam(team.id)}
+                            className="text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 transition text-xs sm:text-sm font-medium cursor-pointer"
+                          >
+                            Eliminar
+                          </motion.button>
+                        </>
+                      )}
                     </td>
                   </motion.tr>
                 ))}

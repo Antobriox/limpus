@@ -3,10 +3,12 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { cn } from "../../../../lib/utils";
 import { toast } from "sonner";
+import { useDashboard } from "../../torneos/hooks/useDashboard";
 
 type Sport = {
   id: number;
@@ -16,6 +18,7 @@ type Sport = {
 export default function NuevaInscripcionPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { currentEditionId } = useDashboard();
 
   const [loading, setLoading] = useState(false);
   const [sports, setSports] = useState<Sport[]>([]);
@@ -66,6 +69,11 @@ export default function NuevaInscripcionPage() {
       return;
     }
 
+    if (currentEditionId == null || currentEditionId <= 0) {
+      toast.error("No hay torneo activo. Crea un torneo primero.");
+      return;
+    }
+
     setLoading(true);
 
     const {
@@ -83,6 +91,7 @@ export default function NuevaInscripcionPage() {
         max_players: form.max_players,
         is_locked: false,
         created_by: user?.id,
+        edition_id: currentEditionId,
       });
 
     setLoading(false);
@@ -101,6 +110,16 @@ export default function NuevaInscripcionPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+      <motion.button
+        type="button"
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        onClick={() => router.push("/dashboard/inscripciones")}
+        className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Volver
+      </motion.button>
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import ConfirmModal from "../../../../components/ConfirmModal";
 import AlertModal from "../../../../components/AlertModal";
 import jsPDF from "jspdf";
+import { ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { cn } from "../../../../lib/utils";
@@ -660,17 +661,37 @@ export default function NuevoTorneoPage() {
         console.warn("No se pudo generar el PDF del historial, pero se continuará");
       }
 
-      // 3. NO eliminar datos - todos los datos pasados se mantienen para el historial
-      // La vista principal mostrará automáticamente el nuevo torneo (el más reciente por ID)
-      console.log("Creando nuevo torneo. Los datos pasados se mantienen en el historial.");
+      // 3. Marcar la edición anterior como 'closed' (el torneo activo se define por status, no por ID)
+      await supabase
+        .from("tournament_editions")
+        .update({ status: "closed" })
+        .eq("status", "active");
 
-      // Crear un torneo para cada deporte/disciplina
+      // 4. Crear la nueva edición (status = 'active')
+      const { data: newEdition, error: editionError } = await supabase
+        .from("tournament_editions")
+        .insert({
+          name: form.name.trim(),
+          start_date: form.start_date || null,
+          end_date: form.end_date || null,
+          created_by: user?.id || null,
+          status: "active",
+        })
+        .select("id")
+        .single();
+
+      if (editionError || !newEdition) {
+        throw editionError ?? new Error("No se pudo crear la edición del torneo");
+      }
+
+      // 5. Crear filas en tournaments (una por sport) con edition_id
       const tournamentsToInsert = sports.map((sport) => ({
         name: form.name.trim(),
         sport_id: sport.id,
         start_date: form.start_date,
         end_date: form.end_date,
         created_by: user?.id || null,
+        edition_id: newEdition.id,
       }));
 
       const { data: createdTournaments, error: tournamentsError } = await supabase
@@ -710,6 +731,16 @@ export default function NuevoTorneoPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+      <motion.button
+        type="button"
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        onClick={() => router.push("/dashboard/torneos")}
+        className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Volver
+      </motion.button>
       {/* Header */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
@@ -836,8 +867,7 @@ export default function NuevoTorneoPage() {
         message={
           "Se creará un nuevo torneo con las siguientes disciplinas:\n\n" +
           `• ${sports.length} disciplina(s) incluidas\n\n` +
-          "Los datos anteriores se mantendrán en el historial.\n" +
-          "La vista principal mostrará solo el nuevo torneo.\n\n" +
+          "Los datos anteriores se mantendrán en el historial.\n\n" +
           "¿Deseas continuar?"
         }
         confirmText="Continuar"

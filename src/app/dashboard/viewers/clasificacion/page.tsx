@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useStandings } from "../../torneos/hooks/useStandings";
 import { useSports } from "../hooks/useSports";
+import { useActiveTournamentIds } from "../hooks/useViewersData";
 import { getDisciplineRulesByName } from "../../torneos/config/disciplineRules";
 import { ArrowLeft, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -13,8 +14,8 @@ import { cn } from "../../../../lib/utils";
 
 export default function ClasificacionViewersPage() {
   const router = useRouter();
-  // Usar el hook con TanStack Query para cargar deportes
   const { sports } = useSports();
+  const { activeTournamentIds, loading: loadingTournamentIds } = useActiveTournamentIds();
   const [selectedSport, setSelectedSport] = useState<number | null>(null);
   const [selectedSportName, setSelectedSportName] = useState<string>("");
   const [selectedGenero, setSelectedGenero] = useState<string | null>(null);
@@ -51,16 +52,20 @@ export default function ClasificacionViewersPage() {
   }, [selectedSport, selectedGenero]);
 
   // Usar el hook con TanStack Query para cargar standings
+  // Solo ejecutar cuando tengamos activeTournamentIds y hayan IDs válidos
   const { bomboStandings, loading: loadingStandings, error } = useStandings(
     selectedSport,
     selectedSportName,
-    undefined,
+    activeTournamentIds.length > 0 ? activeTournamentIds : undefined,
     selectedGenero
   );
 
   const rules = selectedSportName ? getDisciplineRulesByName(selectedSportName) : null;
 
   const [listRef] = useAutoAnimate();
+
+  // Mostrar loading mientras se cargan los tournament IDs o los standings
+  const isLoading = loadingTournamentIds || loadingStandings;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
@@ -172,7 +177,7 @@ export default function ClasificacionViewersPage() {
         )}
 
         {/* Loading State - Solo mostrar en primera carga cuando no hay datos en caché */}
-        {loadingStandings && bomboStandings.length === 0 && !error && (
+        {isLoading && bomboStandings.length === 0 && !error && (
           <div className="flex justify-center items-center py-12">
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
@@ -395,7 +400,7 @@ export default function ClasificacionViewersPage() {
         )}
 
         {/* Empty State */}
-        {!loadingStandings && !error && (!bomboStandings || bomboStandings.length === 0) && selectedSport && selectedGenero && (
+        {!isLoading && !error && (!bomboStandings || bomboStandings.length === 0) && selectedSport && selectedGenero && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}

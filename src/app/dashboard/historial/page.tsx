@@ -3,13 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
-import { Calendar, Trophy, Users, ArrowRight, Clock, CheckCircle2 } from "lucide-react";
+import { Calendar, Trophy, Users, ArrowRight, Clock, CheckCircle2, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { cn } from "../../../lib/utils";
+import { cn, formatDateOnlyWithYear } from "../../../lib/utils";
+import ConfirmModal from "../../../components/ConfirmModal";
 
-type TournamentHistory = {
-  id: number; // ID del primer torneo (para navegación)
+type EditionHistory = {
+  id: number; // tournament_editions.id — navegación ?edition=
   name: string;
   disciplines: Array<{
     sport_id: number;
@@ -21,13 +22,16 @@ type TournamentHistory = {
   created_by: string | null;
   matches_count: number;
   finished_matches: number;
+  tournamentIds: number[]; // IDs de tournaments de esta edición (para eliminar)
 };
 
 export default function HistorialPage() {
   const router = useRouter();
-  const [tournaments, setTournaments] = useState<TournamentHistory[]>([]);
+  const [editions, setEditions] = useState<EditionHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [listRef] = useAutoAnimate();
+  const [editionToDelete, setEditionToDelete] = useState<EditionHistory | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadHistory();
@@ -37,206 +41,107 @@ export default function HistorialPage() {
     try {
       setLoading(true);
 
-      // Obtener la fecha actual
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayString = today.toISOString().split("T")[0];
+      // Obtener la edición "actual" para excluirla del historial (nunca mostrar torneo actual aquí)
+      let currentEditionId: number | null = null;
+      const { data: activeEdition } = await supabase
+        .from("tournament_editions")
+        .select("id")
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+      if (activeEdition?.id != null) {
+        currentEditionId = activeEdition.id as number;
+      } else {
+        // Si no hay edición activa, excluir la edición del torneo más reciente (evitar mostrar "actual" en historial)
+        const { data: latestTournament } = await supabase
+          .from("tournaments")
+          .select("edition_id")
+          .order("id", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (latestTournament?.edition_id != null) {
+          currentEditionId = latestTournament.edition_id as number;
+        }
+      }
 
-      console.log("Buscando torneos con end_date anterior a:", todayString);
-
-      // Primero, verificar todos los torneos que existen (para debugging)
-      const { data: allTournaments } = await supabase
-        .from("tournaments")
-        .select("id, name, end_date, start_date, sport_id")
+      const { data: editionsData, error: editionsError } = await supabase
+        .from("tournament_editions")
+        .select("id, name, start_date, end_date, created_by")
+        .eq("status", "closed")
         .order("id", { ascending: false });
-      
-      type TournamentBasic = {
-        id: number;
-        name: string;
-        end_date: string | null;
-        start_date: string | null;
-        sport_id: number;
-      };
 
-      console.log("Todos los torneos en la BD:", allTournaments);
-      console.log("Nombres únicos de torneos:", [...new Set((allTournaments as TournamentBasic[] | null)?.map((t) => t.name) || [])]);
-      
-      if (allTournaments && allTournaments.length > 0) {
-        console.log("Detalles de fechas:");
-        (allTournaments as TournamentBasic[]).forEach((t) => {
-          const endDate = t.end_date ? new Date(t.end_date) : null;
-          const isPast = endDate ? endDate < today : false;
-          console.log(`- ${t.name} (ID: ${t.id}): end_date=${t.end_date}, es pasado=${isPast}`);
-        });
-      }
-
-      // Agrupar torneos por nombre para identificar grupos
-      const tournamentsGroupedByName = new Map<string, { ids: number[], maxId: number }>();
-      (allTournaments as TournamentBasic[] | null)?.forEach((t) => {
-        if (!tournamentsGroupedByName.has(t.name)) {
-          tournamentsGroupedByName.set(t.name, { ids: [], maxId: 0 });
-        }
-        const group = tournamentsGroupedByName.get(t.name)!;
-        group.ids.push(t.id);
-        if (t.id > group.maxId) {
-          group.maxId = t.id;
-        }
-      });
-
-      console.log("Grupos de torneos:", Array.from(tournamentsGroupedByName.entries()).map(([name, group]) => ({
-        nombre: name,
-        ids: group.ids,
-        maxId: group.maxId
-      })));
-
-      // Encontrar el grupo con el ID más alto (el torneo más reciente)
-      let latestTournamentGroupIds: number[] = [];
-      let maxIdInGroup = 0;
-      let latestTournamentName = "";
-
-      tournamentsGroupedByName.forEach((group, name) => {
-        if (group.maxId > maxIdInGroup) {
-          maxIdInGroup = group.maxId;
-          latestTournamentGroupIds = group.ids;
-          latestTournamentName = name;
-        }
-      });
-
-      console.log("ID máximo encontrado:", maxIdInGroup);
-      console.log("Nombre del torneo más reciente:", latestTournamentName);
-      console.log("IDs de torneos del torneo activo (todas las disciplinas):", latestTournamentGroupIds);
-
-      // Mostrar todos los torneos EXCEPTO los del torneo más reciente (por IDs)
-      // Esto asegura que cuando crees un nuevo torneo, el anterior aparezca en historial
-      let query = supabase
-        .from("tournaments")
-        .select(`
-          id,
-          name,
-          sport_id,
-          start_date,
-          end_date,
-          created_by,
-          sports!inner(
-            id,
-            name
-          )
-        `);
-
-      // Excluir todos los IDs del torneo más reciente (todas sus disciplinas)
-      if (latestTournamentGroupIds.length > 0) {
-        // Filtrar después de obtener los datos, ya que Supabase no tiene .not().in() directo
-        // Por ahora obtenemos todos y filtramos en JavaScript
-      }
-
-      // Ordenar por end_date descendente (más recientes primero) o por ID si no hay fecha
-      query = query.order("end_date", { ascending: false, nullsFirst: false });
-
-      const { data: allTournamentsData, error } = await query;
-
-      if (error) {
-        console.error("Error cargando historial:", error);
+      if (editionsError) {
+        console.error("Error cargando historial:", editionsError);
+        setEditions([]);
         return;
       }
 
-      type TournamentWithSports = {
-        id: number;
-        name: string;
-        sport_id: number;
-        start_date: string | null;
-        end_date: string | null;
-        created_by: string | null;
-        sports: {
-          id: number;
-          name: string;
-        } | Array<{
-          id: number;
-          name: string;
-        }>;
-      };
+      // Excluir la edición actual para que no aparezca en historial (fase de grupos del actual)
+      type EditionRow = { id: number; name: string | null; start_date: string | null; end_date: string | null; created_by: string | null };
+      const closedOnly: EditionRow[] = (editionsData as EditionRow[] | null) ?? [];
+      const filteredEditions = currentEditionId != null
+        ? closedOnly.filter((e) => e.id !== currentEditionId)
+        : closedOnly;
 
-      // Filtrar para excluir los IDs del torneo más reciente
-      const tournamentsDataTyped = (allTournamentsData as unknown) as TournamentWithSports[] | null;
-      console.log("Todos los torneos antes de filtrar:", (tournamentsDataTyped || []).map((t) => ({
-        id: t.id,
-        name: t.name
-      })));
-      
-      const tournamentsData = latestTournamentGroupIds.length > 0
-        ? (tournamentsDataTyped || []).filter((t) => {
-            const shouldInclude = !latestTournamentGroupIds.includes(t.id);
-            console.log(`Torneo ${t.id} (${t.name}): ${shouldInclude ? "INCLUIDO" : "EXCLUIDO"}`);
-            return shouldInclude;
-          })
-        : tournamentsDataTyped;
-
-      console.log(`Torneos encontrados en historial (después de filtrar): ${tournamentsData?.length || 0}`);
-      if (tournamentsData && tournamentsData.length > 0) {
-        console.log("Torneos en historial:", tournamentsData.map((t) => ({
-          id: t.id,
-          name: t.name,
-          end_date: t.end_date
-        })));
-      } else {
-        console.log("NO HAY TORNEOS después del filtro. IDs excluidos:", latestTournamentGroupIds);
+      if (filteredEditions.length === 0) {
+        setEditions([]);
+        return;
       }
 
-      // Agrupar torneos por nombre
-      const tournamentsByName = new Map<string, TournamentWithSports[]>();
-      (tournamentsData || []).forEach((tournament) => {
-        const name = tournament.name;
-        if (!tournamentsByName.has(name)) {
-          tournamentsByName.set(name, []);
-        }
-        tournamentsByName.get(name)!.push(tournament);
-      });
+      const editionsWithStats: EditionHistory[] = await Promise.all(
+        filteredEditions.map(
+          async (edition) => {
+            const { data: tournamentRows } = await supabase
+              .from("tournaments")
+              .select(`
+                id,
+                sport_id,
+                sports!inner(id, name)
+              `)
+              .eq("edition_id", edition.id);
 
-      // Para cada grupo de torneos (mismo nombre), obtener estadísticas combinadas
-      const tournamentsWithStats: TournamentHistory[] = await Promise.all(
-        Array.from(tournamentsByName.entries()).map(async ([name, tournaments]) => {
-          // Obtener todos los IDs de torneos con este nombre
-          const tournamentIds = tournaments.map((t) => t.id);
-          
-          // Contar partidos totales de todas las disciplinas
-          const { count: totalMatches } = await supabase
-            .from("matches")
-            .select("*", { count: "exact", head: true })
-            .in("tournament_id", tournamentIds);
+            const rows = (tournamentRows as Array<{
+              id: number;
+              sport_id: number;
+              sports: { id: number; name: string } | Array<{ id: number; name: string }>;
+            }> | null) ?? [];
+            const tournamentIds = rows.map((r) => r.id);
 
-          // Contar partidos finalizados de todas las disciplinas
-          const { count: finishedMatches } = await supabase
-            .from("matches")
-            .select("*", { count: "exact", head: true })
-            .in("tournament_id", tournamentIds)
-            .eq("status", "finished");
+            const { count: totalMatches } = await supabase
+              .from("matches")
+              .select("*", { count: "exact", head: true })
+              .in("tournament_id", tournamentIds);
+            const { count: finishedMatches } = await supabase
+              .from("matches")
+              .select("*", { count: "exact", head: true })
+              .in("tournament_id", tournamentIds)
+              .eq("status", "finished");
 
-          // Obtener las disciplinas
-          const disciplines = tournaments.map((t) => {
-            const sportsData = Array.isArray(t.sports) ? t.sports[0] : t.sports;
+            const disciplines = rows.map((row) => {
+              const sportsData = Array.isArray(row.sports) ? row.sports[0] : row.sports;
+              return {
+                sport_id: row.sport_id,
+                sport_name: sportsData?.name ?? "Deporte desconocido",
+                tournament_id: row.id,
+              };
+            });
+
             return {
-              sport_id: t.sport_id,
-              sport_name: sportsData?.name || "Deporte desconocido",
-              tournament_id: t.id,
+              id: edition.id,
+              name: edition.name ?? "",
+              disciplines,
+              start_date: edition.start_date,
+              end_date: edition.end_date,
+              created_by: edition.created_by,
+              matches_count: totalMatches ?? 0,
+              finished_matches: finishedMatches ?? 0,
+              tournamentIds,
             };
-          });
-
-          // Usar el primer torneo para fechas y otros datos
-          const firstTournament = tournaments[0];
-
-          return {
-            id: firstTournament.id, // ID del primer torneo para navegación
-            name: name,
-            disciplines: disciplines,
-            start_date: firstTournament.start_date,
-            end_date: firstTournament.end_date,
-            created_by: firstTournament.created_by,
-            matches_count: totalMatches || 0,
-            finished_matches: finishedMatches || 0,
-          };
-        })
+          }
+        )
       );
 
-      setTournaments(tournamentsWithStats);
+      setEditions(editionsWithStats);
     } catch (error) {
       console.error("Error inesperado:", error);
     } finally {
@@ -244,19 +149,86 @@ export default function HistorialPage() {
     }
   };
 
-  const handleTournamentClick = (tournamentId: number) => {
-    router.push(`/dashboard/torneos?tournament=${tournamentId}`);
+  const handleEditionClick = (editionId: number) => {
+    router.push(`/dashboard/torneos?edition=${editionId}`);
   };
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "Fecha no disponible";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+  const handleDeleteClick = (e: React.MouseEvent, edition: EditionHistory) => {
+    e.stopPropagation();
+    setEditionToDelete(edition);
   };
+
+  const handleConfirmDelete = async () => {
+    if (!editionToDelete) return;
+    setDeleting(true);
+    const editionId = editionToDelete.id;
+    const tournamentIds = editionToDelete.tournamentIds;
+    try {
+      // Orden: borrar todo lo que referencia la edición para evitar violación de FK al borrar tournament_editions.
+
+      // 1. Partidos y resultados
+      const { data: matchRows } = await supabase
+        .from("matches")
+        .select("id")
+        .in("tournament_id", tournamentIds);
+      const matchIds = (matchRows ?? []).map((m: { id: number }) => m.id);
+      if (matchIds.length > 0) {
+        await supabase.from("match_results").delete().in("match_id", matchIds);
+        await supabase.from("match_events").delete().in("match_id", matchIds);
+      }
+      await supabase.from("matches").delete().in("tournament_id", tournamentIds);
+      await supabase.from("player_stats").delete().in("tournament_id", tournamentIds);
+
+      // 2. Sorteos (draws) y draw_results
+      const { data: drawRows } = await supabase
+        .from("draws")
+        .select("id")
+        .in("tournament_id", tournamentIds);
+      const drawIds = (drawRows ?? []).map((d: { id: number }) => d.id);
+      if (drawIds.length > 0) {
+        await supabase.from("draw_results").delete().in("draw_id", drawIds);
+      }
+      await supabase.from("draws").delete().in("tournament_id", tournamentIds);
+
+      // 3. Datos por edition_id (deben borrarse antes que tournament_editions)
+      await supabase.from("players").delete().eq("edition_id", editionId);
+      await supabase.from("team_registrations").delete().eq("edition_id", editionId);
+      await supabase.from("registration_forms").delete().eq("edition_id", editionId);
+      await supabase.from("team_leaders").delete().eq("edition_id", editionId);
+
+      // 4. Equipos de esta edición (careers referencian team_id)
+      const { data: teamRows } = await supabase
+        .from("teams")
+        .select("id")
+        .eq("edition_id", editionId);
+      const teamIds = (teamRows ?? []).map((t: { id: number }) => t.id);
+      if (teamIds.length > 0) {
+        await supabase.from("careers").delete().in("team_id", teamIds);
+      }
+      await supabase.from("teams").delete().eq("edition_id", editionId);
+
+      // 5. Torneos y edición
+      await supabase.from("tournaments").delete().in("id", tournamentIds);
+      const { error: editionError } = await supabase
+        .from("tournament_editions")
+        .delete()
+        .eq("id", editionId);
+
+      if (editionError) {
+        console.error("Error eliminando edición:", editionError);
+        throw editionError;
+      }
+
+      setEditions((prev) => prev.filter((e) => e.id !== editionToDelete.id));
+      setEditionToDelete(null);
+    } catch (err) {
+      console.error("Error eliminando edición:", err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const formatDate = (dateString: string | null) => formatDateOnlyWithYear(dateString);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -324,7 +296,7 @@ export default function HistorialPage() {
                 Cargando historial...
               </p>
             </motion.div>
-          ) : tournaments.length === 0 ? (
+          ) : editions.length === 0 ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -355,13 +327,13 @@ export default function HistorialPage() {
               ref={listRef}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             >
-              {tournaments.map((tournament, index) => (
+              {editions.map((edition, index) => (
                 <motion.div
-                  key={tournament.id}
+                  key={edition.id}
                   variants={cardVariants}
                   whileHover={{ y: -8, scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => handleTournamentClick(tournament.id)}
+                  onClick={() => handleEditionClick(edition.id)}
                   className={cn(
                     "group relative bg-white dark:bg-neutral-800 rounded-2xl border border-gray-200 dark:border-neutral-700",
                     "p-6 cursor-pointer overflow-hidden",
@@ -377,10 +349,10 @@ export default function HistorialPage() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                          {tournament.name}
+                          {edition.name}
                         </h3>
                         <div className="flex flex-wrap items-center gap-2 mb-4">
-                          {tournament.disciplines.map((discipline, idx) => (
+                          {edition.disciplines.map((discipline, idx) => (
                             <motion.span
                               key={idx}
                               initial={{ opacity: 0, scale: 0.8 }}
@@ -393,12 +365,20 @@ export default function HistorialPage() {
                           ))}
                         </div>
                       </div>
-                      <motion.div
-                        whileHover={{ x: 5 }}
-                        className="flex-shrink-0"
-                      >
-                        <ArrowRight className="w-6 h-6 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
-                      </motion.div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteClick(e, edition)}
+                          className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors cursor-pointer"
+                          title="Eliminar edición"
+                          aria-label="Eliminar edición"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                        <motion.div whileHover={{ x: 5 }}>
+                          <ArrowRight className="w-6 h-6 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
+                        </motion.div>
+                      </div>
                     </div>
 
                     <div className="space-y-3 text-sm mb-4">
@@ -408,7 +388,7 @@ export default function HistorialPage() {
                         </div>
                         <div>
                           <div className="font-semibold text-gray-900 dark:text-white">Inicio:</div>
-                          <div>{formatDate(tournament.start_date)}</div>
+                          <div>{formatDate(edition.start_date)}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
@@ -417,7 +397,7 @@ export default function HistorialPage() {
                         </div>
                         <div>
                           <div className="font-semibold text-gray-900 dark:text-white">Fin:</div>
-                          <div>{formatDate(tournament.end_date)}</div>
+                          <div>{formatDate(edition.end_date)}</div>
                         </div>
                       </div>
                     </div>
@@ -429,7 +409,7 @@ export default function HistorialPage() {
                             <Users className="w-4 h-4 text-green-600 dark:text-green-400" />
                           </div>
                           <span className="font-medium">
-                            {tournament.finished_matches} / {tournament.matches_count} partidos
+                            {edition.finished_matches} / {edition.matches_count} partidos
                           </span>
                         </div>
                         <motion.span
@@ -448,6 +428,21 @@ export default function HistorialPage() {
           )}
         </AnimatePresence>
       </div>
+
+      <ConfirmModal
+        isOpen={!!editionToDelete}
+        title="Eliminar edición"
+        message={
+          editionToDelete
+            ? `¿Eliminar "${editionToDelete.name}" (${editionToDelete.disciplines.map((d) => d.sport_name).join(", ")})? Esta acción no se puede deshacer.`
+            : ""
+        }
+        confirmText={deleting ? "Eliminando…" : "Eliminar"}
+        cancelText="Cancelar"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => !deleting && setEditionToDelete(null)}
+        variant="danger"
+      />
     </div>
   );
 }

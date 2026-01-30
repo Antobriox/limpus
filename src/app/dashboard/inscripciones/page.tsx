@@ -2,15 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useRegistrationForms } from "./hooks/useRegistrationForms";
+import { useDashboard } from "../torneos/hooks/useDashboard";
 import ViewRegistrationsModal from "./components/ViewRegistrationsModal";
-import { Eye } from "lucide-react";
+import { Eye, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 
 export default function InscripcionesPage() {
-  // Usar el hook con TanStack Query - los datos se cargan automáticamente y se cachean
-  const { forms, loading, toggleStatus, deleteForm } = useRegistrationForms();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editionParam = searchParams.get("edition");
+  const editionId = editionParam ? parseInt(editionParam, 10) : undefined;
+
+  const { tournament, currentEditionId } = useDashboard(editionId);
+  const { forms, loading, toggleStatus, deleteForm } = useRegistrationForms(currentEditionId);
   const [selectedForm, setSelectedForm] = useState<{ id: number; name: string } | null>(null);
 
   const [listRef] = useAutoAnimate();
@@ -29,6 +36,18 @@ export default function InscripcionesPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+      {editionId && (
+        <motion.button
+          type="button"
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          onClick={() => router.push(`/dashboard/torneos?edition=${editionId}`)}
+          className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Volver
+        </motion.button>
+      )}
       {/* Header */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
@@ -44,18 +63,26 @@ export default function InscripcionesPage() {
           </p>
         </div>
 
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Link
-            href="/dashboard/inscripciones/nueva"
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition text-white px-4 sm:px-5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap shadow-lg hover:shadow-xl"
+        {!editionId && (
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            + Nueva inscripción
-          </Link>
-        </motion.div>
+            <Link
+              href="/dashboard/inscripciones/nueva"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition text-white px-4 sm:px-5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap shadow-lg hover:shadow-xl"
+            >
+              + Nueva inscripción
+            </Link>
+          </motion.div>
+        )}
       </motion.div>
+
+      {editionId && tournament && (
+        <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/50 p-4 text-center text-sm text-gray-600 dark:text-gray-400">
+          Vista de torneo finalizado: <strong>{tournament.name}</strong>. Las inscripciones mostradas corresponden al período del torneo.
+        </div>
+      )}
 
       {/* Empty state */}
       {forms.length === 0 && (
@@ -150,32 +177,34 @@ export default function InscripcionesPage() {
                       Ver
                     </motion.button>
 
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => toggleStatus(f.id, f.is_locked)}
-                      className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition text-xs sm:text-sm font-medium cursor-pointer"
-                    >
-                      {f.is_locked ? "Abrir" : "Cerrar"}
-                    </motion.button>
-
-                    <motion.a
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      href={`/dashboard/inscripciones/${f.id}`}
-                      className="text-yellow-600 hover:text-yellow-500 dark:text-yellow-400 dark:hover:text-yellow-300 transition text-xs sm:text-sm font-medium cursor-pointer"
-                    >
-                      Editar
-                    </motion.a>
-
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => deleteForm(f.id)}
-                      className="text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 transition text-xs sm:text-sm font-medium cursor-pointer"
-                    >
-                      Eliminar
-                    </motion.button>
+                    {!editionId && (
+                      <>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => toggleStatus(f.id, f.is_locked)}
+                          className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition text-xs sm:text-sm font-medium cursor-pointer"
+                        >
+                          {f.is_locked ? "Abrir" : "Cerrar"}
+                        </motion.button>
+                        <motion.a
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          href={`/dashboard/inscripciones/${f.id}`}
+                          className="text-yellow-600 hover:text-yellow-500 dark:text-yellow-400 dark:hover:text-yellow-300 transition text-xs sm:text-sm font-medium cursor-pointer"
+                        >
+                          Editar
+                        </motion.a>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => deleteForm(f.id)}
+                          className="text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 transition text-xs sm:text-sm font-medium cursor-pointer"
+                        >
+                          Eliminar
+                        </motion.button>
+                      </>
+                    )}
                   </td>
                 </motion.tr>
               ))}
@@ -192,6 +221,8 @@ export default function InscripcionesPage() {
           formName={selectedForm.name}
           isOpen={!!selectedForm}
           onClose={() => setSelectedForm(null)}
+          tournamentStart={tournament?.start_date || null}
+          tournamentEnd={tournament?.end_date || null}
         />
       )}
     </div>

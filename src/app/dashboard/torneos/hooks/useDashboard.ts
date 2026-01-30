@@ -1,109 +1,72 @@
 // Hook para cargar datos del dashboard con TanStack Query
+// Regla: todo se basa en edition_id. Torneo activo = tournament_editions.status = 'active'.
+// activeTournamentIds = tournaments donde edition_id = X. Stats/equipos/partidos filtran por esos IDs.
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../../../../lib/supabaseClient";
 import { Tournament, Team, RecentResult, TournamentStats } from "../types";
 
 const DASHBOARD_QUERY_KEY = ["dashboard"];
 
-const loadDashboardData = async (tournamentId?: number): Promise<{
+type EditionRow = {
+  id: number;
+  name: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: string | null;
+  created_at?: string | null;
+};
+
+const loadDashboardData = async (editionId?: number): Promise<{
+  currentEditionId: number | null;
+  currentEditionCreatedAt: string | null;
   tournament: Tournament | null;
+  activeTournamentIds: number[];
   stats: TournamentStats;
   recentTeams: Team[];
   recentResults: RecentResult[];
 }> => {
   let tournament: Tournament | null = null;
+  let activeTournamentIds: number[] = [];
+  let currentEditionId: number | null = null;
 
-  if (tournamentId) {
-    // Cargar el torneo específico solicitado
-    const { data: tournamentData } = await supabase
-      .from("tournaments")
-      .select("id, name, start_date, end_date")
-      .eq("id", tournamentId)
+  // Resolver la edición: por parámetro (historial) o por status = 'active' (torneo actual)
+  let edition: EditionRow | null = null;
+
+  if (editionId != null && editionId > 0) {
+    const { data: editionData } = await supabase
+      .from("tournament_editions")
+      .select("id, name, start_date, end_date, status, created_at")
+      .eq("id", editionId)
       .single();
-
-    if (tournamentData) {
-      tournament = {
-        id: tournamentData.id,
-        name: tournamentData.name || "Torneo",
-        start_date: tournamentData.start_date || "",
-        end_date: tournamentData.end_date || "",
-        location: undefined,
-        status: "FINALIZADO", // Los torneos del historial están finalizados
-      };
-    } else {
-      // Si no se encuentra, cargar el más reciente
-      const { data: tournaments } = await supabase
-        .from("tournaments")
-        .select("id, name, start_date, end_date")
-        .order("id", { ascending: false })
-        .limit(1);
-
-      if (tournaments && tournaments.length > 0) {
-        const t = tournaments[0];
-        tournament = {
-          id: t.id,
-          name: t.name || "Torneo",
-          start_date: t.start_date || "",
-          end_date: t.end_date || "",
-          location: undefined,
-          status: "EN CURSO",
-        };
-      }
-    }
+    edition = editionData as EditionRow | null;
   } else {
-    // Cargar torneo activo (el más reciente por ID máximo)
-    // Agrupar por nombre para identificar el grupo más reciente
-    const { data: allTournaments } = await supabase
-      .from("tournaments")
-      .select("id, name, start_date, end_date")
-      .order("id", { ascending: false });
-
-    if (allTournaments && allTournaments.length > 0) {
-      // Agrupar por nombre
-      type TournamentBasic = {
-        id: number;
-        name: string;
-        start_date: string | null;
-        end_date: string | null;
-      };
-      const tournamentsTyped: TournamentBasic[] = allTournaments as TournamentBasic[];
-      const tournamentsGroupedByName = new Map<string, TournamentBasic[]>();
-      tournamentsTyped.forEach((t) => {
-        if (!tournamentsGroupedByName.has(t.name)) {
-          tournamentsGroupedByName.set(t.name, []);
-        }
-        tournamentsGroupedByName.get(t.name)!.push(t);
-      });
-
-      // Encontrar el grupo con el ID más alto
-      let latestTournament: TournamentBasic | null = null;
-      let maxId = 0;
-
-      for (const tournaments of tournamentsGroupedByName.values()) {
-        const maxIdInGroup = Math.max(...tournaments.map(t => t.id));
-        if (maxIdInGroup > maxId) {
-          maxId = maxIdInGroup;
-          const found = tournaments.find(t => t.id === maxIdInGroup);
-          if (found) {
-            latestTournament = found;
-          }
-        }
-      }
-
-      if (latestTournament) {
-        tournament = {
-          id: latestTournament.id,
-          name: latestTournament.name || "Torneo",
-          start_date: latestTournament.start_date || "",
-          end_date: latestTournament.end_date || "",
-          location: undefined,
-          status: "EN CURSO",
-        };
-      }
-    }
+    const { data: activeEdition } = await supabase
+      .from("tournament_editions")
+      .select("id, name, start_date, end_date, status, created_at")
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    edition = activeEdition as EditionRow | null;
   }
 
-  if (!tournament) {
+  if (edition) {
+    currentEditionId = edition.id;
+    const { data: tournamentRows } = await supabase
+      .from("tournaments")
+      .select("id")
+      .eq("edition_id", edition.id);
+    activeTournamentIds = (tournamentRows as Array<{ id: number }> | null)?.map((r) => r.id) ?? [];
+
+    const isActive = edition.status === "active";
+    tournament = {
+      id: edition.id, // Usar el ID de la edición, no del torneo
+      name: edition.name ?? "Torneo",
+      start_date: edition.start_date ?? "",
+      end_date: edition.end_date ?? "",
+      location: undefined,
+      status: isActive ? "EN CURSO" : "FINALIZADO",
+    };
+  } else {
     tournament = {
       id: 0,
       name: "Sin torneo activo",
@@ -114,188 +77,143 @@ const loadDashboardData = async (tournamentId?: number): Promise<{
     };
   }
 
-  // Obtener el ID del torneo activo (una sola vez)
-  const activeTournamentId = tournamentId || tournament?.id;
-
-  // Contar TODOS los equipos creados en la tabla teams
-  const { count: equiposCount } = await supabase
-    .from("teams")
-    .select("*", { count: "exact", head: true });
-
-  // Contar equipos nuevos (últimos 7 días)
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const { count: equiposNuevosCount } = await supabase
-    .from("teams")
-    .select("*", { count: "exact", head: true })
-    .gte("created_at", sevenDaysAgo.toISOString());
-
-  // Contar disciplinas activas
+  // Stats y listas: solo datos de activeTournamentIds. Si no hay edición, todo en 0 / vacío.
+  let equiposCount = 0;
+  let equiposNuevosCount = 0;
   const { count: disciplinasCount } = await supabase
     .from("sports")
     .select("*", { count: "exact", head: true });
 
-  // Contar partidos (filtrar por torneo activo)
   let finishedMatchesCount = 0;
   let totalMatchesCount = 0;
-  
-  if (activeTournamentId && activeTournamentId > 0) {
-    // Contar partidos finalizados del torneo activo
+
+  if (currentEditionId != null && currentEditionId > 0) {
+    // Equipos inscritos = equipos de esta edición (por edition_id, no por partidos)
+    const { count: teamsCount } = await supabase
+      .from("teams")
+      .select("*", { count: "exact", head: true })
+      .eq("edition_id", currentEditionId);
+    equiposCount = teamsCount ?? 0;
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const { count: newTeamsCount } = await supabase
+      .from("teams")
+      .select("*", { count: "exact", head: true })
+      .eq("edition_id", currentEditionId)
+      .gte("created_at", sevenDaysAgo.toISOString());
+    equiposNuevosCount = newTeamsCount ?? 0;
+  }
+
+  if (activeTournamentIds.length > 0) {
     const { count: finished } = await supabase
       .from("matches")
       .select("*", { count: "exact", head: true })
-      .eq("tournament_id", activeTournamentId)
-      .eq("status", "finished");
-    finishedMatchesCount = finished || 0;
-
-    // Contar todos los partidos del torneo activo (cualquier status)
-    const { count: total } = await supabase
-      .from("matches")
-      .select("*", { count: "exact", head: true })
-      .eq("tournament_id", activeTournamentId);
-    totalMatchesCount = total || 0;
-    
-    // Si no se encontraron partidos con el tournament_id, verificar si hay partidos sin tournament_id
-    // (puede ser que los partidos no tengan el tournament_id asignado)
-    if (totalMatchesCount === 0) {
-      // Contar todos los partidos finalizados (sin filtrar por torneo) como fallback
-      const { count: finishedAll } = await supabase
-        .from("matches")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "finished");
-      finishedMatchesCount = finishedAll || 0;
-
-      const { count: totalAll } = await supabase
-        .from("matches")
-        .select("*", { count: "exact", head: true });
-      totalMatchesCount = totalAll || 0;
-    }
-  } else {
-    // Si no hay torneo activo, contar todos los partidos
-    const { count: finished } = await supabase
-      .from("matches")
-      .select("*", { count: "exact", head: true })
+      .in("tournament_id", activeTournamentIds)
       .eq("status", "finished");
     finishedMatchesCount = finished || 0;
 
     const { count: total } = await supabase
       .from("matches")
-      .select("*", { count: "exact", head: true });
+      .select("*", { count: "exact", head: true })
+      .in("tournament_id", activeTournamentIds);
     totalMatchesCount = total || 0;
   }
 
   const partidosJugadosCount = finishedMatchesCount || 0;
   const partidosTotales = totalMatchesCount || 0;
-  const progreso = partidosTotales > 0 
+  const progreso = partidosTotales > 0
     ? Math.round((partidosJugadosCount / partidosTotales) * 100)
     : 0;
 
   const stats: TournamentStats = {
-    equiposInscritos: equiposCount || 0,
-    equiposNuevos: equiposNuevosCount || 0,
+    equiposInscritos: equiposCount,
+    equiposNuevos: equiposNuevosCount,
     disciplinasActivas: disciplinasCount || 0,
-    partidosJugados: partidosJugadosCount || 0,
-    partidosTotales: partidosTotales,
+    partidosJugados: partidosJugadosCount,
+    partidosTotales,
     progresoGeneral: progreso,
   };
 
-  // Cargar equipos recientes
-  const { data: allTeamsData } = await supabase
-    .from("teams")
-    .select(`
-      id,
-      name,
-      created_at,
-      careers (
-        id,
-        name
-      )
-    `)
-    .order("created_at", { ascending: false })
-    .limit(5);
-
+  // Equipos recientes: equipos de esta edición por edition_id (no dependen de partidos)
   let recentTeams: Team[] = [];
-  if (allTeamsData && allTeamsData.length > 0) {
-    type TeamWithCareers = {
-      id: number;
-      name: string;
-      careers?: Array<{ id: number; name: string }>;
-    };
-    
-    // Obtener los IDs de los equipos
-    const teamIds = (allTeamsData as TeamWithCareers[]).map((team: TeamWithCareers) => team.id);
+  if (currentEditionId != null && currentEditionId > 0) {
+    const { data: allTeamsData } = await supabase
+      .from("teams")
+      .select(`
+        id,
+        name,
+        created_at,
+        careers (
+          id,
+          name
+        )
+      `)
+      .eq("edition_id", currentEditionId)
+      .order("created_at", { ascending: false })
+      .limit(10);
 
-    // Cargar líderes de equipo desde team_leaders
-    const { data: teamLeadersData } = await supabase
-      .from("team_leaders")
-      .select("team_id, user_id")
-      .in("team_id", teamIds);
-
-    type TeamLeaderData = {
-      team_id: number;
-      user_id: string;
-    };
-
-    // Obtener todos los user_ids únicos
-    const userIds = teamLeadersData 
-      ? [...new Set((teamLeadersData as TeamLeaderData[]).map((tl: TeamLeaderData) => tl.user_id))]
-      : [];
-
-    // Cargar los perfiles de los líderes
-    let profilesMap = new Map<string, string>();
-    if (userIds.length > 0) {
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", userIds);
-
-      if (profilesData) {
-        profilesMap = new Map(
-          (profilesData as Array<{ id: string; full_name: string | null }>).map((p) => [
-            p.id,
-            p.full_name || "Sin nombre"
-          ])
-        );
-      }
-    }
-
-    // Crear un mapa de team_id -> nombres de líderes
-    const leadersMap = new Map<number, string[]>();
-    if (teamLeadersData) {
-      (teamLeadersData as TeamLeaderData[]).forEach((tl: TeamLeaderData) => {
-        const leaderName = profilesMap.get(tl.user_id);
-        if (leaderName) {
-          if (!leadersMap.has(tl.team_id)) {
-            leadersMap.set(tl.team_id, []);
-          }
-          leadersMap.get(tl.team_id)!.push(leaderName);
-        }
-      });
-    }
-
-    recentTeams = (allTeamsData as TeamWithCareers[]).map((team: TeamWithCareers) => {
-      const faculty = team.careers && team.careers.length > 0 
-        ? team.careers[0].name 
-        : "Sin facultad";
-
-      // Obtener los líderes del equipo
-      const teamLeaders = leadersMap.get(team.id) || [];
-      const captain = teamLeaders.length > 0
-        ? teamLeaders.join(", ")
-        : "Sin líder de equipo";
-
-      return {
-        id: team.id,
-        name: team.name,
-        faculty: faculty,
-        captain: captain,
-        status: "Verificado",
+    if (allTeamsData && allTeamsData.length > 0) {
+      type TeamWithCareers = {
+        id: number;
+        name: string;
+        careers?: Array<{ id: number; name: string }>;
       };
-    });
+      const teamIds = (allTeamsData as TeamWithCareers[]).map((t: TeamWithCareers) => t.id);
+
+      const { data: teamLeadersData } = await supabase
+        .from("team_leaders")
+        .select("team_id, user_id")
+        .in("team_id", teamIds);
+
+      type TeamLeaderData = { team_id: number; user_id: string };
+      const userIds = teamLeadersData
+        ? [...new Set((teamLeadersData as TeamLeaderData[]).map((tl: TeamLeaderData) => tl.user_id))]
+        : [];
+
+      let profilesMap = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", userIds);
+        if (profilesData) {
+          profilesMap = new Map(
+            (profilesData as Array<{ id: string; full_name: string | null }>).map((p) => [
+              p.id,
+              p.full_name || "Sin nombre",
+            ])
+          );
+        }
+      }
+
+      const leadersMap = new Map<number, string[]>();
+      if (teamLeadersData) {
+        (teamLeadersData as TeamLeaderData[]).forEach((tl: TeamLeaderData) => {
+          const leaderName = profilesMap.get(tl.user_id);
+          if (leaderName) {
+            if (!leadersMap.has(tl.team_id)) leadersMap.set(tl.team_id, []);
+            leadersMap.get(tl.team_id)!.push(leaderName);
+          }
+        });
+      }
+
+      recentTeams = (allTeamsData as TeamWithCareers[]).map((team: TeamWithCareers) => {
+        const faculty = team.careers && team.careers.length > 0 ? team.careers[0].name : "Sin facultad";
+        const teamLeaders = leadersMap.get(team.id) || [];
+        const captain = teamLeaders.length > 0 ? teamLeaders.join(", ") : "Sin líder de equipo";
+        return {
+          id: team.id,
+          name: team.name,
+          faculty,
+          captain,
+          status: "Verificado",
+        };
+      }).slice(0, 5);
+    }
   }
 
-  // Cargar resultados recientes (partidos finalizados)
-  // Primero intentar con el torneo activo, si no hay resultados, mostrar todos
+  // Resultados recientes: solo partidos finalizados de esta edición
   let finishedMatches: Array<{
     id: number;
     team_a: number | null;
@@ -304,42 +222,29 @@ const loadDashboardData = async (tournamentId?: number): Promise<{
     ended_at: string | null;
     status: string;
     tournament_id: number | null;
-  }> | null = null;
-  
-  // Obtener todos los partidos y filtrar los que están finalizados
-  // Un partido está finalizado si tiene status "finished" O tiene ended_at
-  const { data: allMatches } = await supabase
-    .from("matches")
-    .select(`
-      id,
-      team_a,
-      team_b,
-      scheduled_at,
-      ended_at,
-      status,
-      tournament_id
-    `)
-    .order("ended_at", { ascending: false, nullsFirst: false })
-    .limit(20); // Obtener más para filtrar después
-  
-  // Filtrar partidos finalizados (status finished O que tengan ended_at)
-  if (allMatches) {
-    const filteredMatches = allMatches.filter(m => 
-      m.status === "finished" || (m.ended_at !== null && m.ended_at !== undefined)
-    ).slice(0, 5); // Limitar a 5
-    
-    finishedMatches = filteredMatches;
-    
-    // Si hay torneo activo y se encontraron partidos, priorizar los del torneo
-    if (activeTournamentId && activeTournamentId > 0 && finishedMatches.length > 0) {
-      const tournamentMatches = finishedMatches.filter(m => m.tournament_id === activeTournamentId);
-      // Si hay partidos del torneo, usarlos; si no, mantener todos los partidos
-      if (tournamentMatches.length > 0) {
-        finishedMatches = tournamentMatches;
-      }
+  }> = [];
+
+  if (activeTournamentIds.length > 0) {
+    const { data: editionMatches } = await supabase
+      .from("matches")
+      .select(`
+        id,
+        team_a,
+        team_b,
+        scheduled_at,
+        ended_at,
+        status,
+        tournament_id
+      `)
+      .in("tournament_id", activeTournamentIds)
+      .or("status.eq.finished,ended_at.not.is.null")
+      .order("ended_at", { ascending: false, nullsFirst: false })
+      .limit(5);
+    if (editionMatches && editionMatches.length > 0) {
+      finishedMatches = editionMatches as typeof finishedMatches;
     }
   }
-  
+
   // Obtener información de torneos y deportes por separado
   const tournamentsMap = new Map<number, { name: string; sport_id: number | null }>();
   const sportsMap = new Map<number, string>();
@@ -501,27 +406,33 @@ const loadDashboardData = async (tournamentId?: number): Promise<{
   }
 
   return {
+    currentEditionId,
+    currentEditionCreatedAt: edition?.created_at ?? null,
     tournament,
+    activeTournamentIds,
     stats,
     recentTeams,
     recentResults,
   };
 };
 
-export const useDashboard = (tournamentId?: number) => {
+export const useDashboard = (editionId?: number) => {
   const {
     data,
     isLoading,
   } = useQuery({
-    queryKey: [...DASHBOARD_QUERY_KEY, tournamentId],
-    queryFn: () => loadDashboardData(tournamentId),
-    staleTime: 30 * 1000, // 30 segundos - refrescar más frecuentemente
-    refetchOnMount: true, // Refetch cuando el componente se monta
-    refetchOnWindowFocus: true, // Refetch cuando la ventana recupera el foco
+    queryKey: [...DASHBOARD_QUERY_KEY, editionId],
+    queryFn: () => loadDashboardData(editionId),
+    staleTime: 30 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   return {
+    currentEditionId: data?.currentEditionId ?? null,
+    currentEditionCreatedAt: data?.currentEditionCreatedAt ?? null,
     tournament: data?.tournament || null,
+    activeTournamentIds: data?.activeTournamentIds ?? [],
     stats: data?.stats || {
       equiposInscritos: 0,
       equiposNuevos: 0,
@@ -532,6 +443,6 @@ export const useDashboard = (tournamentId?: number) => {
     },
     recentTeams: data?.recentTeams || [],
     recentResults: data?.recentResults || [],
-    loading: isLoading, // Solo true en primera carga
+    loading: isLoading,
   };
 };

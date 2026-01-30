@@ -8,6 +8,7 @@ import AdvancedStatCard from "../../../components/AdvancedStatCard";
 import ActionCard from "../../../components/ActionCard";
 import {
   Users,
+  UserCircle2,
   Settings,
   Square,
   TrendingUp,
@@ -16,6 +17,7 @@ import {
   Upload,
   Edit,
   Plus,
+  ArrowLeft,
   Calendar as CalendarIcon,
   MapPin,
   MoreVertical,
@@ -26,15 +28,15 @@ import DocumentsModal from "./components/DocumentsModal";
 import { useDashboard } from "./hooks/useDashboard";
 import { motion } from "framer-motion";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { formatDateOnly } from "../../../lib/utils";
 
 export default function TorneosPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tournamentIdParam = searchParams.get("tournament");
-  const tournamentId = tournamentIdParam ? parseInt(tournamentIdParam) : undefined;
+  const editionParam = searchParams.get("edition");
+  const editionId = editionParam ? parseInt(editionParam) : undefined;
 
-  // Usar el hook con TanStack Query - los datos se cargan automáticamente y se cachean
-  const { tournament, stats, recentTeams, recentResults, loading } = useDashboard(tournamentId);
+  const { tournament, currentEditionId, activeTournamentIds, stats, recentTeams, recentResults, loading } = useDashboard(editionId);
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [showAllTeamsModal, setShowAllTeamsModal] = useState(false);
   const [showAllResultsModal, setShowAllResultsModal] = useState(false);
@@ -46,29 +48,15 @@ export default function TorneosPage() {
   // Los datos se cargan automáticamente con TanStack Query (caché)
   // No necesitamos la función loadData
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const months = [
-      "Enero",
-      "Febrero",
-      "Marzo",
-      "Abril",
-      "Mayo",
-      "Junio",
-      "Julio",
-      "Agosto",
-      "Septiembre",
-      "Octubre",
-      "Noviembre",
-      "Diciembre",
-    ];
-    return `${date.getDate()} de ${months[date.getMonth()]}`;
-  };
+  const formatDate = (dateString: string) => formatDateOnly(dateString);
 
   const loadAllTeams = async () => {
     setLoadingAllTeams(true);
     try {
-      // Cargar TODOS los equipos de la tabla teams (no solo los del torneo)
+      if (currentEditionId == null || currentEditionId <= 0) {
+        setAllTeams([]);
+        return;
+      }
       const { data: allTeamsData } = await supabase
         .from("teams")
         .select(`
@@ -80,6 +68,7 @@ export default function TorneosPage() {
             name
           )
         `)
+        .eq("edition_id", currentEditionId)
         .order("created_at", { ascending: false });
 
       type TeamWithCareers = {
@@ -177,8 +166,7 @@ export default function TorneosPage() {
   const loadAllResults = async () => {
     setLoadingAllResults(true);
     try {
-      // Obtener TODOS los partidos finalizados (sin filtrar por torneo)
-      const { data: allMatches } = await supabase
+      let query = supabase
         .from("matches")
         .select(`
           id,
@@ -190,12 +178,14 @@ export default function TorneosPage() {
           tournament_id
         `)
         .order("ended_at", { ascending: false, nullsFirst: false })
-        .limit(100); // Obtener más para filtrar después
-      
-      // Filtrar partidos finalizados (status finished O que tengan ended_at)
-      const finishedMatches = allMatches?.filter(m => 
-        m.status === "finished" || (m.ended_at !== null && m.ended_at !== undefined)
-      ) || [];
+        .limit(100);
+      if (activeTournamentIds.length > 0) {
+        query = query.in("tournament_id", activeTournamentIds);
+      }
+      const { data: allMatches } = await query;
+      const finishedMatches = (allMatches ?? []).filter(m =>
+        m.status === "finished" || (m.ended_at != null)
+      );
 
       type FinishedMatch = {
         id: number;
@@ -467,27 +457,42 @@ export default function TorneosPage() {
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-            {tournament && tournament.id > 0 && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => router.push(`/dashboard/torneos/${tournament.id}`)}
-              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition text-sm shadow-sm hover:shadow-md"
-            >
-              <Edit className="w-4 h-4" />
-              <span className="hidden sm:inline">Editar</span>
-            </motion.button>
+            {editionId ? (
+              <motion.button
+                type="button"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                onClick={() => router.push("/dashboard/torneos")}
+                className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Volver al torneo actual</span>
+              </motion.button>
+            ) : (
+              <>
+                {tournament && tournament.id > 0 && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => router.push(`/dashboard/torneos/${tournament.id}`)}
+                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition text-sm shadow-sm hover:shadow-md cursor-pointer"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span className="hidden sm:inline">Editar</span>
+                  </motion.button>
+                )}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => router.push("/dashboard/torneos/nuevo")}
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition text-sm whitespace-nowrap shadow-lg hover:shadow-xl cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Nuevo Torneo</span>
+                  <span className="sm:hidden">Nuevo</span>
+                </motion.button>
+              </>
             )}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => router.push("/dashboard/torneos/nuevo")}
-              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition text-sm whitespace-nowrap shadow-lg hover:shadow-xl"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Nuevo Torneo</span>
-              <span className="sm:hidden">Nuevo</span>
-            </motion.button>
           </div>
         </div>
       </motion.div>
@@ -527,33 +532,62 @@ export default function TorneosPage() {
         />
       </motion.div>
 
-      {/* Action Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <ActionCard
-          icon={<Network className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
-          title="Generar Brackets"
-          description="Crear llaves de eliminación automática"
-          onClick={() => router.push("/dashboard/torneos/brackets")}
-        />
-        <ActionCard
-          icon={<Calendar className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
-          title="Programar Partidos"
-          description="Asignar fechas y canchas pendientes"
-          onClick={() => router.push("/dashboard/torneos/programar")}
-        />
-        <ActionCard
-          icon={<Upload className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
-          title="Publicar Resultados"
-          description="Actualizar marcadores de la jornada"
-          onClick={() => router.push("/dashboard/torneos/resultados")}
-        />
-        <ActionCard
-          icon={<TrendingUp className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
-          title="Tablas de Posiciones"
-          description="Ver clasificación por disciplina"
-          onClick={() => router.push("/dashboard/torneos/tablas")}
-        />
-      </div>
+      {/* Action Cards: solo para torneo actual, no para historial */}
+      {!editionId ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <ActionCard
+            icon={<Network className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Generar Brackets"
+            description="Crear llaves de eliminación automática"
+            onClick={() => router.push("/dashboard/torneos/brackets")}
+          />
+          <ActionCard
+            icon={<Calendar className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Programar Partidos"
+            description="Asignar fechas y canchas pendientes"
+            onClick={() => router.push("/dashboard/torneos/programar")}
+          />
+          <ActionCard
+            icon={<Upload className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Publicar Resultados"
+            description="Actualizar marcadores de la jornada"
+            onClick={() => router.push("/dashboard/torneos/resultados")}
+          />
+          <ActionCard
+            icon={<TrendingUp className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Tablas de Posiciones"
+            description="Ver clasificación por disciplina"
+            onClick={() => router.push("/dashboard/torneos/tablas")}
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <ActionCard
+            icon={<Users className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Equipos"
+            description="Ver equipos de esta edición"
+            onClick={() => router.push(`/dashboard/equipos?edition=${editionId}`)}
+          />
+          <ActionCard
+            icon={<UserCircle2 className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Miembros"
+            description="Líderes y árbitros de esta edición"
+            onClick={() => router.push(`/dashboard/usuarios?edition=${editionId}`)}
+          />
+          <ActionCard
+            icon={<CalendarIcon className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Inscripciones"
+            description="Ver inscripciones de esta edición"
+            onClick={() => router.push(`/dashboard/inscripciones?edition=${editionId}`)}
+          />
+          <ActionCard
+            icon={<TrendingUp className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Tablas de Posiciones"
+            description="Ver clasificación por disciplina"
+            onClick={() => router.push(`/dashboard/torneos/tablas?edition=${editionId}`)}
+          />
+        </div>
+      )}
 
       {/* Bottom Sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">

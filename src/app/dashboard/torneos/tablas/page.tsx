@@ -2,10 +2,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Trophy } from "lucide-react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useStandings } from "../hooks/useStandings";
+import { useDashboard } from "../hooks/useDashboard";
 import { getDisciplineRulesByName } from "../config/disciplineRules";
 import { motion } from "framer-motion";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
@@ -13,16 +14,20 @@ import { cn } from "../../../../lib/utils";
 
 export default function TablasPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editionParam = searchParams.get("edition");
+  const editionId = editionParam ? parseInt(editionParam, 10) : undefined;
+  const { activeTournamentIds } = useDashboard(editionId);
+
   const [sports, setSports] = useState<{ id: number; name: string }[]>([]);
   const [selectedSport, setSelectedSport] = useState<number | null>(null);
   const [selectedSportName, setSelectedSportName] = useState<string>("");
   const [selectedGenero, setSelectedGenero] = useState<string | null>(null);
 
-  // Usar el hook con TanStack Query - los datos se cargan automáticamente y se cachean
   const { bomboStandings, loading, error } = useStandings(
     selectedSport,
     selectedSportName,
-    undefined,
+    activeTournamentIds.length > 0 ? activeTournamentIds : undefined,
     selectedGenero
   );
 
@@ -95,7 +100,7 @@ export default function TablasPage() {
         <motion.button
           whileHover={{ x: -5 }}
           whileTap={{ scale: 0.95 }}
-          onClick={() => router.back()}
+          onClick={() => router.push(editionId ? `/dashboard/torneos?edition=${editionId}` : "/dashboard/torneos")}
           className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 mb-3 sm:mb-4 transition text-sm sm:text-base font-medium"
         >
           <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />

@@ -3,7 +3,11 @@ import { useState } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { Tournament, Match, Referee, ScheduleForm } from "../types";
 
-export const useMatches = (tournament: Tournament | null) => {
+export const useMatches = (
+  tournament: Tournament | null,
+  editionId?: number | null,
+  editionCreatedAt?: string | null
+) => {
   const [pendingMatches, setPendingMatches] = useState<Match[]>([]);
   const [scheduledMatches, setScheduledMatches] = useState<Match[]>([]);
   const [referees, setReferees] = useState<Referee[]>([]);
@@ -297,7 +301,7 @@ export const useMatches = (tournament: Tournament | null) => {
         if (filteredUserIds.length > 0) {
           const { data: profiles, error: profilesError } = await supabase
             .from("profiles")
-            .select("id, full_name, email")
+            .select("id, full_name, email, created_at")
             .in("id", filteredUserIds)
             .order("full_name");
           
@@ -307,9 +311,50 @@ export const useMatches = (tournament: Tournament | null) => {
             return;
           }
           
-          console.log("Perfiles de árbitros encontrados:", profiles);
-          const filtered = filterValidReferees(profiles);
-          console.log("Árbitros después de filtrar nombres inválidos:", filtered);
+          type ProfileWithCreated = { id: string; full_name: string | null; email: string | null; created_at?: string | null };
+          let listToShow = filterValidReferees(profiles) as ProfileWithCreated[];
+
+          if (editionId != null && editionId > 0) {
+            const { data: tournamentRows } = await supabase
+              .from("tournaments")
+              .select("id")
+              .eq("edition_id", editionId);
+            const tournamentIds = (tournamentRows ?? []).map((t: { id: number }) => t.id);
+            const assignedToThisEdition = new Set<string>();
+            const assignedToAnyEdition = new Set<string>();
+            if (tournamentIds.length > 0) {
+              const { data: matchesThis } = await supabase
+                .from("matches")
+                .select("referee, assistant")
+                .in("tournament_id", tournamentIds);
+              (matchesThis ?? []).forEach((m: { referee: string | null; assistant: string | null }) => {
+                if (m.referee) assignedToThisEdition.add(m.referee);
+                if (m.assistant) assignedToThisEdition.add(m.assistant);
+              });
+            }
+            const { data: allTournamentRows } = await supabase.from("tournaments").select("id");
+            const allTids = (allTournamentRows ?? []).map((t: { id: number }) => t.id);
+            if (allTids.length > 0) {
+              const { data: allMatches } = await supabase
+                .from("matches")
+                .select("referee, assistant")
+                .in("tournament_id", allTids);
+              (allMatches ?? []).forEach((m: { referee: string | null; assistant: string | null }) => {
+                if (m.referee) assignedToAnyEdition.add(m.referee);
+                if (m.assistant) assignedToAnyEdition.add(m.assistant);
+              });
+            }
+            const editionDate = editionCreatedAt ? new Date(editionCreatedAt).getTime() : 0;
+            listToShow = listToShow.filter((p) => {
+              if (assignedToThisEdition.has(p.id)) return true;
+              if (assignedToAnyEdition.has(p.id)) return false;
+              const userDate = p.created_at ? new Date(p.created_at).getTime() : 0;
+              return editionDate === 0 || userDate >= editionDate;
+            });
+          }
+
+          const filtered = listToShow.map((p) => ({ id: p.id, full_name: p.full_name, email: p.email }));
+          console.log("Árbitros después de filtrar por edición:", filtered);
           setReferees(filtered);
         } else {
           console.warn("No hay árbitros después de filtrar líderes de equipo. IDs originales:", userIds);

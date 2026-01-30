@@ -23,24 +23,39 @@ export type TeamInfo = {
   careers: string[];
   leaders: string[];
   captain: string | null;
+  edition_id: number | null;
 };
 
 const TEAM_LEADER_QUERY_KEY = ["teamLeader"];
 
 const loadTeamLeader = async (userId: string): Promise<TeamInfo | null> => {
-  // 1. Obtener el team_id del líder desde team_leaders
+  // 1. Primero obtener la edición activa
+  const { data: activeEdition } = await supabase
+    .from("tournament_editions")
+    .select("id")
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+
+  if (!activeEdition) {
+    return null; // No hay torneo activo
+  }
+
+  // 2. Buscar si el usuario tiene un equipo asignado en la edición activa
   const { data: teamLeaderData, error: teamLeaderError } = await supabase
     .from("team_leaders")
-    .select("team_id")
+    .select("team_id, edition_id")
     .eq("user_id", userId)
+    .eq("edition_id", activeEdition.id)
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (teamLeaderError || !teamLeaderData) {
-    return null;
+    return null; // El líder no tiene equipo en el torneo activo
   }
 
   const teamId = teamLeaderData.team_id;
+  const editionId = teamLeaderData.edition_id || null;
 
   // 2. Cargar información del equipo
   const { data: teamData, error: teamError } = await supabase
@@ -113,6 +128,7 @@ const loadTeamLeader = async (userId: string): Promise<TeamInfo | null> => {
     careers,
     leaders,
     captain,
+    edition_id: editionId,
   };
 };
 

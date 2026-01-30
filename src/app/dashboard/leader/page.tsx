@@ -1,10 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import { useTeamLeader } from "./hooks/useTeamLeader";
 import { useTeamMatches } from "./hooks/useTeamMatches";
 import { useTeamStats } from "./hooks/useTeamStats";
+import { useRealtimeSubscription } from "../../../hooks/useRealtimeSubscription";
 import { Calendar, Clock, MapPin, Trophy, Users, TrendingUp, Award, Target, FileText, Eye } from "lucide-react";
 import { useState } from "react";
 import RegistrationModal from "./components/RegistrationModal";
@@ -12,7 +12,6 @@ import MatchDetailsModal from "./components/MatchDetailsModal";
 import { motion } from "framer-motion";
 
 export default function LeaderPage() {
-  const router = useRouter();
   const { teamInfo, loading: loadingTeam } = useTeamLeader();
   const { upcomingMatches, liveMatches, pastMatches, loading: loadingMatches } = useTeamMatches(teamInfo?.id || null);
   const { stats, loading: loadingStats } = useTeamStats(teamInfo?.id || null);
@@ -27,9 +26,58 @@ export default function LeaderPage() {
     genero?: string | null;
   } | null>(null);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
+  // 🔥 ACTIVAR ACTUALIZACIONES EN TIEMPO REAL
+  useRealtimeSubscription();
+
+  const handleLogout = () => {
+    // Ocultar INMEDIATAMENTE todo el contenido
+    document.body.style.opacity = "0";
+    document.body.style.pointerEvents = "none";
+    
+    // Mostrar loader
+    const loader = document.createElement("div");
+    loader.style.cssText = `
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgb(249 250 251) 0%, rgb(255 255 255) 50%, rgb(249 250 251) 100%);
+    `;
+    loader.innerHTML = `
+      <div style="text-align: center;">
+        <div style="
+          width: 48px;
+          height: 48px;
+          border: 4px solid rgb(191 219 254);
+          border-top-color: rgb(37 99 235);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 16px;
+        "></div>
+        <p style="color: rgb(75 85 99); font-weight: 500;">Cerrando sesión...</p>
+      </div>
+      <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (prefers-color-scheme: dark) {
+          div:first-child {
+            background: linear-gradient(135deg, rgb(10 10 10) 0%, rgb(23 23 23) 50%, rgb(10 10 10) 100%) !important;
+          }
+          p { color: rgb(156 163 175) !important; }
+          div > div:first-child {
+            border-color: rgb(30 58 138) !important;
+            border-top-color: rgb(96 165 250) !important;
+          }
+        }
+      </style>
+    `;
+    document.body.appendChild(loader);
+    
+    // Cerrar sesión y redirigir
+    supabase.auth.signOut().finally(() => {
+      window.location.replace("/");
+    });
   };
 
   const formatDate = (dateString: string | null) => {
@@ -61,7 +109,9 @@ export default function LeaderPage() {
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full mx-auto mb-4"
           />
-          <p className="text-gray-600 dark:text-gray-400 font-medium">Cargando información del equipo...</p>
+          <p className="text-gray-600 dark:text-gray-400 font-medium">
+            Cargando información del equipo...
+          </p>
         </motion.div>
       </div>
     );
@@ -527,6 +577,7 @@ export default function LeaderPage() {
       {showRegistrationModal && teamInfo && (
         <RegistrationModal
           teamId={teamInfo.id}
+          editionId={teamInfo.edition_id}
           onClose={() => setShowRegistrationModal(false)}
         />
       )}

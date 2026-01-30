@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useRouter, useParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 
 
@@ -13,12 +14,6 @@ export default function EditarTorneoPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [allTournamentsWithSameName, setAllTournamentsWithSameName] = useState<Array<{
-    id: number;
-    name: string;
-    start_date: string | null;
-    end_date: string | null;
-  }>>([]);
 
   const [form, setForm] = useState({
     name: "",
@@ -26,52 +21,39 @@ export default function EditarTorneoPage() {
     end_date: "",
   });
 
-  // Cargar datos del torneo
+  // Cargar datos de la edición del torneo
   useEffect(() => {
-    const loadTournament = async () => {
+    const loadTournamentEdition = async () => {
       try {
-        // Cargar el torneo específico
-        const { data: tournament, error: tournamentError } = await supabase
-          .from("tournaments")
-          .select("id, name, start_date, end_date, sport_id")
+        // Cargar la edición del torneo (tournament_editions)
+        const { data: edition, error: editionError } = await supabase
+          .from("tournament_editions")
+          .select("id, name, start_date, end_date")
           .eq("id", tournamentId)
           .single();
 
-        if (tournamentError || !tournament) {
-          // alert eliminada"Torneo no encontrado");
+        if (editionError || !edition) {
+          console.error("Edición no encontrada. ID:", tournamentId, "Error:", editionError);
           router.replace("/dashboard/torneos");
           return;
         }
 
-        // tournamentData no se usa, solo se necesita para cargar allTournamentsWithSameName
-
-        // Cargar todos los torneos con el mismo nombre (mismo torneo, diferentes disciplinas)
-        const { data: allTournaments } = await supabase
-          .from("tournaments")
-          .select("id, name, start_date, end_date, sport_id")
-          .eq("name", tournament.name);
-
-        if (allTournaments) {
-          setAllTournamentsWithSameName(allTournaments);
-          // Usar los datos del primer torneo para el formulario
-          const firstTournament = allTournaments[0];
-          setForm({
-            name: firstTournament.name || "",
-            start_date: firstTournament.start_date || "",
-            end_date: firstTournament.end_date || "",
-          });
-        }
+        // Cargar datos en el formulario
+        setForm({
+          name: edition.name || "",
+          start_date: edition.start_date || "",
+          end_date: edition.end_date || "",
+        });
 
         setLoading(false);
       } catch (error) {
-        console.error("Error cargando torneo:", error);
-        // alert eliminada"Error al cargar el torneo");
+        console.error("Error cargando edición del torneo:", error);
         router.replace("/dashboard/torneos");
       }
     };
 
     if (tournamentId) {
-      loadTournament();
+      loadTournamentEdition();
     }
   }, [tournamentId, router]);
 
@@ -95,27 +77,24 @@ export default function EditarTorneoPage() {
     setSaving(true);
 
     try {
-      // Actualizar todos los torneos con el mismo nombre (todas las disciplinas)
-      const tournamentIds = allTournamentsWithSameName.map((t) => t.id);
-
+      // Actualizar la edición del torneo (tournament_editions)
       const { error: updateError } = await supabase
-        .from("tournaments")
+        .from("tournament_editions")
         .update({
           name: form.name.trim(),
           start_date: form.start_date,
           end_date: form.end_date,
         })
-        .in("id", tournamentIds);
+        .eq("id", tournamentId);
 
       if (updateError) {
         throw updateError;
       }
 
-      // NO crear ni eliminar matches. Solo actualizar datos del torneo.
       // alert eliminada"Torneo actualizado correctamente");
       router.push("/dashboard/torneos");
     } catch (error: unknown) {
-      console.error("Error actualizando torneo:", error);
+      console.error("Error actualizando edición del torneo:", error);
       // alert eliminada(error instanceof Error ? error.message : "Error al actualizar el torneo");
     } finally {
       setSaving(false);
@@ -136,6 +115,16 @@ export default function EditarTorneoPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+      <motion.button
+        type="button"
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        onClick={() => router.push("/dashboard/torneos")}
+        className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Volver
+      </motion.button>
       {/* Header */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
@@ -169,20 +158,6 @@ export default function EditarTorneoPage() {
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
         </div>
-
-        {/* Información de disciplinas */}
-        {allTournamentsWithSameName.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3 }}
-            className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 shadow-sm"
-          >
-            <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
-              <strong>Disciplinas incluidas:</strong> Este torneo incluye {allTournamentsWithSameName.length} disciplina{allTournamentsWithSameName.length !== 1 ? 's' : ''}.
-            </p>
-          </motion.div>
-        )}
 
         {/* Fechas */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

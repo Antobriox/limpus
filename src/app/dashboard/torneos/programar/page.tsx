@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Printer, Plus, Search, Calendar, ChevronDown, X, Clock } from "lucide-react";
+import { Printer, Plus, Search, Calendar, ChevronDown, X, Clock, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { cn } from "../../../../lib/utils";
@@ -53,12 +53,16 @@ type SupabaseProfile = {
 };
 import { Tournament, Match, ScheduleForm } from "../types";
 import { useMatches } from "../hooks/useMatches";
+import { useDashboard } from "../hooks/useDashboard";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 
 export default function ProgramarPartidosPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
+  const { currentEditionId, currentEditionCreatedAt } = useDashboard();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const {
     referees,
@@ -67,7 +71,7 @@ export default function ProgramarPartidosPage() {
     loadReferees,
     loadAdministrators,
     scheduleMatch,
-  } = useMatches(tournament);
+  } = useMatches(tournament, currentEditionId, currentEditionCreatedAt);
 
   // Estados locales para todos los partidos
   const [pendingMatches, setPendingMatches] = useState<Match[]>([]);
@@ -141,11 +145,24 @@ export default function ProgramarPartidosPage() {
 
       const sportName = sportData.name;
 
-      // Buscar en TODOS los torneos (igual que en useStandings)
+      // Obtener la edición activa y sus torneos
+      const { data: activeEdition } = await supabase
+        .from("tournament_editions")
+        .select("id")
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+
+      if (!activeEdition) {
+        setBombos([]);
+        setLoadingBombos(false);
+        return;
+      }
+
       const { data: tournaments } = await supabase
         .from("tournaments")
         .select("id")
-        .order("id", { ascending: false });
+        .eq("edition_id", activeEdition.id);
 
       if (!tournaments || tournaments.length === 0) {
         setBombos([]);
@@ -153,7 +170,7 @@ export default function ProgramarPartidosPage() {
         return;
       }
 
-      const tournamentIds = tournaments.map(t => t.id);
+      const tournamentIds = tournaments.map((t: { id: number }) => t.id);
 
       // Buscar todos los draws de TODOS los torneos
       const { data: draws } = await supabase
@@ -375,10 +392,38 @@ export default function ProgramarPartidosPage() {
     }
   }, []);
 
-  // Función para cargar TODOS los partidos de TODOS los torneos
+  // Función para cargar TODOS los partidos de la edición activa
   const loadAllMatches = useCallback(async () => {
     try {
-      // Cargar todos los partidos sin filtrar por torneo
+      // 1. Obtener la edición activa
+      const { data: activeEdition } = await supabase
+        .from("tournament_editions")
+        .select("id")
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+
+      if (!activeEdition) {
+        setPendingMatches([]);
+        setScheduledMatches([]);
+        return;
+      }
+
+      // 2. Obtener los IDs de los torneos de la edición activa
+      const { data: tournaments } = await supabase
+        .from("tournaments")
+        .select("id")
+        .eq("edition_id", activeEdition.id);
+
+      const tournamentIds = (tournaments || []).map((t: { id: number }) => t.id);
+
+      if (tournamentIds.length === 0) {
+        setPendingMatches([]);
+        setScheduledMatches([]);
+        return;
+      }
+
+      // 3. Cargar partidos solo de esos torneos
       const { data: matches, error } = await supabase
         .from("matches")
         .select(`
@@ -394,6 +439,7 @@ export default function ProgramarPartidosPage() {
           tournament_id,
           field
         `)
+        .in("tournament_id", tournamentIds)
         .order("scheduled_at", { ascending: true, nullsFirst: true });
 
       if (error) {
@@ -494,6 +540,7 @@ export default function ProgramarPartidosPage() {
             status: match.status,
             referee: match.referee,
             assistant: match.assistant,
+            tournament_id: match.tournament_id ?? null,
             teams: teamA ? { id: match.team_a!, name: typeof teamA === 'string' ? teamA : teamA.name } : undefined,
             teams1: teamB ? { id: match.team_b!, name: typeof teamB === 'string' ? teamB : teamB.name } : undefined,
             refereeName: match.referee ? refereesMap.get(match.referee) || null : null,
@@ -533,15 +580,16 @@ export default function ProgramarPartidosPage() {
         }
 
         if (filters.fecha) {
-          const filterDate = new Date(filters.fecha);
-          filterDate.setHours(0, 0, 0, 0);
-          const nextDay = new Date(filterDate);
-          nextDay.setDate(nextDay.getDate() + 1);
-
+          // Comparar por fecha local (YYYY-MM-DD) para que coincida con el día exacto seleccionado
+          const filterDateStr = filters.fecha;
           filteredMatches = filteredMatches.filter((m: Match) => {
             if (!m.scheduled_at) return false;
             const matchDate = new Date(m.scheduled_at);
-            return matchDate >= filterDate && matchDate < nextDay;
+            const y = matchDate.getFullYear();
+            const mo = String(matchDate.getMonth() + 1).padStart(2, "0");
+            const d = String(matchDate.getDate()).padStart(2, "0");
+            const matchDateStr = `${y}-${mo}-${d}`;
+            return matchDateStr === filterDateStr;
           });
         }
 
@@ -569,19 +617,22 @@ export default function ProgramarPartidosPage() {
     }
   }, [filters]);
 
-  // Inicialización: solo ejecutar una vez al montar
+  // Inicialización al montar
   useEffect(() => {
     const initializeData = async () => {
-      await loadReferees();
       await loadAdministrators();
-      // checkValidStatuses solo se ejecuta una vez al inicializar
       await checkValidStatuses();
-      // Cargar partidos inicialmente
       await loadAllMatches();
     };
     initializeData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Solo ejecutar una vez al montar el componente
+  }, []);
+
+  // Recargar árbitros cuando cambie la edición (filtro por edición actual)
+  useEffect(() => {
+    loadReferees();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentEditionId, currentEditionCreatedAt]);
 
   // Recargar partidos cuando cambien los filtros (pero no checkValidStatuses)
   useEffect(() => {
@@ -740,19 +791,22 @@ export default function ProgramarPartidosPage() {
 
   const loadTournament = async () => {
     try {
-      const { data: tournaments } = await supabase
-        .from("tournaments")
+      // 1. Obtener la edición activa
+      const { data: activeEdition } = await supabase
+        .from("tournament_editions")
         .select("id, name, start_date, end_date")
-        .order("id", { ascending: false })
-        .limit(1);
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
 
-      if (tournaments && tournaments.length > 0) {
-        const t = tournaments[0];
+      if (activeEdition) {
+        // 2. Usar la información de la edición como "torneo"
+        // (aunque técnicamente es una edición, mantenemos compatibilidad)
         setTournament({
-          id: t.id,
-          name: t.name || "Torneo",
-          start_date: t.start_date || "",
-          end_date: t.end_date || "",
+          id: activeEdition.id,
+          name: activeEdition.name || "Torneo",
+          start_date: activeEdition.start_date || "",
+          end_date: activeEdition.end_date || "",
           location: undefined,
           status: "EN CURSO",
         });
@@ -1015,6 +1069,16 @@ export default function ProgramarPartidosPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+      <motion.button
+        type="button"
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        onClick={() => router.push("/dashboard/torneos")}
+        className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Volver
+      </motion.button>
       {/* Header */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
