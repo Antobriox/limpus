@@ -1,17 +1,17 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import { useTeamLeader } from "./hooks/useTeamLeader";
 import { useTeamMatches } from "./hooks/useTeamMatches";
 import { useTeamStats } from "./hooks/useTeamStats";
+import { useRealtimeSubscription } from "../../../hooks/useRealtimeSubscription";
 import { Calendar, Clock, MapPin, Trophy, Users, TrendingUp, Award, Target, FileText, Eye } from "lucide-react";
 import { useState } from "react";
 import RegistrationModal from "./components/RegistrationModal";
 import MatchDetailsModal from "./components/MatchDetailsModal";
+import { motion } from "framer-motion";
 
 export default function LeaderPage() {
-  const router = useRouter();
   const { teamInfo, loading: loadingTeam } = useTeamLeader();
   const { upcomingMatches, liveMatches, pastMatches, loading: loadingMatches } = useTeamMatches(teamInfo?.id || null);
   const { stats, loading: loadingStats } = useTeamStats(teamInfo?.id || null);
@@ -26,9 +26,58 @@ export default function LeaderPage() {
     genero?: string | null;
   } | null>(null);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
+  // 🔥 ACTIVAR ACTUALIZACIONES EN TIEMPO REAL
+  useRealtimeSubscription();
+
+  const handleLogout = () => {
+    // Ocultar INMEDIATAMENTE todo el contenido
+    document.body.style.opacity = "0";
+    document.body.style.pointerEvents = "none";
+    
+    // Mostrar loader
+    const loader = document.createElement("div");
+    loader.style.cssText = `
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgb(249 250 251) 0%, rgb(255 255 255) 50%, rgb(249 250 251) 100%);
+    `;
+    loader.innerHTML = `
+      <div style="text-align: center;">
+        <div style="
+          width: 48px;
+          height: 48px;
+          border: 4px solid rgb(191 219 254);
+          border-top-color: rgb(37 99 235);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 16px;
+        "></div>
+        <p style="color: rgb(75 85 99); font-weight: 500;">Cerrando sesión...</p>
+      </div>
+      <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (prefers-color-scheme: dark) {
+          div:first-child {
+            background: linear-gradient(135deg, rgb(10 10 10) 0%, rgb(23 23 23) 50%, rgb(10 10 10) 100%) !important;
+          }
+          p { color: rgb(156 163 175) !important; }
+          div > div:first-child {
+            border-color: rgb(30 58 138) !important;
+            border-top-color: rgb(96 165 250) !important;
+          }
+        }
+      </style>
+    `;
+    document.body.appendChild(loader);
+    
+    // Cerrar sesión y redirigir
+    supabase.auth.signOut().finally(() => {
+      window.location.replace("/");
+    });
   };
 
   const formatDate = (dateString: string | null) => {
@@ -49,35 +98,59 @@ export default function LeaderPage() {
 
   if (loadingTeam) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-900">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Cargando información del equipo...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full mx-auto mb-4"
+          />
+          <p className="text-gray-600 dark:text-gray-400 font-medium">
+            Cargando información del equipo...
+          </p>
+        </motion.div>
       </div>
     );
   }
 
   if (!teamInfo) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-900">
-        <div className="text-center max-w-md mx-auto px-6">
-          <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center max-w-md mx-auto px-6"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+          >
+            <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          </motion.div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             No tienes un equipo asignado
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
             Contacta con un administrador para que te asigne a un equipo.
           </p>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-neutral-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-6 sm:py-8 px-4 sm:px-6">
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white py-6 sm:py-8 px-4 sm:px-6 shadow-xl"
+      >
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
@@ -86,15 +159,17 @@ export default function LeaderPage() {
                 {teamInfo.careers.length > 0 ? teamInfo.careers.join(" / ") : "Sin carreras"}
               </p>
             </div>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={handleLogout}
-              className="bg-white/20 hover:bg-white/30 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition font-medium text-sm sm:text-base whitespace-nowrap"
+              className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition font-medium text-sm sm:text-base whitespace-nowrap shadow-lg cursor-pointer"
             >
               Cerrar Sesión
-            </button>
+            </motion.button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {/* Estadísticas del Equipo */}
@@ -229,13 +304,9 @@ export default function LeaderPage() {
                 )}
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Capitán</h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  {teamInfo.captain || "Sin capitán asignado"}
-                </p>
                 <button
                   onClick={() => setShowRegistrationModal(true)}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium mt-3 cursor-pointer"
                 >
                   <FileText className="w-4 h-4" />
                   Llenar Inscripción
@@ -506,6 +577,7 @@ export default function LeaderPage() {
       {showRegistrationModal && teamInfo && (
         <RegistrationModal
           teamId={teamInfo.id}
+          editionId={teamInfo.edition_id}
           onClose={() => setShowRegistrationModal(false)}
         />
       )}

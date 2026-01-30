@@ -20,10 +20,14 @@ export async function POST(req: Request) {
         email_confirm: true,
       });
 
-    if (authError && authError.message !== "User already registered") {
+    const isAlreadyRegistered =
+      authError?.message?.includes("already registered") ||
+      authError?.message?.toLowerCase().includes("already exists") ||
+      authError?.message?.toLowerCase().includes("already been registered");
+    if (authError && !isAlreadyRegistered) {
       console.error("AUTH ERROR:", authError);
       return NextResponse.json(
-        { error: "Error creando usuario en Auth" },
+        { error: "Error creando usuario en Auth", detail: authError.message },
         { status: 500 }
       );
     }
@@ -73,7 +77,7 @@ export async function POST(req: Request) {
     if (profileError) {
       console.error("PROFILE ERROR:", profileError);
       return NextResponse.json(
-        { error: "Error guardando perfil" },
+        { error: "Error guardando perfil", detail: profileError.message, code: profileError.code },
         { status: 500 }
       );
     }
@@ -100,7 +104,7 @@ export async function POST(req: Request) {
     if (roleError) {
       console.error("ROLE ERROR:", roleError);
       return NextResponse.json(
-        { error: "Error asignando rol" },
+        { error: "Error asignando rol", detail: roleError.message, code: roleError.code },
         { status: 500 }
       );
     }
@@ -111,9 +115,10 @@ export async function POST(req: Request) {
     });
 
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Error desconocido";
     console.error("SERVER ERROR:", err);
     return NextResponse.json(
-      { error: "Error interno del servidor" },
+      { error: "Error interno del servidor", detail: message },
       { status: 500 }
     );
   }

@@ -1,8 +1,8 @@
-// Hook para cargar equipos con TanStack Query
+// Hook para cargar equipos por edition_id. No depende de partidos.
+// Torneo activo = equipos con edition_id = activeEditionId. Torneo nuevo = lista vacía hasta que se creen equipos.
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../../../lib/supabaseClient";
 
-// Tipos para datos de Supabase
 type SupabaseTeam = {
   id: number;
   name: string;
@@ -40,22 +40,26 @@ export type TeamRow = {
 
 const TEAMS_QUERY_KEY = ["teams"];
 
-const loadTeamsQuery = async (): Promise<TeamRow[]> => {
-  // Cargar todos los equipos básicos
-  const { data: teamsData, error: teamsError } = await supabase
+const loadTeamsQuery = async (editionId: number | null): Promise<TeamRow[]> => {
+  if (editionId == null || editionId <= 0) {
+    return [];
+  }
+
+  const { data: teamsRaw, error: teamsError } = await supabase
     .from("teams")
     .select("id, name, created_at")
+    .eq("edition_id", editionId)
     .order("created_at", { ascending: false });
 
   if (teamsError) {
     throw teamsError;
   }
 
-  if (!teamsData || teamsData.length === 0) {
+  const teamsData = (teamsRaw ?? []) as SupabaseTeam[];
+  if (teamsData.length === 0) {
     return [];
   }
 
-  // Mapear equipos básicos primero (sin carreras)
   const teamsWithDetails = teamsData.map((team: SupabaseTeam) => ({
     id: team.id,
     name: team.name,
@@ -64,25 +68,20 @@ const loadTeamsQuery = async (): Promise<TeamRow[]> => {
     leaders: "Sin líderes",
   }));
 
-  // Intentar cargar carreras si hay equipos
+  const teamIds = teamsData.map((t) => t.id);
+
   try {
-    const teamIds = teamsData.map((team) => team.id);
     const { data: careersData } = await supabase
       .from("careers")
       .select("id, name, team_id")
       .in("team_id", teamIds);
 
     if (careersData && careersData.length > 0) {
-      // Crear un mapa de team_id -> carreras
       const careersMap = new Map<number, SupabaseCareer[]>();
       (careersData as SupabaseCareer[]).forEach((career) => {
-        if (!careersMap.has(career.team_id)) {
-          careersMap.set(career.team_id, []);
-        }
+        if (!careersMap.has(career.team_id)) careersMap.set(career.team_id, []);
         careersMap.get(career.team_id)!.push(career);
       });
-
-      // Actualizar equipos con carreras
       teamsWithDetails.forEach((team) => {
         const teamCareers = careersMap.get(team.id) || [];
         if (teamCareers.length > 0) {
@@ -90,115 +89,79 @@ const loadTeamsQuery = async (): Promise<TeamRow[]> => {
         }
       });
 
-      // Intentar cargar capitanes
       const careerIds = careersData.map((c) => c.id);
-      if (careerIds.length > 0) {
-        const { data: captainsData } = await supabase
-          .from("players")
-          .select("career_id, full_name")
-          .in("career_id", careerIds)
-          .eq("is_captain", true);
+      const { data: captainsData } = await supabase
+        .from("players")
+        .select("career_id, full_name")
+        .in("career_id", careerIds)
+        .eq("is_captain", true);
 
-        if (captainsData && captainsData.length > 0) {
-          const captainsMap = new Map(
-            (captainsData as SupabasePlayer[]).map((c: SupabasePlayer) => [c.career_id, c.full_name])
-          );
-
-          // Actualizar equipos con capitanes
-          teamsWithDetails.forEach((team) => {
-            const teamCareers = careersMap.get(team.id) || [];
-            if (teamCareers.length > 0) {
-              const careerId = teamCareers[0].id;
-              if (captainsMap.has(careerId)) {
-                team.captain = captainsMap.get(careerId)!;
-              }
-            }
-          });
-        }
+      if (captainsData && captainsData.length > 0) {
+        const captainsMap = new Map(
+          (captainsData as SupabasePlayer[]).map((c: SupabasePlayer) => [c.career_id, c.full_name])
+        );
+        teamsWithDetails.forEach((team) => {
+          const teamCareers = careersMap.get(team.id) || [];
+          if (teamCareers.length > 0 && captainsMap.has(teamCareers[0].id)) {
+            team.captain = captainsMap.get(teamCareers[0].id)!;
+          }
+        });
       }
     }
-  } catch (careersError) {
-    // Si hay error cargando carreras, continuar con equipos básicos
-    console.warn("Error cargando carreras (continuando sin ellas):", careersError);
+  } catch (e) {
+    console.warn("Error cargando carreras:", e);
   }
 
-  // Cargar líderes de los equipos
   try {
-    const teamIds = teamsData.map((team) => team.id);
-    
-    // Obtener los team_leaders con user_ids
-    const { data: teamLeadersData, error: teamLeadersError } = await supabase
+    const { data: teamLeadersData } = await supabase
       .from("team_leaders")
       .select("team_id, user_id")
       .in("team_id", teamIds);
 
-    if (!teamLeadersError && teamLeadersData && teamLeadersData.length > 0) {
-      // Obtener todos los user_ids únicos
-      const userIds = [...new Set((teamLeadersData as SupabaseTeamLeader[]).map((tl: SupabaseTeamLeader) => tl.user_id))];
-      
-      // Obtener los perfiles de esos usuarios
+    if (teamLeadersData && teamLeadersData.length > 0) {
+      const userIds = [...new Set((teamLeadersData as SupabaseTeamLeader[]).map((tl) => tl.user_id))];
       const { data: profilesData } = await supabase
         .from("profiles")
         .select("id, full_name")
         .in("id", userIds);
 
       if (profilesData) {
-        // Crear un mapa de user_id -> nombre
         const profilesMap = new Map(
-          (profilesData as SupabaseProfile[]).map((p: SupabaseProfile) => [p.id, p.full_name || "Sin nombre"])
+          (profilesData as SupabaseProfile[]).map((p) => [p.id, p.full_name || "Sin nombre"])
         );
-
-        // Crear un mapa de team_id -> líderes
         const leadersMap = new Map<number, string[]>();
-        (teamLeadersData as SupabaseTeamLeader[]).forEach((tl: SupabaseTeamLeader) => {
-          const teamId = tl.team_id;
-          const leaderName = profilesMap.get(tl.user_id);
-          if (leaderName) {
-            if (!leadersMap.has(teamId)) {
-              leadersMap.set(teamId, []);
-            }
-            leadersMap.get(teamId)!.push(leaderName);
+        (teamLeadersData as SupabaseTeamLeader[]).forEach((tl) => {
+          const name = profilesMap.get(tl.user_id);
+          if (name) {
+            if (!leadersMap.has(tl.team_id)) leadersMap.set(tl.team_id, []);
+            leadersMap.get(tl.team_id)!.push(name);
           }
         });
-
-        // Actualizar equipos con líderes
         teamsWithDetails.forEach((team) => {
-          const teamLeaders = leadersMap.get(team.id) || [];
-          if (teamLeaders.length > 0) {
-            team.leaders = teamLeaders.join(", ");
-          }
+          const leaders = leadersMap.get(team.id) || [];
+          if (leaders.length > 0) team.leaders = leaders.join(", ");
         });
       }
     }
-  } catch (leadersError) {
-    // Si hay error cargando líderes, continuar sin ellos
-    console.warn("Error cargando líderes (continuando sin ellos):", leadersError);
+  } catch (e) {
+    console.warn("Error cargando líderes:", e);
   }
 
   return teamsWithDetails;
 };
 
-export const useTeams = () => {
+export const useTeams = (editionId: number | null) => {
   const queryClient = useQueryClient();
 
-  const {
-    data: teams = [],
-    isLoading,
-  } = useQuery({
-    queryKey: TEAMS_QUERY_KEY,
-    queryFn: loadTeamsQuery,
+  const { data: teams = [], isLoading } = useQuery({
+    queryKey: [...TEAMS_QUERY_KEY, editionId],
+    queryFn: () => loadTeamsQuery(editionId),
   });
 
   const deleteTeamMutation = useMutation({
     mutationFn: async (id: number) => {
-      const { error } = await supabase
-        .from("teams")
-        .delete()
-        .eq("id", id);
-
-      if (error) {
-        throw new Error(error.message);
-      }
+      const { error } = await supabase.from("teams").delete().eq("id", id);
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TEAMS_QUERY_KEY });
@@ -207,18 +170,16 @@ export const useTeams = () => {
   });
 
   const deleteTeam = async (id: number) => {
-    // Confirmación eliminada
-
     try {
       await deleteTeamMutation.mutateAsync(id);
     } catch (error: unknown) {
-      console.error("Error al eliminar equipo: " + (error instanceof Error ? error.message : String(error)));
+      console.error("Error al eliminar equipo:", error instanceof Error ? error.message : String(error));
     }
   };
 
   return {
     teams,
-    loading: isLoading, // Solo true en primera carga
+    loading: isLoading,
     deleteTeam,
   };
 };

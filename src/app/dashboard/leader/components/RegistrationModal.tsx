@@ -19,6 +19,9 @@ type SupabasePlayer = {
 import { supabase } from "../../../../lib/supabaseClient";
 import { X, Plus, Trash2, CheckCircle2, AlertCircle, Upload, Image as ImageIcon } from "lucide-react";
 import { useTeamRegistrations, RegistrationForm } from "../hooks/useTeamRegistrations";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { cn } from "../../../../lib/utils";
 
 type Player = {
   id?: number;
@@ -35,11 +38,12 @@ type Player = {
 
 type RegistrationModalProps = {
   teamId: number;
+  editionId: number | null;
   onClose: () => void;
 };
 
-export default function RegistrationModal({ teamId, onClose }: RegistrationModalProps) {
-  const { forms, registrations, loadingForms, createRegistration, isCreating } = useTeamRegistrations(teamId);
+export default function RegistrationModal({ teamId, editionId, onClose }: RegistrationModalProps) {
+  const { forms, registrations, loadingForms, createRegistration, isCreating } = useTeamRegistrations(teamId, editionId);
   const [selectedForm, setSelectedForm] = useState<RegistrationForm | null>(null);
   const [teamRegistrationId, setTeamRegistrationId] = useState<number | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -260,17 +264,6 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
     try {
       console.log(`Guardando jugadores para inscripción ID: ${teamRegistrationId}, Form ID: ${selectedForm.id}, Deporte: ${selectedForm.sport_name}, Género: ${selectedForm.genero}`);
       
-      // Eliminar jugadores existentes SOLO de esta inscripción específica
-      const { error: deleteError } = await supabase
-        .from("players")
-        .delete()
-        .eq("team_registration_id", teamRegistrationId);
-
-      if (deleteError) {
-        console.error("Error eliminando jugadores existentes:", deleteError);
-        throw new Error(`Error al eliminar jugadores existentes: ${deleteError.message}`);
-      }
-
       // Validar que teamRegistrationId existe y corresponde al formulario seleccionado
       if (!teamRegistrationId) {
         throw new Error("No se pudo obtener el ID de la inscripción");
@@ -288,55 +281,174 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
         throw new Error("La inscripción no corresponde al formulario seleccionado");
       }
 
-      // Insertar nuevos jugadores con el team_registration_id correcto
-      const playersToInsert = players.map((p) => ({
-        full_name: p.full_name.trim(),
-        email: p.email ? p.email.trim() : null,
-        cedula: p.cedula ? p.cedula.trim() : null,
-        phone: p.phone ? p.phone.trim() : null,
-        career_id: p.career_id,
-        semester: p.semester,
-        jersey_number: p.jersey_number,
-        is_captain: p.is_captain,
-        cedula_photo_url: p.cedula_photo_url || null,
-        team_registration_id: teamRegistrationId, // Asegurar que se use el ID correcto
-      }));
-
-      console.log(`Insertando ${playersToInsert.length} jugadores con team_registration_id: ${teamRegistrationId} para formulario ID: ${selectedForm.id} (${selectedForm.sport_name} - ${selectedForm.genero})`);
-
-      const { error: insertError } = await supabase
+      // Obtener jugadores existentes de esta inscripción con todos sus datos
+      const { data: existingPlayers } = await supabase
         .from("players")
-        .insert(playersToInsert);
+        .select("*")
+        .eq("team_registration_id", teamRegistrationId);
 
-      if (insertError) {
-        console.error("Error insertando jugadores:", insertError);
-        throw new Error(`Error al guardar jugadores: ${insertError.message}`);
+      const existingPlayerIds = new Set((existingPlayers || []).map((p) => p.id));
+      const currentPlayerIds = new Set(players.filter((p) => p.id).map((p) => p.id!));
+
+      // Separar jugadores en existentes (con ID) y nuevos (sin ID)
+      const playersToUpdate: Array<Player & { id: number }> = [];
+      const playersToInsert: Array<Omit<Player, "id">> = [];
+
+      for (const player of players) {
+        if (player.id && existingPlayerIds.has(player.id)) {
+          // Verificar si realmente hay cambios antes de actualizar
+          const existingPlayer = (existingPlayers || []).find((ep) => ep.id === player.id);
+          if (existingPlayer) {
+            const hasChanges = 
+              existingPlayer.full_name !== player.full_name.trim() ||
+              existingPlayer.email !== (player.email ? player.email.trim() : null) ||
+              existingPlayer.cedula !== (player.cedula ? player.cedula.trim() : null) ||
+              existingPlayer.phone !== (player.phone ? player.phone.trim() : null) ||
+              existingPlayer.career_id !== player.career_id ||
+              existingPlayer.semester !== player.semester ||
+              existingPlayer.jersey_number !== player.jersey_number ||
+              existingPlayer.is_captain !== player.is_captain ||
+              existingPlayer.cedula_photo_url !== (player.cedula_photo_url || null);
+
+            if (hasChanges) {
+              // Solo agregar a actualizar si hay cambios reales
+              playersToUpdate.push({
+                ...player,
+                id: player.id,
+              });
+            }
+          }
+        } else {
+          // Jugador nuevo: insertar
+          playersToInsert.push({
+            full_name: player.full_name.trim(),
+            email: player.email ? player.email.trim() : null,
+            cedula: player.cedula ? player.cedula.trim() : null,
+            phone: player.phone ? player.phone.trim() : null,
+            career_id: player.career_id,
+            semester: player.semester,
+            jersey_number: player.jersey_number,
+            is_captain: player.is_captain,
+            cedula_photo_url: player.cedula_photo_url || null,
+          });
+        }
       }
 
+      // Actualizar jugadores existentes solo si hay cambios
+      for (const player of playersToUpdate) {
+        const { error: updateError } = await supabase
+          .from("players")
+          .update({
+            full_name: player.full_name.trim(),
+            email: player.email ? player.email.trim() : null,
+            cedula: player.cedula ? player.cedula.trim() : null,
+            phone: player.phone ? player.phone.trim() : null,
+            career_id: player.career_id,
+            semester: player.semester,
+            jersey_number: player.jersey_number,
+            is_captain: player.is_captain,
+            cedula_photo_url: player.cedula_photo_url || null,
+            team_registration_id: teamRegistrationId,
+          })
+          .eq("id", player.id);
+
+        if (updateError) {
+          console.error(`Error actualizando jugador ${player.id}:`, updateError);
+          throw new Error(`Error al actualizar jugador: ${updateError.message}`);
+        }
+      }
+
+      // Insertar nuevos jugadores
+      if (playersToInsert.length > 0) {
+        const playersToInsertWithRegistration = playersToInsert.map((p) => ({
+          ...p,
+          team_registration_id: teamRegistrationId,
+        }));
+
+        const { error: insertError } = await supabase
+          .from("players")
+          .insert(playersToInsertWithRegistration);
+
+        if (insertError) {
+          console.error("Error insertando jugadores:", insertError);
+          throw new Error(`Error al guardar jugadores: ${insertError.message}`);
+        }
+      }
+
+      // Eliminar jugadores que ya no están en la lista
+      // PERO solo si no tienen eventos de partidos asociados
+      const playersToDelete = Array.from(existingPlayerIds).filter((id) => !currentPlayerIds.has(id));
+
+      for (const playerId of playersToDelete) {
+        // Verificar si el jugador tiene eventos asociados
+        const { data: eventsData } = await supabase
+          .from("match_events")
+          .select("id")
+          .eq("player_id", playerId)
+          .limit(1);
+
+        // Solo eliminar si no tiene eventos asociados
+        if (!eventsData || eventsData.length === 0) {
+          const { error: deleteError } = await supabase
+            .from("players")
+            .delete()
+            .eq("id", playerId);
+
+          if (deleteError) {
+            console.warn(`No se pudo eliminar jugador ${playerId}:`, deleteError.message);
+            // No lanzar error, solo registrar advertencia
+          }
+        } else {
+          console.log(`Jugador ${playerId} no se eliminó porque tiene eventos de partidos asociados`);
+        }
+      }
+
+      console.log(`Jugadores guardados: ${playersToUpdate.length} actualizados, ${playersToInsert.length} insertados`);
       // alert eliminada"Jugadores guardados exitosamente");
       onClose();
     } catch (error: unknown) {
       console.error("Error al guardar jugadores:", error);
-      // alert eliminada"Error al guardar jugadores: " + error.message);
+      // alert eliminada"Error al guardar jugadores: " + (error instanceof Error ? error.message : "Error desconocido"));
     } finally {
       setSaving(false);
     }
   };
 
+  const [listRef] = useAutoAnimate();
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-neutral-800 rounded-lg max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-2 sm:my-4 mx-2 sm:mx-0">
-        <div className="sticky top-0 bg-white dark:bg-neutral-800 border-b border-gray-200 dark:border-neutral-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
-          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white pr-2">
-            Inscripciones
-          </h2>
-          <button
+    <AnimatePresence>
+      {true && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700 transition flex-shrink-0"
-          >
-            <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400" />
-          </button>
-        </div>
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+          />
+          <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto pointer-events-none"
+      >
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-2 sm:my-4 mx-2 sm:mx-0 pointer-events-auto border border-gray-200 dark:border-neutral-700 shadow-2xl">
+          <div className="sticky top-0 bg-white/95 dark:bg-neutral-800/95 backdrop-blur-md border-b border-gray-200 dark:border-neutral-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent pr-2">
+              Inscripciones
+            </h2>
+            <motion.button
+              whileHover={{ scale: 1.1, rotate: 90 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700 transition flex-shrink-0 cursor-pointer"
+            >
+              <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400" />
+            </motion.button>
+          </div>
 
         <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {!selectedForm ? (
@@ -347,23 +459,32 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                 </h3>
                 {loadingForms ? (
                   <div className="text-center py-8">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      className="inline-block w-8 h-8 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full"
+                    />
                   </div>
                 ) : forms.length === 0 ? (
-                  <div className="bg-gray-50 dark:bg-neutral-900 rounded-lg p-8 text-center border border-gray-200 dark:border-neutral-700">
+                  <div className="bg-gray-50 dark:bg-neutral-900 rounded-xl p-8 text-center border border-gray-200 dark:border-neutral-700">
                     <p className="text-gray-500 dark:text-gray-400">
                       No hay formularios de inscripción disponibles
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {forms.map((form) => {
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4" ref={listRef}>
+                    {forms.map((form, index) => {
                       const existing = getExistingRegistration(form.id);
                       return (
-                        <div
+                        <motion.div
                           key={form.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          whileHover={{ y: -4, scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
                           onClick={() => handleSelectForm(form)}
-                          className="bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-lg p-4 cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition"
+                          className="bg-white dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-xl p-4 cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-all shadow-sm hover:shadow-lg"
                         >
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="font-semibold text-gray-900 dark:text-white">
@@ -389,7 +510,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                               {existing.players_count} jugadores inscritos
                             </p>
                           )}
-                        </div>
+                        </motion.div>
                       );
                     })}
                   </div>
@@ -426,32 +547,46 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                         Podrás agregar jugadores después de crear la inscripción
                       </p>
                     </div>
-                    <button
+                    <motion.button
+                      whileHover={{ scale: loading || isCreating ? 1 : 1.05 }}
+                      whileTap={{ scale: loading || isCreating ? 1 : 0.95 }}
                       onClick={handleCreateRegistration}
                       disabled={loading || isCreating}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                      className={cn(
+                        "bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2.5 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 font-semibold shadow-lg hover:shadow-xl cursor-pointer",
+                        (loading || isCreating) && "cursor-not-allowed"
+                      )}
                     >
                       {loading || isCreating ? "Creando..." : "Crear Inscripción"}
-                    </button>
+                    </motion.button>
                   </div>
                 </div>
               )}
 
               {teamRegistrationId && (
                 <>
-                  <div className="flex items-center justify-between">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center justify-between"
+                  >
                     <h4 className="font-semibold text-gray-900 dark:text-white">
                       Jugadores ({players.length}/{selectedForm.max_players})
                     </h4>
-                    <button
+                    <motion.button
+                      whileHover={{ scale: players.length >= selectedForm.max_players ? 1 : 1.05 }}
+                      whileTap={{ scale: players.length >= selectedForm.max_players ? 1 : 0.95 }}
                       onClick={addPlayer}
                       disabled={players.length >= selectedForm.max_players}
-                      className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={cn(
+                        "flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2.5 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl cursor-pointer",
+                        players.length >= selectedForm.max_players && "cursor-not-allowed"
+                      )}
                     >
                       <Plus className="w-4 h-4" />
                       Agregar Jugador
-                    </button>
-                  </div>
+                    </motion.button>
+                  </motion.div>
 
                   {players.length < selectedForm.min_players && (
                     <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 flex items-center gap-2">
@@ -462,22 +597,28 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                     </div>
                   )}
 
-                  <div className="space-y-4">
+                  <div className="space-y-4" ref={listRef}>
                     {players.map((player, index) => (
-                      <div
+                      <motion.div
                         key={index}
-                        className="bg-gray-50 dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-lg p-4"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        whileHover={{ scale: 1.01 }}
+                        className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-neutral-900 dark:to-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-xl p-4 shadow-sm hover:shadow-md transition-all"
                       >
                         <div className="flex items-center justify-between mb-3">
                           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                             Jugador {index + 1}
                           </span>
-                          <button
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             onClick={() => removePlayer(index)}
-                            className="text-red-600 hover:text-red-700"
+                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-4 h-4" />
-                          </button>
+                          </motion.button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <input
@@ -485,7 +626,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                             placeholder="Nombre completo *"
                             value={player.full_name}
                             onChange={(e) => updatePlayer(index, "full_name", e.target.value)}
-                            className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                            className="px-3 py-2.5 border-2 border-gray-300 dark:border-neutral-600 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
                             required
                           />
                           <input
@@ -493,26 +634,26 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                             placeholder="Email"
                             value={player.email ?? ""}
                             onChange={(e) => updatePlayer(index, "email", e.target.value || null)}
-                            className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                            className="px-3 py-2.5 border-2 border-gray-300 dark:border-neutral-600 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
                           />
                           <input
                             type="text"
                             placeholder="Cédula"
                             value={player.cedula ?? ""}
                             onChange={(e) => updatePlayer(index, "cedula", e.target.value || null)}
-                            className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                            className="px-3 py-2.5 border-2 border-gray-300 dark:border-neutral-600 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
                           />
                           <input
                             type="text"
                             placeholder="Teléfono"
                             value={player.phone ?? ""}
                             onChange={(e) => updatePlayer(index, "phone", e.target.value || null)}
-                            className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                            className="px-3 py-2.5 border-2 border-gray-300 dark:border-neutral-600 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
                           />
                           <select
                             value={player.career_id}
                             onChange={(e) => updatePlayer(index, "career_id", parseInt(e.target.value))}
-                            className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                            className="px-3 py-2.5 border-2 border-gray-300 dark:border-neutral-600 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
                             required
                           >
                             {careers.map((career) => (
@@ -522,7 +663,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                             ))}
                           </select>
                           <div>
-                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Semestre</label>
+                            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Semestre</label>
                             <input
                               type="number"
                               placeholder="Ej: 1, 2, 3..."
@@ -530,7 +671,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                               onChange={(e) => updatePlayer(index, "semester", e.target.value ? parseInt(e.target.value) : null)}
                               min="1"
                               max="12"
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                              className="w-full px-3 py-2.5 border-2 border-gray-300 dark:border-neutral-600 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
                             />
                           </div>
                           <input
@@ -538,7 +679,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                             placeholder="Número de camiseta"
                             value={player.jersey_number ?? ""}
                             onChange={(e) => updatePlayer(index, "jersey_number", e.target.value ? parseInt(e.target.value) : null)}
-                            className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                            className="px-3 py-2.5 border-2 border-gray-300 dark:border-neutral-600 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
                           />
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -600,7 +741,7 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                             </div>
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
 
@@ -613,19 +754,26 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
                   )}
 
                   <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-neutral-700">
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={onClose}
-                      className="px-4 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition"
+                      className="px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-all shadow-sm hover:shadow-md font-medium cursor-pointer"
                     >
                       Cancelar
-                    </button>
-                    <button
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: saving || players.length < selectedForm.min_players ? 1 : 1.05 }}
+                      whileTap={{ scale: saving || players.length < selectedForm.min_players ? 1 : 0.95 }}
                       onClick={handleSavePlayers}
                       disabled={saving || players.length < selectedForm.min_players}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={cn(
+                        "px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl cursor-pointer",
+                        (saving || players.length < selectedForm.min_players) && "cursor-not-allowed"
+                      )}
                     >
                       {saving ? "Guardando..." : "Guardar Jugadores"}
-                    </button>
+                    </motion.button>
                   </div>
                 </>
               )}
@@ -633,6 +781,9 @@ export default function RegistrationModal({ teamId, onClose }: RegistrationModal
           )}
         </div>
       </div>
-    </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }

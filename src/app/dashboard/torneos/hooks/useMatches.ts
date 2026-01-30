@@ -3,7 +3,11 @@ import { useState } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { Tournament, Match, Referee, ScheduleForm } from "../types";
 
-export const useMatches = (tournament: Tournament | null) => {
+export const useMatches = (
+  tournament: Tournament | null,
+  editionId?: number | null,
+  editionCreatedAt?: string | null
+) => {
   const [pendingMatches, setPendingMatches] = useState<Match[]>([]);
   const [scheduledMatches, setScheduledMatches] = useState<Match[]>([]);
   const [referees, setReferees] = useState<Referee[]>([]);
@@ -189,47 +193,181 @@ export const useMatches = (tournament: Tournament | null) => {
         id: number;
         name: string;
       };
-      const refereeRole = rolesData?.find(
-        (r: SupabaseRole) =>
-          r.name.toLowerCase().includes("arbitro") ||
-          r.name.toLowerCase().includes("árbitro") ||
-          r.name.toLowerCase() === "arbitro"
+      
+      console.log("Todos los roles encontrados:", rolesData);
+      
+      // Buscar el rol de árbitro (más flexible)
+      // Primero intentar por ID (3 = Árbitro según el código)
+      let refereeRole = rolesData?.find((r: SupabaseRole) => r.id === 3);
+      
+      // Si no se encuentra por ID, buscar por nombre
+      if (!refereeRole) {
+        refereeRole = rolesData?.find(
+          (r: SupabaseRole) => {
+            const nameLower = r.name.toLowerCase();
+            return (
+              nameLower.includes("arbitro") ||
+              nameLower.includes("árbitro") ||
+              nameLower === "arbitro" ||
+              nameLower === "árbitro"
+            );
+          }
+        );
+      }
+
+      console.log("Rol de árbitro encontrado:", refereeRole);
+
+      // Buscar el rol de líder de equipo para excluirlo
+      const leaderRole = rolesData?.find(
+        (r: SupabaseRole) => {
+          const nameLower = r.name.toLowerCase();
+          return (
+            nameLower === "lider_equipo" ||
+            nameLower === "líder de equipo" ||
+            nameLower === "lider de equipo" ||
+            nameLower.includes("lider") ||
+            nameLower.includes("líder")
+          );
+        }
       );
 
+      console.log("Rol de líder encontrado:", leaderRole);
+
+      // Función para filtrar árbitros inválidos
+      const filterValidReferees = (profiles: Array<{ id: string; full_name: string | null; email: string | null }> | null) => {
+        if (!profiles) return [];
+        return profiles.filter((profile) => {
+          const name = profile.full_name?.trim().toLowerCase() || "";
+          // Excluir nombres que sean placeholders o vacíos
+          return (
+            name !== "" &&
+            name !== "seleccionar árbitro" &&
+            name !== "seleccionar arbitro" &&
+            name !== "seleccionar" &&
+            profile.id !== ""
+          );
+        });
+      };
+
+      // Si no hay rol de árbitro, no cargar nada
       if (!refereeRole) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name, email")
-          .order("full_name");
-        setReferees(profiles || []);
+        console.warn("No se encontró el rol de árbitro. Roles disponibles:", rolesData);
+        setReferees([]);
         return;
       }
 
-      const { data: userRoles } = await supabase
+      // Obtener solo usuarios con rol de árbitro
+      const { data: userRoles, error: userRolesError } = await supabase
         .from("user_roles")
         .select("user_id")
         .eq("role_id", refereeRole.id);
 
+      if (userRolesError) {
+        console.error("Error obteniendo user_roles:", userRolesError);
+        setReferees([]);
+        return;
+      }
+
       type SupabaseUserRole = {
         user_id: string;
       };
+      
+      console.log("User roles con rol de árbitro:", userRoles);
+      
       if (userRoles && userRoles.length > 0) {
         const userIds = (userRoles as SupabaseUserRole[]).map((ur: SupabaseUserRole) => ur.user_id);
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name, email")
-          .in("id", userIds)
-          .order("full_name");
-        setReferees(profiles || []);
+        
+        // Si hay rol de líder, excluir esos usuarios también
+        let userIdsToExclude: string[] = [];
+        if (leaderRole) {
+          const { data: leaderUserRoles } = await supabase
+            .from("user_roles")
+            .select("user_id")
+            .eq("role_id", leaderRole.id);
+          
+          if (leaderUserRoles) {
+            userIdsToExclude = (leaderUserRoles as SupabaseUserRole[]).map((ur: SupabaseUserRole) => ur.user_id);
+            console.log("IDs de líderes de equipo a excluir:", userIdsToExclude);
+          }
+        }
+        
+        // Filtrar IDs de árbitros excluyendo líderes de equipo
+        const filteredUserIds = userIds.filter(id => !userIdsToExclude.includes(id));
+        
+        console.log("IDs de árbitros (después de excluir líderes):", filteredUserIds);
+        console.log("Total de árbitros antes de filtrar:", userIds.length);
+        console.log("Total de árbitros después de excluir líderes:", filteredUserIds.length);
+        
+        if (filteredUserIds.length > 0) {
+          const { data: profiles, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id, full_name, email, created_at")
+            .in("id", filteredUserIds)
+            .order("full_name");
+          
+          if (profilesError) {
+            console.error("Error obteniendo perfiles:", profilesError);
+            setReferees([]);
+            return;
+          }
+          
+          type ProfileWithCreated = { id: string; full_name: string | null; email: string | null; created_at?: string | null };
+          let listToShow = filterValidReferees(profiles) as ProfileWithCreated[];
+
+          if (editionId != null && editionId > 0) {
+            const { data: tournamentRows } = await supabase
+              .from("tournaments")
+              .select("id")
+              .eq("edition_id", editionId);
+            const tournamentIds = (tournamentRows ?? []).map((t: { id: number }) => t.id);
+            const assignedToThisEdition = new Set<string>();
+            const assignedToAnyEdition = new Set<string>();
+            if (tournamentIds.length > 0) {
+              const { data: matchesThis } = await supabase
+                .from("matches")
+                .select("referee, assistant")
+                .in("tournament_id", tournamentIds);
+              (matchesThis ?? []).forEach((m: { referee: string | null; assistant: string | null }) => {
+                if (m.referee) assignedToThisEdition.add(m.referee);
+                if (m.assistant) assignedToThisEdition.add(m.assistant);
+              });
+            }
+            const { data: allTournamentRows } = await supabase.from("tournaments").select("id");
+            const allTids = (allTournamentRows ?? []).map((t: { id: number }) => t.id);
+            if (allTids.length > 0) {
+              const { data: allMatches } = await supabase
+                .from("matches")
+                .select("referee, assistant")
+                .in("tournament_id", allTids);
+              (allMatches ?? []).forEach((m: { referee: string | null; assistant: string | null }) => {
+                if (m.referee) assignedToAnyEdition.add(m.referee);
+                if (m.assistant) assignedToAnyEdition.add(m.assistant);
+              });
+            }
+            const editionDate = editionCreatedAt ? new Date(editionCreatedAt).getTime() : 0;
+            listToShow = listToShow.filter((p) => {
+              if (assignedToThisEdition.has(p.id)) return true;
+              if (assignedToAnyEdition.has(p.id)) return false;
+              const userDate = p.created_at ? new Date(p.created_at).getTime() : 0;
+              return editionDate === 0 || userDate >= editionDate;
+            });
+          }
+
+          const filtered = listToShow.map((p) => ({ id: p.id, full_name: p.full_name, email: p.email }));
+          console.log("Árbitros después de filtrar por edición:", filtered);
+          setReferees(filtered);
+        } else {
+          console.warn("No hay árbitros después de filtrar líderes de equipo. IDs originales:", userIds);
+          setReferees([]);
+        }
       } else {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name, email")
-          .order("full_name");
-        setReferees(profiles || []);
+        // No hay usuarios con rol de árbitro
+        console.warn("No se encontraron usuarios con rol de árbitro. Verifica que haya usuarios asignados al rol ID:", refereeRole.id);
+        setReferees([]);
       }
     } catch (error) {
       console.error("Error cargando árbitros:", error);
+      setReferees([]);
     }
   };
 

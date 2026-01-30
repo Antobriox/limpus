@@ -3,12 +3,14 @@
 
 import { useState } from "react";
 import Sidebar from "../../components/Sidebar";
-import Topbar from "../../components/Topbar";
+import { RealtimeIndicator } from "../../components/RealtimeIndicator";
 import { useUser } from "../../hooks/useUser";
+import { useRealtimeSubscription } from "../../hooks/useRealtimeSubscription";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "../../lib/queryClient";
+import { motion } from "framer-motion";
 
 export default function DashboardLayout({
   children,
@@ -19,6 +21,9 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // 🔥 ACTIVAR ACTUALIZACIONES EN TIEMPO REAL
+  useRealtimeSubscription();
 
   // Rutas públicas que no requieren autenticación
   const publicRoutes = ["/dashboard/viewers/clasificacion"];
@@ -31,12 +36,6 @@ export default function DashboardLayout({
     }
   }, [user, loading, router, isPublicRoute]);
 
-  // Si es viewer, mostrar sin sidebar ni topbar (no mostrar loader innecesario)
-  const isViewer = roles.includes("viewers") || (!roles.includes("administrador") && !roles.includes("lider_equipo") && !roles.includes("arbitro"));
-  
-  // Si es líder de equipo, también mostrar sin sidebar/topbar (tiene su propia UI)
-  const isLeader = roles.includes("lider_equipo");
-
   // Si es una ruta pública, mostrar sin autenticación
   if (isPublicRoute) {
     return (
@@ -48,18 +47,37 @@ export default function DashboardLayout({
     );
   }
 
-  // Solo mostrar loader si está cargando Y no es viewer ni líder (para evitar flash innecesario)
-  if (loading && !isViewer && !isLeader) {
+  // Mostrar loader mientras está cargando
+  if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-white dark:bg-neutral-900 text-gray-900 dark:text-white">
-        Cargando dashboard...
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full mx-auto mb-4"
+          />
+          <p className="text-gray-600 dark:text-gray-400 font-medium">Cargando...</p>
+        </motion.div>
       </div>
     );
   }
 
+  // Si es viewer, mostrar sin sidebar ni topbar
+  const isViewer = roles.includes("viewers") || (!roles.includes("administrador") && !roles.includes("lider_equipo") && !roles.includes("arbitro"));
+  
+  // Si es líder de equipo, también mostrar sin sidebar/topbar (tiene su propia UI)
+  const isLeader = roles.includes("lider_equipo");
+
+  // Si es viewer o líder, mostrar su UI específica (sin sidebar)
   if (isViewer || isLeader) {
     return (
       <QueryClientProvider client={queryClient}>
+        <RealtimeIndicator />
         <div className="min-h-screen bg-white dark:bg-neutral-900">
           {children}
         </div>
@@ -69,11 +87,15 @@ export default function DashboardLayout({
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex h-screen bg-gray-50 dark:bg-neutral-950">
+      <RealtimeIndicator />
+      <div className="flex h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
         {/* Overlay para móviles */}
         {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -89,8 +111,7 @@ export default function DashboardLayout({
 
         {/* Main Content */}
         <div className="flex flex-col flex-1 overflow-hidden lg:ml-0">
-          <Topbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-          <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-neutral-950 min-h-0">
+          <main className="flex-1 overflow-y-auto bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 min-h-0">
             {children}
           </main>
         </div>

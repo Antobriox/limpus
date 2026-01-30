@@ -27,7 +27,31 @@ const SCHEDULED_MATCHES_QUERY_KEY = ["scheduledMatches"];
 
 // Función para cargar partidos programados
 const loadScheduledMatchesQuery = async (): Promise<Match[]> => {
-  // Obtener la fecha de hoy (inicio y fin del día)
+  // 1. Obtener la edición activa
+  const { data: activeEdition } = await supabase
+    .from("tournament_editions")
+    .select("id")
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+
+  if (!activeEdition) {
+    return [];
+  }
+
+  // 2. Obtener los IDs de los torneos de la edición activa
+  const { data: tournaments } = await supabase
+    .from("tournaments")
+    .select("id")
+    .eq("edition_id", activeEdition.id);
+
+  const activeTournamentIds = (tournaments || []).map((t: { id: number }) => t.id);
+
+  if (activeTournamentIds.length === 0) {
+    return [];
+  }
+
+  // 3. Obtener la fecha de hoy (inicio y fin del día)
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Inicio del día (00:00:00)
   const tomorrow = new Date(today);
@@ -42,7 +66,7 @@ const loadScheduledMatchesQuery = async (): Promise<Match[]> => {
     fin: todayEnd,
   });
 
-  // Cargar solo los partidos programados para HOY
+  // 4. Cargar solo los partidos programados para HOY de la edición activa
   const { data: matches, error } = await supabase
     .from("matches")
     .select(`
@@ -59,6 +83,7 @@ const loadScheduledMatchesQuery = async (): Promise<Match[]> => {
       field,
       genero
     `)
+    .in("tournament_id", activeTournamentIds)
     .not("scheduled_at", "is", null)
     .gte("scheduled_at", todayStart)
     .lt("scheduled_at", todayEnd)

@@ -66,8 +66,8 @@ const REGISTRATION_FORMS_QUERY_KEY = ["teamRegistrationForms"];
 const TEAM_REGISTRATIONS_QUERY_KEY = ["teamRegistrations"];
 
 // Cargar formularios de inscripción disponibles
-const loadRegistrationForms = async (): Promise<RegistrationForm[]> => {
-  const { data, error } = await supabase
+const loadRegistrationForms = async (editionId: number | null): Promise<RegistrationForm[]> => {
+  let query = supabase
     .from("registration_forms")
     .select(`
       id,
@@ -82,8 +82,14 @@ const loadRegistrationForms = async (): Promise<RegistrationForm[]> => {
         name
       )
     `)
-    .eq("is_locked", false)
-    .order("created_at", { ascending: false });
+    .eq("is_locked", false);
+
+  // Filtrar por edición si se proporciona
+  if (editionId != null && editionId > 0) {
+    query = query.eq("edition_id", editionId);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) throw error;
 
@@ -160,13 +166,14 @@ const loadTeamRegistrations = async (teamId: number): Promise<TeamRegistration[]
   return registrationsWithPlayers;
 };
 
-export const useTeamRegistrations = (teamId: number | null) => {
+export const useTeamRegistrations = (teamId: number | null, editionId: number | null = null) => {
   const queryClient = useQueryClient();
 
   // Cargar formularios disponibles
   const formsQuery = useQuery({
-    queryKey: REGISTRATION_FORMS_QUERY_KEY,
-    queryFn: loadRegistrationForms,
+    queryKey: [...REGISTRATION_FORMS_QUERY_KEY, editionId],
+    queryFn: () => loadRegistrationForms(editionId),
+    enabled: editionId != null && editionId > 0,
   });
 
   // Cargar inscripciones del equipo

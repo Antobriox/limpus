@@ -3,8 +3,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useRouter, useParams } from "next/navigation";
-import { Plus, X } from "lucide-react";
+import { Plus, X, ArrowLeft } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { cn } from "../../../../lib/utils";
+import { toast } from "sonner";
 
 // Tipos para datos de Supabase
 type SupabaseRole = {
@@ -43,6 +47,7 @@ export default function EditarEquipoPage() {
   const [saving, setSaving] = useState(false);
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const [occupiedLeaders, setOccupiedLeaders] = useState<Set<string>>(new Set());
+  const [nameError, setNameError] = useState<string>("");
 
   const [careerInput, setCareerInput] = useState("");
   const [careers, setCareers] = useState<string[]>([]);
@@ -284,14 +289,37 @@ export default function EditarEquipoPage() {
       return;
     }
 
+    setNameError(""); // Limpiar error previo
     setSaving(true);
 
     try {
+      // Verificar si ya existe otro equipo con el mismo nombre (ignorando mayúsculas/minúsculas)
+      const teamNameTrimmed = form.name.trim();
+      const { data: existingTeams, error: checkError } = await supabase
+        .from("teams")
+        .select("id, name")
+        .neq("id", parseInt(teamId || "0")); // Excluir el equipo actual
+
+      if (checkError) {
+        console.error("Error verificando equipos existentes:", checkError);
+      } else if (existingTeams) {
+        // Verificar si hay otro equipo con el mismo nombre (case-insensitive)
+        const duplicateTeam = existingTeams.find(
+          (team) => team.name.trim().toLowerCase() === teamNameTrimmed.toLowerCase()
+        );
+
+        if (duplicateTeam) {
+          setSaving(false);
+          setNameError(`Equipo ya existente: "${duplicateTeam.name}"`);
+          return;
+        }
+      }
+
       // 1. Actualizar el equipo
       const { error: teamError } = await supabase
         .from("teams")
         .update({
-          name: form.name.trim(),
+          name: teamNameTrimmed,
         })
         .eq("id", teamId);
 
@@ -353,37 +381,62 @@ export default function EditarEquipoPage() {
       queryClient.invalidateQueries({ queryKey: ["teams"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       
+      toast.success("Equipo actualizado correctamente");
       router.push("/dashboard/equipos");
     } catch (error: unknown) {
       console.error("Error actualizando equipo:", error);
-      // alert eliminada(error instanceof Error ? error.message : "Error al actualizar el equipo");
+      toast.error(error instanceof Error ? error.message : "Error al actualizar el equipo");
     } finally {
       setSaving(false);
     }
   };
 
+  const [listRef] = useAutoAnimate();
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64 text-gray-400 dark:text-gray-500">
-        Cargando equipo...
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full"
+        />
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+      <motion.button
+        type="button"
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        onClick={() => router.push("/dashboard/equipos")}
+        className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Volver
+      </motion.button>
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+      >
+        <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
           Editar Equipo
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
           Modifica los datos del equipo
         </p>
-      </div>
+      </motion.div>
 
       {/* Form */}
-      <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg p-4 sm:p-6 space-y-6 max-w-3xl">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-xl p-4 sm:p-6 space-y-6 max-w-3xl shadow-lg"
+      >
         {/* Nombre del Equipo */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -391,54 +444,83 @@ export default function EditarEquipoPage() {
           </label>
           <input
             type="text"
-            className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={cn(
+              "w-full px-4 py-2.5 border-2 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow",
+              nameError
+                ? "border-red-500 dark:border-red-500"
+                : "border-gray-300 dark:border-neutral-700"
+            )}
             placeholder="Ej: Los Leones"
             value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            onChange={(e) => {
+              setForm({ ...form, name: e.target.value });
+              setNameError(""); // Limpiar error al escribir
+            }}
           />
+          {nameError && (
+            <motion.p
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-1 text-sm text-red-500 dark:text-red-400 font-medium"
+            >
+              {nameError}
+            </motion.p>
+          )}
         </div>
 
         {/* Carreras */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
             Carreras <span className="text-red-500">*</span>
           </label>
 
           <div className="flex gap-2 mb-2">
             <input
               type="text"
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex-1 px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
               placeholder="Ej: Medicina"
               value={careerInput}
               onChange={(e) => setCareerInput(e.target.value)}
               onKeyPress={handleCareerKeyPress}
             />
-            <button
+            <motion.button
+              whileHover={{ scale: !careerInput.trim() || careers.includes(careerInput.trim()) ? 1 : 1.05 }}
+              whileTap={{ scale: !careerInput.trim() || careers.includes(careerInput.trim()) ? 1 : 0.95 }}
               type="button"
               onClick={addCareer}
               disabled={!careerInput.trim() || careers.includes(careerInput.trim())}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+              className={cn(
+                "px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 transition-all flex items-center gap-2 font-semibold shadow-md hover:shadow-lg cursor-pointer",
+                (!careerInput.trim() || careers.includes(careerInput.trim())) && "cursor-not-allowed"
+              )}
             >
               <Plus className="w-4 h-4" />
               Agregar
-            </button>
+            </motion.button>
           </div>
 
           {careers.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-2" ref={listRef}>
               {careers.map((career, index) => (
-                <div
+                <motion.div
                   key={index}
-                  className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full text-sm"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.05 }}
+                  whileHover={{ scale: 1.05 }}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 text-blue-800 dark:text-blue-300 rounded-full text-sm font-semibold shadow-sm hover:shadow-md transition-all"
                 >
                   <span>{career}</span>
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.2 }}
+                    whileTap={{ scale: 0.9 }}
                     type="button"
                     onClick={() => removeCareer(career)}
+                    className="hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer"
                   >
                     <X className="w-3 h-3" />
-                  </button>
-                </div>
+                  </motion.button>
+                </motion.div>
               ))}
             </div>
           )}
@@ -451,65 +533,69 @@ export default function EditarEquipoPage() {
           </label>
 
           <div className="border border-gray-300 dark:border-neutral-700 rounded-lg p-3 max-h-48 overflow-y-auto bg-white dark:bg-neutral-800">
-            {leaders.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                No hay líderes disponibles
-              </p>
-            ) : (
-              leaders.map((leader) => {
-                const isOccupied = occupiedLeaders.has(leader.id);
+            {(() => {
+              // Filtrar solo líderes disponibles (no ocupados)
+              // Pero incluir los líderes que ya están asignados a este equipo
+              const availableLeaders = leaders.filter((leader) => 
+                !occupiedLeaders.has(leader.id) || form.selectedLeaders.includes(leader.id)
+              );
+              
+              if (availableLeaders.length === 0) {
+                return (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                    No hay líderes disponibles
+                  </p>
+                );
+              }
+              
+              return availableLeaders.map((leader) => {
+                const isCurrentlySelected = form.selectedLeaders.includes(leader.id);
                 return (
                   <label
                     key={leader.id}
-                    className={`flex items-center space-x-2 p-2 rounded ${
-                      isOccupied
-                        ? "opacity-50 cursor-not-allowed bg-gray-100 dark:bg-neutral-800"
-                        : "cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-700"
-                    }`}
+                    className="flex items-center space-x-2 p-2 rounded cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-700"
                   >
                     <input
                       type="checkbox"
-                      checked={form.selectedLeaders.includes(leader.id)}
+                      checked={isCurrentlySelected}
                       onChange={() => toggleLeader(leader.id)}
-                      disabled={isOccupied}
-                      className={isOccupied ? "cursor-not-allowed" : ""}
                     />
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm">{leader.full_name}</p>
-                        {isOccupied && (
-                          <span className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 rounded-full">
-                            Ocupado
-                          </span>
-                        )}
-                      </div>
+                      <p className="text-sm">{leader.full_name}</p>
                       <p className="text-xs text-gray-500">{leader.email}</p>
                     </div>
                   </label>
                 );
-              })
-            )}
+              });
+            })()}
           </div>
         </div>
 
         {/* Botones */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <button
+        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-neutral-800">
+          <motion.button
+            whileHover={{ scale: saving ? 1 : 1.05 }}
+            whileTap={{ scale: saving ? 1 : 0.95 }}
             onClick={() => router.back()}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-all shadow-sm hover:shadow-md font-medium cursor-pointer"
             disabled={saving}
           >
             Cancelar
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: saving ? 1 : 1.05 }}
+            whileTap={{ scale: saving ? 1 : 0.95 }}
             onClick={updateTeam}
             disabled={saving}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+            className={cn(
+              "px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 font-semibold shadow-lg hover:shadow-xl cursor-pointer",
+              saving && "cursor-not-allowed"
+            )}
           >
             {saving ? "Guardando..." : "Guardar Cambios"}
-          </button>
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

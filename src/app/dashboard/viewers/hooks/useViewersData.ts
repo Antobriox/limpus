@@ -106,16 +106,26 @@ const loadViewersData = async (): Promise<{
   upcomingMatches: UpcomingMatch[];
   pastMatches: PastMatch[];
 }> => {
-  // Cargar torneo activo
-  const { data: tournaments } = await supabase
-    .from("tournaments")
-    .select("name")
-    .order("id", { ascending: false })
-    .limit(1);
+  // 1. Obtener la edición activa
+  const { data: activeEdition } = await supabase
+    .from("tournament_editions")
+    .select("id, name")
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
 
-  const tournamentName = tournaments && tournaments.length > 0
-    ? tournaments[0].name || "Olimpiadas Universitarias"
-    : "Olimpiadas Universitarias";
+  const editionId = activeEdition?.id || null;
+  const tournamentName = activeEdition?.name || "Olimpiadas Universitarias";
+
+  // 2. Obtener los IDs de los torneos (disciplinas) de la edición activa
+  let activeTournamentIds: number[] = [];
+  if (editionId) {
+    const { data: tournaments } = await supabase
+      .from("tournaments")
+      .select("id")
+      .eq("edition_id", editionId);
+    activeTournamentIds = (tournaments || []).map((t: { id: number }) => t.id);
+  }
 
   // Cargar deportes
   const { data: sportsData } = await supabase
@@ -129,7 +139,8 @@ const loadViewersData = async (): Promise<{
   const sportsMap = new Map(sports.map((s) => [s.id, s.name]));
 
   // Cargar partidos en vivo (status = "in_progress" o "suspended" para entretiempo)
-  const { data: liveMatchesData } = await supabase
+  // Filtrar solo por los torneos de la edición activa
+  let liveMatchesQuery = supabase
     .from("matches")
     .select(`
       id,
@@ -148,7 +159,13 @@ const loadViewersData = async (): Promise<{
         score_team_b
       )
     `)
-    .in("status", ["in_progress", "suspended"])
+    .in("status", ["in_progress", "suspended"]);
+
+  if (activeTournamentIds.length > 0) {
+    liveMatchesQuery = liveMatchesQuery.in("tournament_id", activeTournamentIds);
+  }
+
+  const { data: liveMatchesData } = await liveMatchesQuery
     .order("started_at", { ascending: false })
     .limit(10);
 
@@ -194,7 +211,7 @@ const loadViewersData = async (): Promise<{
         score_b: scoreB,
         sport_name: sportsData?.name || "Deporte",
         status: m.status,
-        genero: m.genero || null,
+genero: m.genero || null,
         field: m.field || null,
       };
     });
@@ -203,9 +220,8 @@ const loadViewersData = async (): Promise<{
   // Cargar próximos partidos (status = "scheduled" o "pending" con scheduled_at en el futuro)
   const now = new Date().toISOString();
   
-  // Cargar TODOS los partidos programados (sin filtrar por equipo)
-  // Primero intentar con los filtros estrictos
-  const { data: upcomingMatchesData, error: upcomingError } = await supabase
+  // Filtrar por torneos de la edición activa
+  let upcomingMatchesQuery = supabase
     .from("matches")
     .select(`
       id,
@@ -220,48 +236,17 @@ const loadViewersData = async (): Promise<{
     `)
     .in("status", ["scheduled", "pending"])
     .not("scheduled_at", "is", null)
-    .gte("scheduled_at", now)
+    .gte("scheduled_at", now);
+
+  if (activeTournamentIds.length > 0) {
+    upcomingMatchesQuery = upcomingMatchesQuery.in("tournament_id", activeTournamentIds);
+  }
+
+  const { data: upcomingMatchesData, error: upcomingError } = await upcomingMatchesQuery
     .order("scheduled_at", { ascending: true })
     .limit(100);
 
-  // Si no hay resultados, intentar sin el filtro de fecha para debug
-  let finalUpcomingMatchesData = upcomingMatchesData;
-  if (!upcomingMatchesData || upcomingMatchesData.length === 0) {
-    console.log("No se encontraron partidos con filtros estrictos, intentando sin filtro de fecha...");
-    const { data: allMatches, error: allError } = await supabase
-      .from("matches")
-      .select(`
-        id,
-        team_a,
-        team_b,
-        scheduled_at,
-        field,
-        status,
-        genero,
-        tournament_id,
-        referee
-      `)
-      .in("status", ["scheduled", "pending"])
-      .order("scheduled_at", { ascending: true })
-      .limit(100);
-    
-    if (allMatches && allMatches.length > 0) {
-      console.log(`Encontrados ${allMatches.length} partidos sin filtro de fecha`);
-      // Filtrar manualmente los que tienen fecha futura
-      finalUpcomingMatchesData = allMatches.filter((m: SupabaseMatch) => {
-        if (!m.scheduled_at) return false;
-        const matchDate = new Date(m.scheduled_at);
-        const nowDate = new Date();
-        return matchDate >= nowDate;
-      });
-      console.log(`Después de filtrar por fecha: ${finalUpcomingMatchesData.length} partidos`);
-    } else {
-      if (allError) {
-        console.error("Error en consulta alternativa:", allError);
-      }
-      console.log("No se encontraron partidos con status scheduled o pending");
-    }
-  }
+  const finalUpcomingMatchesData = upcomingMatchesData;
 
   if (upcomingError) {
     console.error("Error cargando próximos partidos:", upcomingError);
@@ -371,9 +356,8 @@ const loadViewersData = async (): Promise<{
     console.log("Partidos procesados para mostrar:", upcomingMatches.length);
   }
 
-  // Cargar partidos finalizados (historial) - TODOS los partidos de todas las disciplinas y equipos
-  // Usar la misma estrategia que funciona en el líder: cargar con tournaments!inner
-  const { data: pastMatchesData, error: pastMatchesError } = await supabase
+  // Cargar partidos finalizados (historial) - filtrar por edición activa
+  let pastMatchesQuery = supabase
     .from("matches")
     .select(`
       id,
@@ -394,7 +378,13 @@ const loadViewersData = async (): Promise<{
         score_team_b
       )
     `)
-    .eq("status", "finished")
+    .eq("status", "finished");
+
+  if (activeTournamentIds.length > 0) {
+    pastMatchesQuery = pastMatchesQuery.in("tournament_id", activeTournamentIds);
+  }
+
+  const { data: pastMatchesData, error: pastMatchesError } = await pastMatchesQuery
     .order("ended_at", { ascending: false, nullsFirst: false })
     .order("scheduled_at", { ascending: false });
 
@@ -471,11 +461,6 @@ const loadViewersData = async (): Promise<{
     });
   }
 
-  console.log("✅ Partidos finalizados procesados para mostrar:", pastMatches.length);
-  if (pastMatches.length > 0) {
-    console.log("✅ Primer partido procesado:", pastMatches[0]);
-  }
-
   return {
     tournamentName,
     sports,
@@ -483,6 +468,26 @@ const loadViewersData = async (): Promise<{
     upcomingMatches,
     pastMatches,
   };
+};
+
+const loadActiveTournamentIds = async (): Promise<number[]> => {
+  // Obtener la edición activa
+  const { data: activeEdition } = await supabase
+    .from("tournament_editions")
+    .select("id")
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+
+  if (!activeEdition) return [];
+
+  // Obtener los IDs de los torneos de esa edición
+  const { data: tournaments } = await supabase
+    .from("tournaments")
+    .select("id")
+    .eq("edition_id", activeEdition.id);
+
+  return (tournaments || []).map((t: { id: number }) => t.id);
 };
 
 export const useViewersData = () => {
@@ -494,8 +499,8 @@ export const useViewersData = () => {
   } = useQuery({
     queryKey: VIEWERS_DATA_QUERY_KEY,
     queryFn: loadViewersData,
-    staleTime: 30 * 1000, // 30 segundos - refrescar más frecuentemente
-    refetchInterval: 60 * 1000, // Refrescar cada minuto automáticamente
+    staleTime: 0, // 0 = siempre refrescar cuando se invalida (necesario para realtime)
+    refetchOnWindowFocus: true, // Refrescar al volver a la pestaña
   });
 
   return {
@@ -507,5 +512,21 @@ export const useViewersData = () => {
     loading: isLoading, // Solo true en primera carga
     isFetching, // true cuando está refetching en background
     error,
+  };
+};
+
+export const useActiveTournamentIds = () => {
+  const {
+    data,
+    isLoading,
+  } = useQuery({
+    queryKey: ["activeTournamentIds"],
+    queryFn: loadActiveTournamentIds,
+    staleTime: 0, // 0 para responder a cambios en tiempo real
+  });
+
+  return {
+    activeTournamentIds: data || [],
+    loading: isLoading,
   };
 };

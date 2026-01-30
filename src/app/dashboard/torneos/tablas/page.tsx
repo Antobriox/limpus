@@ -2,24 +2,32 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Trophy } from "lucide-react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useStandings } from "../hooks/useStandings";
+import { useDashboard } from "../hooks/useDashboard";
 import { getDisciplineRulesByName } from "../config/disciplineRules";
+import { motion } from "framer-motion";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { cn } from "../../../../lib/utils";
 
 export default function TablasPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editionParam = searchParams.get("edition");
+  const editionId = editionParam ? parseInt(editionParam, 10) : undefined;
+  const { activeTournamentIds } = useDashboard(editionId);
+
   const [sports, setSports] = useState<{ id: number; name: string }[]>([]);
   const [selectedSport, setSelectedSport] = useState<number | null>(null);
   const [selectedSportName, setSelectedSportName] = useState<string>("");
   const [selectedGenero, setSelectedGenero] = useState<string | null>(null);
 
-  // Usar el hook con TanStack Query - los datos se cargan automáticamente y se cachean
   const { bomboStandings, loading, error } = useStandings(
     selectedSport,
     selectedSportName,
-    undefined,
+    activeTournamentIds.length > 0 ? activeTournamentIds : undefined,
     selectedGenero
   );
 
@@ -79,20 +87,28 @@ export default function TablasPage() {
 
   const rules = selectedSportName ? getDisciplineRulesByName(selectedSportName) : null;
 
+  const [listRef] = useAutoAnimate();
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Header */}
-      <div className="mb-4 sm:mb-6">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-3 sm:mb-4 transition-colors text-sm sm:text-base"
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="mb-4 sm:mb-6"
+      >
+        <motion.button
+          whileHover={{ x: -5 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => router.push(editionId ? `/dashboard/torneos?edition=${editionId}` : "/dashboard/torneos")}
+          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 mb-3 sm:mb-4 transition text-sm sm:text-base font-medium"
         >
           <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           <span>Volver</span>
-        </button>
+        </motion.button>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-2">
               Tablas de Posiciones
             </h1>
             <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
@@ -100,12 +116,17 @@ export default function TablasPage() {
             </p>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Selectores de disciplina y género */}
-      <div className="mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4"
+      >
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
             Seleccionar Disciplina
           </label>
           <select
@@ -116,7 +137,7 @@ export default function TablasPage() {
               // Establecer "masculino" por defecto al cambiar disciplina
               setSelectedGenero("masculino");
             }}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+            className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
           >
             <option value="">Seleccionar disciplina...</option>
             {sports.map((sport) => (
@@ -128,13 +149,13 @@ export default function TablasPage() {
         </div>
         {selectedSport && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               Seleccionar Género
             </label>
             <select
               value={selectedGenero ?? ""}
               onChange={(e) => setSelectedGenero(e.target.value || null)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+              className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-shadow"
             >
               <option value="">Selecciona un género</option>
               <option value="masculino">Masculino</option>
@@ -142,11 +163,16 @@ export default function TablasPage() {
             </select>
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* Información de reglas */}
       {rules && (
-        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3 }}
+          className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border border-blue-200 dark:border-blue-900 rounded-xl shadow-sm"
+        >
           <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white mb-2">
             Reglas de {rules.disciplineName}
           </h3>
@@ -162,39 +188,72 @@ export default function TablasPage() {
               <span className="break-words">{rules.tiebreakerOrder.join(" → ")}</span>
             </p>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Tabla de posiciones - Solo mostrar si hay género seleccionado */}
       {!selectedGenero && selectedSport ? (
-        <div className="text-center py-8 sm:py-12 bg-gray-50 dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700">
-          <Trophy className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3 sm:mb-4" />
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center py-8 sm:py-12 bg-white dark:bg-neutral-800 rounded-xl border border-gray-200 dark:border-neutral-700 shadow-lg"
+        >
+          <motion.div
+            animate={{ rotate: [0, 10, -10, 0] }}
+            transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+          >
+            <Trophy className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3 sm:mb-4" />
+          </motion.div>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 px-4 font-medium">
             Selecciona un género para ver las tablas de posiciones
           </p>
-        </div>
+        </motion.div>
       ) : loading ? (
         <div className="text-center py-8 sm:py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
-          <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">Cargando tabla de posiciones...</p>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="inline-block w-8 h-8 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full"
+          />
+          <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400 font-medium">Cargando tabla de posiciones...</p>
         </div>
       ) : error ? (
-        <div className="text-center py-8 sm:py-12 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900 px-4">
-          <p className="text-sm sm:text-base text-red-600 dark:text-red-400">{error}</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center py-8 sm:py-12 bg-red-50 dark:bg-red-950/20 rounded-xl border border-red-200 dark:border-red-900 px-4 shadow-lg"
+        >
+          <p className="text-sm sm:text-base text-red-600 dark:text-red-400 font-semibold">{error}</p>
+        </motion.div>
       ) : bomboStandings.length === 0 && selectedSport && selectedGenero ? (
-        <div className="text-center py-8 sm:py-12 bg-gray-50 dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700 px-4">
-          <Trophy className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3 sm:mb-4" />
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center py-8 sm:py-12 bg-white dark:bg-neutral-800 rounded-xl border border-gray-200 dark:border-neutral-700 px-4 shadow-lg"
+        >
+          <motion.div
+            animate={{ rotate: [0, 10, -10, 0] }}
+            transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+          >
+            <Trophy className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3 sm:mb-4" />
+          </motion.div>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 font-medium">
             No hay equipos registrados para esta disciplina y género. Genera brackets primero.
           </p>
-        </div>
+        </motion.div>
       ) : bomboStandings.length > 0 ? (
-        <div className="space-y-8">
+        <div className="space-y-8" ref={listRef}>
           {bomboStandings.map((bomboStanding, index) => (
-            <div key={index} className="bg-white dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700 overflow-hidden">
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ y: -4 }}
+              className="bg-white dark:bg-neutral-800 rounded-xl border-2 border-gray-200 dark:border-neutral-700 overflow-hidden shadow-lg hover:shadow-xl transition-all"
+            >
               {/* Table Header */}
-              <div className="bg-blue-600 dark:bg-blue-700 px-6 py-4">
+              <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 dark:from-blue-700 dark:via-blue-800 dark:to-blue-900 px-6 py-4 shadow-md">
                 <h2 className="text-xl font-bold text-white">
                   {bomboStandings.length > 1 ? `Bombo ${bomboStanding.bomboNumber}` : "Clasificación General"}
                 </h2>
@@ -255,11 +314,18 @@ export default function TablasPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-700">
+                  <tbody className="bg-white dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-700" ref={listRef}>
                     {bomboStanding.standings.map((team, teamIndex) => (
-                      <tr
+                      <motion.tr
                         key={team.teamId}
-                        className={teamIndex < 3 ? "bg-blue-50 dark:bg-blue-900/20" : ""}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: teamIndex * 0.03 }}
+                        whileHover={{ scale: 1.01, x: 5 }}
+                        className={cn(
+                          "transition-all",
+                          teamIndex < 3 ? "bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20" : "hover:bg-gray-50 dark:hover:bg-neutral-800/50"
+                        )}
                       >
                         <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -346,16 +412,16 @@ export default function TablasPage() {
                           </td>
                         )}
                         <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
-                          <span className="text-xs sm:text-sm font-bold text-blue-600 dark:text-blue-400">
+                          <span className="text-xs sm:text-sm font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
                             {team.points}
                           </span>
                         </td>
-                      </tr>
+                      </motion.tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       ) : null}

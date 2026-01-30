@@ -16,10 +16,25 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
 
   const loadTeams = useCallback(async () => {
     try {
-      // Cargar TODOS los equipos disponibles (sin filtrar por inscripciones)
+      // Obtener la edición activa
+      const { data: activeEdition } = await supabase
+        .from("tournament_editions")
+        .select("id")
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+
+      if (!activeEdition) {
+        setAllTeams([]);
+        setSelectedTeams(new Set());
+        return;
+      }
+
+      // Cargar solo los equipos de la edición activa
       const { data: teams, error: teamsError } = await supabase
         .from("teams")
         .select("id, name")
+        .eq("edition_id", activeEdition.id)
         .order("name");
 
       if (teamsError) {
@@ -69,11 +84,27 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
       const sportName = sportData?.name || "";
       const generoText = genero === "masculino" ? "masculino" : "femenino";
       
-      // Buscar todos los draws para este torneo
+      // Obtener los torneos (disciplinas) de la edición activa que coincidan con el deporte
+      const { data: tournaments } = await supabase
+        .from("tournaments")
+        .select("id")
+        .eq("edition_id", tournament.id)
+        .eq("sport_id", sportId);
+
+      if (!tournaments || tournaments.length === 0) {
+        setLoadingSaved(false);
+        setBombos([]);
+        setSavedDrawId(null);
+        return;
+      }
+
+      const tournamentIds = tournaments.map((t: { id: number }) => t.id);
+
+      // Buscar todos los draws para estos torneos
       const { data: draws, error: drawsError } = await supabase
         .from("draws")
-        .select("id, name, created_at")
-        .eq("tournament_id", tournament.id)
+        .select("id, name, created_at, tournament_id")
+        .in("tournament_id", tournamentIds)
         .order("created_at", { ascending: false });
 
       if (drawsError) {
@@ -213,7 +244,7 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
       return;
     }
 
-    if (!tournament || tournament.id === 0) {
+    if (!tournament || tournament.id === 0 || !sportId) {
       return;
     }
 
@@ -234,11 +265,26 @@ export const useBrackets = (tournament: Tournament | null, sportId: number | nul
       const sportName = sportData?.name || "Disciplina";
       const generoText = genero ? ` - ${genero === "masculino" ? "Masculino" : "Femenino"}` : "";
 
+      // Obtener el tournament_id real (disciplina) de la edición activa
+      const { data: tournaments } = await supabase
+        .from("tournaments")
+        .select("id")
+        .eq("edition_id", tournament.id)
+        .eq("sport_id", sportId)
+        .limit(1)
+        .maybeSingle();
+
+      if (!tournaments) {
+        console.error("No se encontró el tournament_id para esta disciplina");
+        setGenerating(false);
+        return;
+      }
+
       const { data: draw, error: drawError } = await supabase
         .from("draws")
         .insert({
           name: `Brackets - ${tournament.name} - ${sportName}${generoText}`,
-          tournament_id: tournament.id,
+          tournament_id: tournaments.id,
           created_by: user.id,
         })
         .select()

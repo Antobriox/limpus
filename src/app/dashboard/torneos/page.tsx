@@ -2,12 +2,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AdvancedStatCard from "../../../components/AdvancedStatCard";
 import ActionCard from "../../../components/ActionCard";
 import {
   Users,
+  UserCircle2,
   Settings,
   Square,
   TrendingUp,
@@ -16,6 +17,7 @@ import {
   Upload,
   Edit,
   Plus,
+  ArrowLeft,
   Calendar as CalendarIcon,
   MapPin,
   MoreVertical,
@@ -24,11 +26,17 @@ import {
 import { Team, RecentResult } from "./types";
 import DocumentsModal from "./components/DocumentsModal";
 import { useDashboard } from "./hooks/useDashboard";
+import { motion } from "framer-motion";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { formatDateOnly } from "../../../lib/utils";
 
 export default function TorneosPage() {
   const router = useRouter();
-  // Usar el hook con TanStack Query - los datos se cargan automáticamente y se cachean
-  const { tournament, stats, recentTeams, recentResults, loading } = useDashboard();
+  const searchParams = useSearchParams();
+  const editionParam = searchParams.get("edition");
+  const editionId = editionParam ? parseInt(editionParam) : undefined;
+
+  const { tournament, currentEditionId, activeTournamentIds, stats, recentTeams, recentResults, loading } = useDashboard(editionId);
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [showAllTeamsModal, setShowAllTeamsModal] = useState(false);
   const [showAllResultsModal, setShowAllResultsModal] = useState(false);
@@ -40,28 +48,15 @@ export default function TorneosPage() {
   // Los datos se cargan automáticamente con TanStack Query (caché)
   // No necesitamos la función loadData
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const months = [
-      "Enero",
-      "Febrero",
-      "Marzo",
-      "Abril",
-      "Mayo",
-      "Junio",
-      "Julio",
-      "Agosto",
-      "Septiembre",
-      "Octubre",
-      "Noviembre",
-      "Diciembre",
-    ];
-    return `${date.getDate()} de ${months[date.getMonth()]}`;
-  };
+  const formatDate = (dateString: string) => formatDateOnly(dateString);
 
   const loadAllTeams = async () => {
     setLoadingAllTeams(true);
     try {
+      if (currentEditionId == null || currentEditionId <= 0) {
+        setAllTeams([]);
+        return;
+      }
       const { data: allTeamsData } = await supabase
         .from("teams")
         .select(`
@@ -73,6 +68,7 @@ export default function TorneosPage() {
             name
           )
         `)
+        .eq("edition_id", currentEditionId)
         .order("created_at", { ascending: false });
 
       type TeamWithCareers = {
@@ -170,7 +166,7 @@ export default function TorneosPage() {
   const loadAllResults = async () => {
     setLoadingAllResults(true);
     try {
-      const { data: finishedMatches } = await supabase
+      let query = supabase
         .from("matches")
         .select(`
           id,
@@ -179,16 +175,17 @@ export default function TorneosPage() {
           scheduled_at,
           ended_at,
           status,
-          tournaments!inner (
-            id,
-            name,
-            sports!inner (
-              name
-            )
-          )
+          tournament_id
         `)
-        .eq("status", "finished")
-        .order("ended_at", { ascending: false, nullsFirst: false });
+        .order("ended_at", { ascending: false, nullsFirst: false })
+        .limit(100);
+      if (activeTournamentIds.length > 0) {
+        query = query.in("tournament_id", activeTournamentIds);
+      }
+      const { data: allMatches } = await query;
+      const finishedMatches = (allMatches ?? []).filter(m =>
+        m.status === "finished" || (m.ended_at != null)
+      );
 
       type FinishedMatch = {
         id: number;
@@ -197,23 +194,7 @@ export default function TorneosPage() {
         scheduled_at: string | null;
         ended_at: string | null;
         status: string;
-        tournaments?: {
-          id: number;
-          name: string;
-          sports?: {
-            name: string;
-          } | Array<{
-            name: string;
-          }>;
-        } | Array<{
-          id: number;
-          name: string;
-          sports?: {
-            name: string;
-          } | Array<{
-              name: string;
-            }>;
-        }>;
+        tournament_id: number | null;
       };
       type MatchResult = {
         match_id: number;
@@ -247,10 +228,65 @@ export default function TorneosPage() {
             match_id: match.id,
             score_team_a: result?.score_team_a ?? null,
             score_team_b: result?.score_team_b ?? null,
-            confirmed_at: result?.confirmed_at || match.ended_at,
+            confirmed_at: result?.confirmed_at || match.ended_at || match.scheduled_at,
             matches: match,
           };
         });
+      }
+
+      // Obtener información de torneos y deportes por separado
+      const tournamentIds = Array.from(
+        new Set(
+          (finishedMatches as FinishedMatch[])
+            .map((m) => m.tournament_id)
+            .filter((id): id is number => id !== null && id !== undefined)
+        )
+      );
+      
+      const tournamentsMap = new Map<number, { name: string; sport_id: number | null }>();
+      const sportsMap = new Map<number, string>();
+      
+      if (tournamentIds.length > 0) {
+        const { data: tournamentsData } = await supabase
+          .from("tournaments")
+          .select("id, name, sport_id")
+          .in("id", tournamentIds);
+        
+        if (tournamentsData) {
+          type TournamentData = {
+            id: number;
+            name: string;
+            sport_id: number | null;
+          };
+          (tournamentsData as TournamentData[]).forEach((t: TournamentData) => {
+            tournamentsMap.set(t.id, { name: t.name, sport_id: t.sport_id });
+          });
+          
+          const sportIds = Array.from(
+            new Set(
+              (tournamentsData as TournamentData[])
+                .map((t) => t.sport_id)
+                .filter((id): id is number => id !== null && id !== undefined)
+            )
+          );
+          
+          if (sportIds.length > 0) {
+            const { data: sportsData } = await supabase
+              .from("sports")
+              .select("id, name")
+              .in("id", sportIds);
+            
+            if (sportsData) {
+              type SportData = {
+                id: number;
+                name: string;
+              };
+              (sportsData as SportData[]).forEach((s: SportData) => {
+                sportsMap.set(s.id, s.name);
+              });
+            }
+          }
+        }
       }
 
       let results: RecentResult[] = [];
@@ -279,9 +315,8 @@ export default function TorneosPage() {
 
         results = matchResultsData.map((mr: MatchResultData) => {
           const match = mr.matches;
-          const scheduledAt = match?.scheduled_at
-            ? new Date(match.scheduled_at)
-            : null;
+          const date = match.ended_at || match.scheduled_at;
+          const dateObj = date ? new Date(date) : null;
 
           const today = new Date();
           today.setHours(0, 0, 0, 0);
@@ -289,33 +324,33 @@ export default function TorneosPage() {
           yesterday.setDate(yesterday.getDate() - 1);
 
           let dateLabel = "Sin fecha";
-          if (scheduledAt) {
-            if (scheduledAt.toDateString() === today.toDateString()) {
+          if (dateObj) {
+            if (dateObj.toDateString() === today.toDateString()) {
               dateLabel = "Hoy";
-            } else if (scheduledAt.toDateString() === yesterday.toDateString()) {
+            } else if (dateObj.toDateString() === yesterday.toDateString()) {
               dateLabel = "Ayer";
             } else {
-              dateLabel = scheduledAt.toLocaleDateString("es-ES", {
+              dateLabel = dateObj.toLocaleDateString("es-ES", {
                 day: "numeric",
                 month: "short",
               });
             }
           }
 
-          const time = scheduledAt
-            ? scheduledAt.toLocaleTimeString("es-ES", {
+          const time = dateObj
+            ? dateObj.toLocaleTimeString("es-ES", {
                 hour: "2-digit",
                 minute: "2-digit",
               })
             : "";
 
-          // Manejar tournaments como objeto o array
-          const tournamentsData = Array.isArray(match?.tournaments) ? match.tournaments[0] : match?.tournaments;
-          const sportsData = Array.isArray(tournamentsData?.sports) ? tournamentsData?.sports[0] : tournamentsData?.sports;
+          // Obtener información del torneo y deporte
+          const tournamentInfo = match.tournament_id ? tournamentsMap.get(match.tournament_id) : null;
+          const sportName = tournamentInfo?.sport_id ? (sportsMap.get(tournamentInfo.sport_id) || "Deporte") : "Deporte";
 
           return {
             id: mr.match_id,
-            sport: sportsData?.name || "Deporte",
+            sport: sportName,
             category: "General",
             team1: match?.team_a !== null && match?.team_a !== undefined ? (teamsMap.get(match.team_a) || "Equipo A") : "Equipo A",
             team2: match?.team_b !== null && match?.team_b !== undefined ? (teamsMap.get(match.team_b) || "Equipo B") : "Equipo B",
@@ -349,19 +384,29 @@ export default function TorneosPage() {
     }
   };
 
+  const [listRef] = useAutoAnimate();
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64 text-gray-400 dark:text-gray-500">
-        Cargando torneo...
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full"
+        />
       </div>
     );
   }
 
   if (!tournament) {
     return (
-      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-        No hay torneo activo
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center py-12 text-gray-500 dark:text-gray-400"
+      >
+        <p className="text-lg font-medium">No hay torneo activo</p>
+      </motion.div>
     );
   }
 
@@ -370,9 +415,13 @@ export default function TorneosPage() {
     : 0;
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Header */}
-      <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg p-4 sm:p-6">
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-xl p-4 sm:p-6 shadow-lg"
+      >
         <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-4 mb-4">
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
@@ -408,29 +457,54 @@ export default function TorneosPage() {
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-            {tournament && tournament.id > 0 && (
-              <button
-                onClick={() => router.push(`/dashboard/torneos/${tournament.id}`)}
-                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition text-sm"
+            {editionId ? (
+              <motion.button
+                type="button"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                onClick={() => router.push("/dashboard/torneos")}
+                className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer"
               >
-              <Edit className="w-4 h-4" />
-              <span className="hidden sm:inline">Editar</span>
-            </button>
+                <ArrowLeft className="w-4 h-4" />
+                <span>Volver al torneo actual</span>
+              </motion.button>
+            ) : (
+              <>
+                {tournament && tournament.id > 0 && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => router.push(`/dashboard/torneos/${tournament.id}`)}
+                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition text-sm shadow-sm hover:shadow-md cursor-pointer"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span className="hidden sm:inline">Editar</span>
+                  </motion.button>
+                )}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => router.push("/dashboard/torneos/nuevo")}
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition text-sm whitespace-nowrap shadow-lg hover:shadow-xl cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Nuevo Torneo</span>
+                  <span className="sm:hidden">Nuevo</span>
+                </motion.button>
+              </>
             )}
-            <button
-              onClick={() => router.push("/dashboard/torneos/nuevo")}
-              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Nuevo Torneo</span>
-              <span className="sm:hidden">Nuevo</span>
-            </button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6"
+        ref={listRef}
+      >
         <AdvancedStatCard
           icon={<Users className="w-5 h-5 text-gray-700 dark:text-gray-300" />}
           value={stats.equiposInscritos.toString()}
@@ -456,35 +530,64 @@ export default function TorneosPage() {
           progress={stats.progresoGeneral}
           progressColor="green"
         />
-      </div>
+      </motion.div>
 
-      {/* Action Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <ActionCard
-          icon={<Network className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
-          title="Generar Brackets"
-          description="Crear llaves de eliminación automática"
-          onClick={() => router.push("/dashboard/torneos/brackets")}
-        />
-        <ActionCard
-          icon={<Calendar className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
-          title="Programar Partidos"
-          description="Asignar fechas y canchas pendientes"
-          onClick={() => router.push("/dashboard/torneos/programar")}
-        />
-        <ActionCard
-          icon={<Upload className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
-          title="Publicar Resultados"
-          description="Actualizar marcadores de la jornada"
-          onClick={() => router.push("/dashboard/torneos/resultados")}
-        />
-        <ActionCard
-          icon={<TrendingUp className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
-          title="Tablas de Posiciones"
-          description="Ver clasificación por disciplina"
-          onClick={() => router.push("/dashboard/torneos/tablas")}
-        />
-      </div>
+      {/* Action Cards: solo para torneo actual, no para historial */}
+      {!editionId ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <ActionCard
+            icon={<Network className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Generar Brackets"
+            description="Crear llaves de eliminación automática"
+            onClick={() => router.push("/dashboard/torneos/brackets")}
+          />
+          <ActionCard
+            icon={<Calendar className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Programar Partidos"
+            description="Asignar fechas y canchas pendientes"
+            onClick={() => router.push("/dashboard/torneos/programar")}
+          />
+          <ActionCard
+            icon={<Upload className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Publicar Resultados"
+            description="Actualizar marcadores de la jornada"
+            onClick={() => router.push("/dashboard/torneos/resultados")}
+          />
+          <ActionCard
+            icon={<TrendingUp className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Tablas de Posiciones"
+            description="Ver clasificación por disciplina"
+            onClick={() => router.push("/dashboard/torneos/tablas")}
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <ActionCard
+            icon={<Users className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Equipos"
+            description="Ver equipos de esta edición"
+            onClick={() => router.push(`/dashboard/equipos?edition=${editionId}`)}
+          />
+          <ActionCard
+            icon={<UserCircle2 className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Miembros"
+            description="Líderes y árbitros de esta edición"
+            onClick={() => router.push(`/dashboard/usuarios?edition=${editionId}`)}
+          />
+          <ActionCard
+            icon={<CalendarIcon className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Inscripciones"
+            description="Ver inscripciones de esta edición"
+            onClick={() => router.push(`/dashboard/inscripciones?edition=${editionId}`)}
+          />
+          <ActionCard
+            icon={<TrendingUp className="w-6 h-6 text-gray-700 dark:text-gray-300" />}
+            title="Tablas de Posiciones"
+            description="Ver clasificación por disciplina"
+            onClick={() => router.push(`/dashboard/torneos/tablas?edition=${editionId}`)}
+          />
+        </div>
+      )}
 
       {/* Bottom Sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -496,7 +599,7 @@ export default function TorneosPage() {
             </h3>
             <button
               onClick={handleOpenAllTeams}
-              className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
             >
               Ver todos
             </button>
@@ -579,7 +682,7 @@ export default function TorneosPage() {
               </h3>
               <button
                 onClick={handleOpenAllResults}
-                className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
               >
                 Ver todo
               </button>
@@ -802,7 +905,7 @@ export default function TorneosPage() {
             <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-neutral-800 flex justify-end">
               <button
                 onClick={() => setShowAllResultsModal(false)}
-                className="px-3 sm:px-4 py-2 bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-700 transition-colors text-sm sm:text-base"
+                className="px-3 sm:px-4 py-2 bg-gray-200 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-700 transition-colors text-sm sm:text-base cursor-pointer"
               >
                 Cerrar
               </button>

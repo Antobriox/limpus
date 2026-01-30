@@ -11,6 +11,8 @@ import {
   UserPlus,
   Settings,
 } from "lucide-react";
+import { motion } from "framer-motion";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 
 export default function DashboardPage() {
   const { user } = useUser();
@@ -140,10 +142,16 @@ export default function DashboardPage() {
     loadStats();
   }, []);
 
+  const [listRef] = useAutoAnimate();
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64 text-gray-400 dark:text-gray-500">
-        Cargando estadísticas...
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full"
+        />
       </div>
     );
   }
@@ -153,59 +161,109 @@ export default function DashboardPage() {
   const getBarHeight = (count: number) => (count / maxCount) * 100;
 
   return (
-    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-6 lg:p-10">
+    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-6 lg:p-10 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Page Heading */}
-      <div className="flex flex-wrap justify-between gap-3">
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="flex flex-wrap justify-between gap-3"
+      >
         <div className="flex flex-col gap-1">
-          <p className="text-gray-900 dark:text-white text-2xl sm:text-3xl font-bold leading-tight">
+          <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent leading-tight">
             Dashboard
           </p>
           <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base font-normal leading-normal">
             Bienvenido de nuevo, {user?.email?.split("@")[0] || "Admin"}. Aquí tienes un resumen del estado del evento.
           </p>
         </div>
-      </div>
+      </motion.div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-        <div className="flex flex-col gap-2 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6"
+        ref={listRef}
+      >
+        <motion.div
+          whileHover={{ y: -4, scale: 1.02 }}
+          className="flex flex-col gap-2 rounded-xl p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-lg hover:shadow-xl transition-all"
+        >
           <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm md:text-base font-medium leading-normal">
             Equipos Inscritos
           </p>
-          <p className="text-gray-900 dark:text-white text-2xl sm:text-3xl font-bold leading-tight">
+          <motion.p
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-gray-900 dark:text-white text-2xl sm:text-3xl font-bold leading-tight bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent"
+          >
             {stats.equipos}
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+          </motion.p>
+        </motion.div>
+        <motion.div
+          whileHover={{ y: -4, scale: 1.02 }}
+          className="flex flex-col gap-2 rounded-xl p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-lg hover:shadow-xl transition-all"
+        >
           <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm md:text-base font-medium leading-normal">
             Partidos Hoy
           </p>
-          <p className="text-gray-900 dark:text-white text-2xl sm:text-3xl font-bold leading-tight">
+          <motion.p
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.4 }}
+            className="text-gray-900 dark:text-white text-2xl sm:text-3xl font-bold leading-tight bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent"
+          >
             {stats.partidosHoy}
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+          </motion.p>
+        </motion.div>
+        <motion.div
+          whileHover={{ y: -4, scale: 1.02 }}
+          className="flex flex-col gap-2 rounded-xl p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-lg hover:shadow-xl transition-all"
+        >
           <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm md:text-base font-medium leading-normal">
             Disciplinas Activas
           </p>
-          <p className="text-gray-900 dark:text-white text-2xl sm:text-3xl font-bold leading-tight">
+          <motion.p
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.5 }}
+            className="text-gray-900 dark:text-white text-2xl sm:text-3xl font-bold leading-tight bg-gradient-to-r from-purple-600 to-purple-700 bg-clip-text text-transparent"
+          >
             {stats.disciplinas}
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+          </motion.p>
+        </motion.div>
+        <motion.div
+          whileHover={{ y: -4, scale: 1.02 }}
+          className="flex flex-col gap-2 rounded-xl p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-lg hover:shadow-xl transition-all"
+        >
           <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm md:text-base font-medium leading-normal">
             Resultados Pendientes
           </p>
-          <p className="text-gray-900 dark:text-white text-2xl sm:text-3xl font-bold leading-tight">
+          <motion.p
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.6 }}
+            className="text-gray-900 dark:text-white text-2xl sm:text-3xl font-bold leading-tight bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent"
+          >
             {stats.pendientes}
-          </p>
-        </div>
-      </div>
+          </motion.p>
+        </motion.div>
+      </motion.div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6"
+      >
         {/* Activity Chart */}
-        <div className="lg:col-span-3 flex flex-col gap-4 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+        <motion.div
+          whileHover={{ y: -4 }}
+          className="lg:col-span-3 flex flex-col gap-4 rounded-xl p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-lg hover:shadow-xl transition-all"
+        >
           <p className="text-gray-900 dark:text-white text-base font-medium leading-normal">
             Actividad de la Última Semana
           </p>
@@ -253,20 +311,31 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Sports Chart */}
-        <div className="lg:col-span-2 flex flex-col gap-4 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+        <motion.div
+          whileHover={{ y: -4 }}
+          className="lg:col-span-2 flex flex-col gap-4 rounded-xl p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-lg hover:shadow-xl transition-all"
+        >
           <p className="text-gray-900 dark:text-white text-base font-medium leading-normal">
             Inscripciones por Disciplina
           </p>
           <div className="grid min-h-[220px] grid-flow-col gap-6 grid-rows-[1fr_auto] items-end justify-items-center px-3">
             {sportsData.length > 0 ? (
-              sportsData.map((sport) => (
-                <div key={sport.name} className="flex flex-col items-center gap-2 w-full">
-                  <div
-                    className="bg-blue-500/20 w-full rounded-t"
-                    style={{ height: `${getBarHeight(sport.count)}%` }}
+              sportsData.map((sport, index) => (
+                <motion.div
+                  key={sport.name}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 + index * 0.1 }}
+                  className="flex flex-col items-center gap-2 w-full"
+                >
+                  <motion.div
+                    initial={{ height: 0 }}
+                    animate={{ height: `${getBarHeight(sport.count)}%` }}
+                    transition={{ delay: 0.5 + index * 0.1, duration: 0.5 }}
+                    className="bg-gradient-to-t from-blue-500 to-blue-400 w-full rounded-t shadow-md"
                   />
                   <p className="text-gray-600 dark:text-gray-400 text-[13px] font-bold leading-normal tracking-[0.015em]">
                     {sport.name}
@@ -274,7 +343,7 @@ export default function DashboardPage() {
                   <p className="text-gray-900 dark:text-white text-xs font-semibold">
                     {sport.count} {sport.count === 1 ? "inscripción" : "inscripciones"}
                   </p>
-                </div>
+                </motion.div>
               ))
             ) : (
               <div className="col-span-5 text-center text-gray-600 dark:text-gray-400 text-sm">
@@ -282,13 +351,21 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Recent Activity & Quick Access */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6"
+      >
         {/* Recent Activity */}
-        <div className="lg:col-span-2 flex flex-col gap-4 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+        <motion.div
+          whileHover={{ y: -4 }}
+          className="lg:col-span-2 flex flex-col gap-4 rounded-xl p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-lg hover:shadow-xl transition-all"
+        >
           <h3 className="text-gray-900 dark:text-white text-base font-medium leading-normal">
             Tareas Pendientes y Actividad Reciente
           </h3>
@@ -348,29 +425,44 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Quick Access */}
-        <div className="flex flex-col gap-4 rounded-lg p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800">
+        <motion.div
+          whileHover={{ y: -4 }}
+          className="flex flex-col gap-4 rounded-xl p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-lg hover:shadow-xl transition-all"
+        >
           <h3 className="text-gray-900 dark:text-white text-base font-medium leading-normal">
             Accesos Rápidos
           </h3>
           <div className="flex flex-col gap-3">
-            <button className="flex items-center gap-3 w-full p-4 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold text-sm transition-colors">
+            <motion.button
+              whileHover={{ scale: 1.02, x: 5 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex items-center gap-3 w-full p-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-blue-500/5 hover:from-blue-500/20 hover:to-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-sm transition-all shadow-sm hover:shadow-md cursor-pointer"
+            >
               <Tv className="w-5 h-5" />
               Gestionar Partidos en Vivo
-            </button>
-            <button className="flex items-center gap-3 w-full p-4 rounded-lg bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 text-gray-900 dark:text-white font-bold text-sm transition-colors">
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02, x: 5 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex items-center gap-3 w-full p-4 rounded-xl bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 text-gray-900 dark:text-white font-bold text-sm transition-all shadow-sm hover:shadow-md cursor-pointer"
+            >
               <UserPlus className="w-5 h-5" />
               Administrar Equipos
-            </button>
-            <button className="flex items-center gap-3 w-full p-4 rounded-lg bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 text-gray-900 dark:text-white font-bold text-sm transition-colors">
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02, x: 5 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex items-center gap-3 w-full p-4 rounded-xl bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 text-gray-900 dark:text-white font-bold text-sm transition-all shadow-sm hover:shadow-md cursor-pointer"
+            >
               <Settings className="w-5 h-5" />
               Configurar Torneos
-            </button>
+            </motion.button>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

@@ -1,8 +1,27 @@
 @import "tailwindcss";
 
-:root {
+/* Tailwind v4: dark mode por clase (no por preferencia del sistema) */
+@custom-variant dark (&&:where(.dark, .dark *));
+
+/* Tema claro: azul y blanco */
+html:not(.dark) {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1e3a5f;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --background-subtle: #eff6ff;
+  --scrollbar-track: #e0e7ff;
+  --scrollbar-thumb: #6366f1;
+  --scrollbar-thumb-hover: #4f46e5;
+}
+
+/* Tema oscuro: solo cuando html SÍ tiene la clase dark */
+html.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --scrollbar-track: #1a1a1a;
+  --scrollbar-thumb: #404040;
+  --scrollbar-thumb-hover: #505050;
 }
 
 @theme inline {
@@ -12,51 +31,68 @@
   --font-mono: var(--font-geist-mono);
 }
 
-
-:root.dark,
-.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-}
-
 html {
   font-size: 14px; /* Reducido para mejor proporción y compacto al 100% de zoom */
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--background) !important;
+  color: var(--foreground) !important;
   font-family: Arial, Helvetica, sans-serif;
   font-size: 1rem; /* Usa el tamaño base del html */
 }
 
-/* Estilos de scrollbar oscuros para Webkit (Chrome, Safari, Edge) */
+/* Scrollbar: cambia según el tema (usa variables) */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: var(--scrollbar-track);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #404040;
+  background: var(--scrollbar-thumb);
   border-radius: 5px;
-  border: 2px solid #1a1a1a;
+  border: 2px solid var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #505050;
+  background: var(--scrollbar-thumb-hover);
 }
 
 ::-webkit-scrollbar-corner {
-  background: #1a1a1a;
+  background: var(--scrollbar-track);
 }
 
-/* Estilos de scrollbar oscuros para Firefox */
+/* Firefox: scrollbar según tema */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #404040 #1a1a1a;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Cursor pointer para todos los botones y elementos interactivos */
+button,
+[role="button"],
+a[href],
+input[type="submit"],
+input[type="button"],
+input[type="reset"],
+select,
+label[for],
+.motion-button,
+[onclick] {
+  cursor: pointer;
+}
+
+/* Excepciones para elementos deshabilitados */
+button:disabled,
+[role="button"][aria-disabled="true"],
+input[type="submit"]:disabled,
+input[type="button"]:disabled,
+input[type="reset"]:disabled,
+select:disabled {
+  cursor: not-allowed;
 }
