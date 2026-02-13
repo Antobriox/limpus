@@ -217,7 +217,7 @@ genero: m.genero || null,
     });
   }
 
-  // Cargar próximos partidos (status = "scheduled" o "pending" con scheduled_at en el futuro)
+  // Cargar próximos partidos (status = "scheduled" o "pending")
   const now = new Date().toISOString();
   
   // Filtrar por torneos de la edición activa
@@ -235,8 +235,7 @@ genero: m.genero || null,
       referee
     `)
     .in("status", ["scheduled", "pending"])
-    .not("scheduled_at", "is", null)
-    .gte("scheduled_at", now);
+    .not("scheduled_at", "is", null);
 
   if (activeTournamentIds.length > 0) {
     upcomingMatchesQuery = upcomingMatchesQuery.in("tournament_id", activeTournamentIds);
@@ -341,12 +340,7 @@ genero: m.genero || null,
           referee: m.referee ? refereesMap.get(m.referee) || null : null,
         };
       })
-      .filter((m: UpcomingMatch) => {
-        // Filtrar solo los que tienen fecha en el futuro
-        if (!m.scheduled_at) return false;
-        const matchDate = new Date(m.scheduled_at);
-        return matchDate >= new Date();
-      })
+      // Ordenar por fecha ascendente (las más próximas primero)
       .sort((a: UpcomingMatch, b: UpcomingMatch) => {
         // Ordenar por fecha ascendente
         if (!a.scheduled_at || !b.scheduled_at) return 0;

@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { cn } from "../../../../lib/utils";
 import { toast } from "sonner";
+import { useDashboard } from "../../torneos/hooks/useDashboard";
 
 // Tipos para datos de Supabase
 type SupabaseRole = {
@@ -24,11 +25,7 @@ type SupabaseProfile = {
   id: string;
   full_name: string | null;
   email: string | null;
-};
-
-type SupabaseOccupiedLeader = {
-  user_id: string;
-  team_id: number;
+  created_at?: string | null;
 };
 
 type Leader = {
@@ -42,6 +39,7 @@ export default function EditarEquipoPage() {
   const params = useParams();
   const teamId = params.id as string;
   const queryClient = useQueryClient();
+  const { currentEditionId, currentEditionCreatedAt } = useDashboard();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -112,7 +110,7 @@ export default function EditarEquipoPage() {
     }
   }, [teamId, router]);
 
-  // Cargar solo usuarios con rol "líder de equipo"
+  // Cargar solo usuarios con rol "líder de equipo" filtrados por edición actual
   useEffect(() => {
     const loadLeaders = async () => {
       try {
@@ -144,16 +142,18 @@ export default function EditarEquipoPage() {
         if (!leaderRole) {
           console.warn("No se encontró el rol 'líder de equipo'");
           setLeaders([]);
+          setOccupiedLeaders(new Set());
           return;
         }
 
-        // Intentar consultar desde profiles con filtro en user_roles
+        // Intentar consultar desde profiles con filtro en user_roles (incluyendo created_at)
         const { data: profilesData, error: profilesError } = await supabase
           .from("profiles")
           .select(`
             id,
             full_name,
             email,
+            created_at,
             user_roles!inner (
               role_id,
               roles!inner (
@@ -175,75 +175,130 @@ export default function EditarEquipoPage() {
           if (userRolesError) {
             console.error("Error cargando user_roles:", userRolesError);
             setLeaders([]);
+            setOccupiedLeaders(new Set());
             return;
           }
 
           if (!userRolesData || userRolesData.length === 0) {
             setLeaders([]);
+            setOccupiedLeaders(new Set());
             return;
           }
 
           const userIds = (userRolesData as SupabaseUserRole[]).map((ur: SupabaseUserRole) => ur.user_id);
           const { data: profilesData2, error: profilesError2 } = await supabase
             .from("profiles")
-            .select("id, full_name, email")
+            .select("id, full_name, email, created_at")
             .in("id", userIds)
             .order("full_name", { ascending: true });
 
           if (profilesError2) {
             console.error("Error cargando perfiles:", profilesError2);
             setLeaders([]);
+            setOccupiedLeaders(new Set());
             return;
           }
 
           if (profilesData2 && profilesData2.length > 0) {
-            const leadersList = (profilesData2 as SupabaseProfile[]).map((profile: SupabaseProfile) => ({
+            const rawLeaders = (profilesData2 as SupabaseProfile[]).map((profile: SupabaseProfile) => ({
               id: profile.id,
               full_name:
                 profile.full_name ||
                 profile.email?.split("@")[0] ||
                 "Sin nombre",
               email: profile.email || "",
+              created_at: profile.created_at ?? null,
+            }));
+
+            const { data: leadersThisEdition } = await supabase
+              .from("team_leaders")
+              .select("user_id")
+              .eq("edition_id", currentEditionId);
+            const assignedToThisEdition = new Set(
+              (leadersThisEdition ?? []).map((r: { user_id: string }) => r.user_id)
+            );
+            const { data: leadersAnyEdition } = await supabase
+              .from("team_leaders")
+              .select("user_id");
+            const assignedToAnyEdition = new Set(
+              (leadersAnyEdition ?? []).map((r: { user_id: string }) => r.user_id)
+            );
+
+            const editionDate = currentEditionCreatedAt ? new Date(currentEditionCreatedAt).getTime() : 0;
+            const filtered = rawLeaders.filter((u) => {
+              if (assignedToThisEdition.has(u.id)) return true;
+              if (assignedToAnyEdition.has(u.id)) return false;
+              const userDate = u.created_at ? new Date(u.created_at).getTime() : 0;
+              return editionDate === 0 || userDate >= editionDate;
+            });
+
+            const leadersList: Leader[] = filtered.map(({ id, full_name, email }) => ({
+              id,
+              full_name,
+              email: email || "",
             }));
             setLeaders(leadersList);
+            setOccupiedLeaders(assignedToThisEdition);
+          } else {
+            setLeaders([]);
+            setOccupiedLeaders(new Set());
           }
           return;
         }
 
         if (profilesData && profilesData.length > 0) {
-          const leadersList = (profilesData as SupabaseProfile[]).map((profile: SupabaseProfile) => ({
+          const rawLeaders = (profilesData as SupabaseProfile[]).map((profile: SupabaseProfile) => ({
             id: profile.id,
             full_name:
               profile.full_name ||
               profile.email?.split("@")[0] ||
               "Sin nombre",
             email: profile.email || "",
+            created_at: profile.created_at ?? null,
+          }));
+
+          const { data: leadersThisEdition } = await supabase
+            .from("team_leaders")
+            .select("user_id")
+            .eq("edition_id", currentEditionId);
+          const assignedToThisEdition = new Set(
+            (leadersThisEdition ?? []).map((r: { user_id: string }) => r.user_id)
+          );
+          const { data: leadersAnyEdition } = await supabase
+            .from("team_leaders")
+            .select("user_id");
+          const assignedToAnyEdition = new Set(
+            (leadersAnyEdition ?? []).map((r: { user_id: string }) => r.user_id)
+          );
+
+          const editionDate = currentEditionCreatedAt ? new Date(currentEditionCreatedAt).getTime() : 0;
+          const filtered = rawLeaders.filter((u) => {
+            if (assignedToThisEdition.has(u.id)) return true;
+            if (assignedToAnyEdition.has(u.id)) return false;
+            const userDate = u.created_at ? new Date(u.created_at).getTime() : 0;
+            return editionDate === 0 || userDate >= editionDate;
+          });
+
+          const leadersList: Leader[] = filtered.map(({ id, full_name, email }) => ({
+            id,
+            full_name,
+            email: email || "",
           }));
           setLeaders(leadersList);
-          
-          // Cargar líderes que ya están ocupados (asignados a otros equipos, excluyendo el equipo actual)
-          const leaderIds = leadersList.map((l) => l.id);
-          if (leaderIds.length > 0 && teamId) {
-            const { data: occupiedLeadersData, error: occupiedError } = await supabase
-              .from("team_leaders")
-              .select("user_id, team_id")
-              .in("user_id", leaderIds)
-              .neq("team_id", parseInt(teamId));
-            
-            if (!occupiedError && occupiedLeadersData) {
-              const occupiedSet = new Set((occupiedLeadersData as SupabaseOccupiedLeader[]).map((ol: SupabaseOccupiedLeader) => ol.user_id));
-              setOccupiedLeaders(occupiedSet);
-            }
-          }
+          setOccupiedLeaders(assignedToThisEdition);
+        } else {
+          setLeaders([]);
+          setOccupiedLeaders(new Set());
         }
       } catch (error) {
         console.error("Error inesperado cargando líderes:", error);
         setLeaders([]);
+        setOccupiedLeaders(new Set());
       }
     };
 
     loadLeaders();
-  }, [teamId]);
+  }, [teamId, currentEditionId, currentEditionCreatedAt]);
 
   const toggleLeader = (leaderId: string) => {
     // No permitir seleccionar líderes ocupados
