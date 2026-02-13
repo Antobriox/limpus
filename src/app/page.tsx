@@ -84,12 +84,13 @@ export default function HomePage() {
     
     if (user && roles.length > 0) {
       // Redirección INMEDIATA con window.location (sin esperar a React)
-      if (roles.includes("administrador")) {
-        window.location.replace("/dashboard/torneos");
+      // PRIORIDAD: arbitro -> líder -> admin
+      if (roles.includes("arbitro")) {
+        window.location.replace("/dashboard/general");
       } else if (roles.includes("lider_equipo")) {
         window.location.replace("/dashboard/leader");
-      } else if (roles.includes("arbitro")) {
-        window.location.replace("/dashboard/general");
+      } else if (roles.includes("administrador")) {
+        window.location.replace("/dashboard/torneos");
       }
       // Si es viewer, se queda en la página pública (no hace nada)
     }

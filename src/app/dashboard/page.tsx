@@ -17,12 +17,13 @@ export default function DashboardPage() {
     }
 
     // Redirigir según el rol del usuario
-    if (roles.includes("administrador")) {
-      router.replace("/dashboard/torneos");
+    // PRIORIDAD: arbitro -> líder -> admin -> viewers
+    if (roles.includes("arbitro")) {
+      router.replace("/dashboard/general");
     } else if (roles.includes("lider_equipo")) {
       router.replace("/dashboard/leader");
-    } else if (roles.includes("arbitro")) {
-      router.replace("/dashboard/general");
+    } else if (roles.includes("administrador")) {
+      router.replace("/dashboard/torneos");
     } else if (roles.includes("viewers")) {
       router.replace("/dashboard/viewers");
     } else {

@@ -17,12 +17,13 @@ export default function DashboardPage() {
       return;
     }
 
-    if (roles.includes("administrador")) {
-      router.replace("/dashboard/admin");
+    // PRIORIDAD: arbitro -> líder -> admin -> general por defecto
+    if (roles.includes("arbitro")) {
+      router.replace("/dashboard/general");
     } else if (roles.includes("lider_equipo")) {
       router.replace("/dashboard/leader");
-    } else if (roles.includes("arbitro")) {
-      router.replace("/dashboard/general");
+    } else if (roles.includes("administrador")) {
+      router.replace("/dashboard/admin");
     } else {
       router.replace("/dashboard/general");
     }
