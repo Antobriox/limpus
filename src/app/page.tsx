@@ -86,7 +86,7 @@ export default function HomePage() {
       // Redirección INMEDIATA con window.location (sin esperar a React)
       // PRIORIDAD: arbitro -> líder -> admin
       if (roles.includes("arbitro")) {
-        window.location.replace("/dashboard/general");
+        window.location.replace("/dashboard/arbitro");
       } else if (roles.includes("lider_equipo")) {
         window.location.replace("/dashboard/leader");
       } else if (roles.includes("administrador")) {

@@ -104,7 +104,7 @@ export default function NuevaInscripcionPage() {
     // Invalidar la query de inscripciones para que se actualice la lista
     queryClient.invalidateQueries({ queryKey: ["registrationForms"] });
     
-    toast.success("Inscripción creada correctamente");
+    // Inscripción creada
     router.push("/dashboard/inscripciones");
   };
 

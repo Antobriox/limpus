@@ -72,7 +72,7 @@ export default function RegistroPage() {
       }
 
       // Registro exitoso, redirigir al login
-      toast.success("¡Cuenta creada exitosamente! Redirigiendo...");
+      // Cuenta creada, redirigiendo...
       router.push("/login");
     } catch {
       const errorMsg = "Error al crear la cuenta. Intenta nuevamente.";

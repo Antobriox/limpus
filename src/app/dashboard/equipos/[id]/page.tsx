@@ -436,7 +436,7 @@ export default function EditarEquipoPage() {
       queryClient.invalidateQueries({ queryKey: ["teams"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       
-      toast.success("Equipo actualizado correctamente");
+      // Equipo actualizado
       router.push("/dashboard/equipos");
     } catch (error: unknown) {
       console.error("Error actualizando equipo:", error);

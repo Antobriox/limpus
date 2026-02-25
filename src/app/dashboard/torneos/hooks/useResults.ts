@@ -281,6 +281,10 @@ export const useResults = () => {
         throw new Error("Error al guardar el resultado del partido");
       }
 
+      // Eliminar eventos previos del partido para reemplazar con el estado actual del form
+      // (evita duplicar tarjetas/goles que ya se guardaron en vivo)
+      await supabase.from("match_events").delete().eq("match_id", matchId);
+
       // Guardar eventos del partido (goles, tarjetas)
       type MatchEvent = {
         match_id: number;

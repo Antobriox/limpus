@@ -29,12 +29,25 @@ export default function DashboardLayout({
   const publicRoutes = ["/dashboard/viewers/clasificacion"];
   const isPublicRoute = publicRoutes.includes(pathname);
 
+  // Derivados para redirección (siempre calculados para no cambiar orden de hooks)
+  const isViewer = roles.includes("viewers") || (!roles.includes("administrador") && !roles.includes("lider_equipo") && !roles.includes("arbitro"));
+  const isLeader = roles.includes("lider_equipo");
+  const isArbitroOnly = roles.includes("arbitro") && !roles.includes("administrador");
+  const arbitroAllowedPaths = ["/dashboard/arbitro"];
+  const isArbitroAllowedPath = arbitroAllowedPaths.some((p) => pathname === p || pathname.startsWith(p + "/"));
+
   useEffect(() => {
     // No redirigir a login si es una ruta pública
     if (!loading && !user && !isPublicRoute) {
       router.replace("/login");
     }
   }, [user, loading, router, isPublicRoute]);
+
+  useEffect(() => {
+    if (!loading && user && isArbitroOnly && !isArbitroAllowedPath) {
+      router.replace("/dashboard/arbitro");
+    }
+  }, [loading, user, isArbitroOnly, isArbitroAllowedPath, pathname, router]);
 
   // Si es una ruta pública, mostrar sin autenticación
   if (isPublicRoute) {
@@ -67,14 +80,8 @@ export default function DashboardLayout({
     );
   }
 
-  // Si es viewer, mostrar sin sidebar ni topbar
-  const isViewer = roles.includes("viewers") || (!roles.includes("administrador") && !roles.includes("lider_equipo") && !roles.includes("arbitro"));
-  
-  // Si es líder de equipo, también mostrar sin sidebar/topbar (tiene su propia UI)
-  const isLeader = roles.includes("lider_equipo");
-
-  // Si es viewer o líder, mostrar su UI específica (sin sidebar)
-  if (isViewer || isLeader) {
+  // Si es viewer, líder o árbitro (solo), mostrar su UI específica sin sidebar
+  if (isViewer || isLeader || isArbitroOnly) {
     return (
       <QueryClientProvider client={queryClient}>
         <RealtimeIndicator />

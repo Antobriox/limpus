@@ -186,6 +186,15 @@ export default function MatchDetailsModal({
     loadMatchDetails();
   }, [loadMatchDetails]);
 
+  // Actualizar detalles en vivo cuando hay nuevos goles o tarjetas (sin cerrar el modal)
+  useEffect(() => {
+    const handleRealtimeUpdate = () => {
+      loadMatchDetails();
+    };
+    window.addEventListener("realtime-update", handleRealtimeUpdate);
+    return () => window.removeEventListener("realtime-update", handleRealtimeUpdate);
+  }, [loadMatchDetails]);
+
   const getPlayerName = (playerId: number | null, team: "a" | "b"): string => {
     if (!playerId) return "Jugador desconocido";
     const players = team === "a" ? playersA : playersB;

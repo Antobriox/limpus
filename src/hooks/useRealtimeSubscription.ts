@@ -34,6 +34,7 @@ export function useRealtimeSubscription() {
           // Invalidar todas las queries relacionadas con partidos
           queryClient.invalidateQueries({ queryKey: ["matches"] });
           queryClient.invalidateQueries({ queryKey: ["teamMatches"] });
+          queryClient.invalidateQueries({ queryKey: ["refereeMatches"] });
           queryClient.invalidateQueries({ queryKey: ["viewersData"] });
           queryClient.invalidateQueries({ queryKey: ["teamStats"] });
           queryClient.invalidateQueries({ queryKey: ["standings"] });
@@ -42,7 +43,7 @@ export function useRealtimeSubscription() {
       )
       .subscribe();
 
-    // Suscripción a cambios en RESULTADOS (match_results) - GOLES, TARJETAS, SETS, ETC
+    // Suscripción a cambios en RESULTADOS (match_results) - marcador
     const resultsChannel = supabase
       .channel("results-changes")
       .on(
@@ -58,11 +59,33 @@ export function useRealtimeSubscription() {
           // Invalidar TODAS las queries que muestran resultados
           queryClient.invalidateQueries({ queryKey: ["matches"] });
           queryClient.invalidateQueries({ queryKey: ["teamMatches"] });
+          queryClient.invalidateQueries({ queryKey: ["refereeMatches"] });
           queryClient.invalidateQueries({ queryKey: ["viewersData"] });
           queryClient.invalidateQueries({ queryKey: ["teamStats"] });
           queryClient.invalidateQueries({ queryKey: ["standings"] });
           queryClient.invalidateQueries({ queryKey: ["results"] });
           
+          notifyUpdate();
+        }
+      )
+      .subscribe();
+
+    // Suscripción a cambios en EVENTOS del partido (match_events) - goles y tarjetas en vivo
+    const matchEventsChannel = supabase
+      .channel("match-events-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "match_events",
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["teamMatches"] });
+          queryClient.invalidateQueries({ queryKey: ["viewersData"] });
+          queryClient.invalidateQueries({ queryKey: ["scheduledMatches"] });
+          queryClient.invalidateQueries({ queryKey: ["standings"] });
+          queryClient.invalidateQueries({ queryKey: ["results"] });
           notifyUpdate();
         }
       )
@@ -193,6 +216,7 @@ export function useRealtimeSubscription() {
       console.log("🔴 Realtime subscriptions DESACTIVADAS");
       supabase.removeChannel(matchesChannel);
       supabase.removeChannel(resultsChannel);
+      supabase.removeChannel(matchEventsChannel);
       supabase.removeChannel(teamsChannel);
       supabase.removeChannel(tournamentsChannel);
       supabase.removeChannel(registrationsChannel);

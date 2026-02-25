@@ -47,7 +47,7 @@ export default function EditInscripcionPage() {
       // Invalidar la query de inscripciones para que se actualice la lista
       queryClient.invalidateQueries({ queryKey: ["registrationForms"] });
       
-      toast.success("Inscripción actualizada correctamente");
+      // Inscripción actualizada
       router.push("/dashboard/inscripciones");
     } catch {
       toast.error("Error al guardar los cambios");
