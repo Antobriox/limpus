@@ -19,7 +19,7 @@ export default function DashboardPage() {
 
     // PRIORIDAD: arbitro -> líder -> admin -> general por defecto
     if (roles.includes("arbitro")) {
-      router.replace("/dashboard/general");
+      router.replace("/dashboard/arbitro");
     } else if (roles.includes("lider_equipo")) {
       router.replace("/dashboard/leader");
     } else if (roles.includes("administrador")) {

@@ -43,7 +43,7 @@ export default function NuevoUsuarioPage() {
     // Invalidar la query de usuarios para que se actualice la lista
     queryClient.invalidateQueries({ queryKey: ["users"] });
     
-    toast.success("Usuario creado correctamente");
+    // Usuario creado
     router.push("/dashboard/usuarios");
   };
 

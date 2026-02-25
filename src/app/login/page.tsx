@@ -63,7 +63,7 @@ export default function LoginPage() {
       localStorage.removeItem("rememberMe");
     }
 
-    toast.success("¡Bienvenido de nuevo!");
+    // Bienvenido
     // 👉 una vez logeado, vamos a /
     router.replace("/");
   };

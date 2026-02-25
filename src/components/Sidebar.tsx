@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Trophy, X, Users, UsersRound, FileText, History, LogOut } from "lucide-react";
+import { Trophy, X, Users, UsersRound, FileText, History, LogOut, LayoutDashboard } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useUser } from "../hooks/useUser";
 import { motion } from "framer-motion";
@@ -19,7 +19,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editionParam = searchParams.get("edition");
-  const { user } = useUser();
+  const { user, roles } = useUser();
   const [profile, setProfile] = useState<{ full_name: string; email: string } | null>(null);
   const [parent] = useAutoAnimate();
 
@@ -122,16 +122,32 @@ export default function Sidebar({ onClose }: SidebarProps) {
     }
   };
 
+  // Rol mostrado en el sidebar (según prioridad)
+  const roleLabel =
+    roles.includes("administrador")
+      ? "Administrador"
+      : roles.includes("arbitro")
+        ? "Árbitro"
+        : roles.includes("lider_equipo")
+          ? "Líder de equipo"
+          : "Usuario";
+
+  // Solo administradores ven el menú completo; árbitros solo ven Partidos a arbitrar
+  const isArbitroOnly = roles.includes("arbitro") && !roles.includes("administrador");
+
   // Enlaces del sidebar SIEMPRE al torneo actual (sin ?edition=).
-  // Si estás viendo historial (?edition=X), al hacer clic en Torneos/Equipos/Inscripciones/Usuarios
-  // navegamos a la ruta limpia para forzar vista del torneo actual.
-  const navItems = [
-    { href: "/dashboard/torneos", label: "Torneos", icon: Trophy },
-    { href: "/dashboard/usuarios", label: "Usuarios", icon: Users },
-    { href: "/dashboard/equipos", label: "Equipos", icon: UsersRound },
-    { href: "/dashboard/inscripciones", label: "Inscripciones", icon: FileText },
-    { href: "/dashboard/historial", label: "Historial", icon: History },
-  ].map((item) => {
+  // Árbitros solo ven "Partidos a arbitrar". Admins ven todo.
+  const navItemsRaw = isArbitroOnly
+    ? [{ href: "/dashboard/arbitro", label: "Partidos a arbitrar", icon: LayoutDashboard }]
+    : [
+        { href: "/dashboard/torneos", label: "Torneos", icon: Trophy },
+        { href: "/dashboard/usuarios", label: "Usuarios", icon: Users },
+        { href: "/dashboard/equipos", label: "Equipos", icon: UsersRound },
+        { href: "/dashboard/inscripciones", label: "Inscripciones", icon: FileText },
+        { href: "/dashboard/historial", label: "Historial", icon: History },
+      ];
+
+  const navItems = navItemsRaw.map((item) => {
     const isTorneoActualSection = ["/dashboard/torneos", "/dashboard/usuarios", "/dashboard/equipos", "/dashboard/inscripciones"].includes(item.href);
     const isActive =
       pathname.startsWith(item.href) &&
@@ -231,7 +247,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
               {displayName}
             </p>
             <p className="text-gray-600 dark:text-gray-400 text-sm font-normal leading-normal">
-              Administrator
+              {roleLabel}
             </p>
           </div>
         </div>

@@ -76,7 +76,7 @@ export default function EditarUsuarioPage() {
     // Invalidar la query de usuarios para que se actualice la lista
     queryClient.invalidateQueries({ queryKey: ["users"] });
     
-    toast.success("Usuario actualizado correctamente");
+    // Usuario actualizado
     router.push("/dashboard/usuarios");
   };
 

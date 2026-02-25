@@ -520,21 +520,98 @@ export default function ResultadosPage() {
     setShowCardForm({ team, type, playerId: "", minute: "" });
   };
 
-  const handleAddCard = (team: "a" | "b", type: "yellow" | "red", playerId: number, minute: number) => {
+  const handleAddCard = async (team: "a" | "b", type: "yellow" | "red", playerId: number, minute: number) => {
     if (selectedMatch?.status === "finished") {
-      // alert eliminada"No se pueden agregar tarjetas a un partido finalizado");
       return;
     }
+    if (!selectedMatch) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error("Usuario no autenticado");
+      return;
+    }
+
+    const teamId = team === "a" ? selectedMatch.team_a : selectedMatch.team_b;
+    if (teamId == null) return;
+
+    const eventType = type === "yellow" ? "yellow_card" : "red_card";
+
+    // Guardar la tarjeta en match_events en vivo (igual que los goles)
+    try {
+      const { error: eventError } = await supabase
+        .from("match_events")
+        .insert({
+          match_id: Number(selectedMatch.id),
+          event_type: eventType,
+          team_id: Number(teamId),
+          player_id: Number(playerId),
+          value: Number(minute),
+          created_by: String(user.id),
+        });
+
+      if (eventError) {
+        console.error("Error guardando tarjeta:", eventError);
+        return;
+      }
+    } catch (error) {
+      console.error("Error al guardar tarjeta:", error);
+      return;
+    }
+
+    // Segunda amarilla = roja automática: si es amarilla, contar cuántas tiene ya este jugador en el partido
+    let addedRedFromSecondYellow = false;
+    if (type === "yellow") {
+      const { count } = await supabase
+        .from("match_events")
+        .select("*", { count: "exact", head: true })
+        .eq("match_id", selectedMatch.id)
+        .eq("team_id", teamId)
+        .eq("player_id", playerId)
+        .eq("event_type", "yellow_card");
+
+      // Si ya hay 2 amarillas (la que acabamos de insertar es la segunda), agregar roja automática
+      if (count != null && count >= 2) {
+        const { error: redError } = await supabase.from("match_events").insert({
+          match_id: Number(selectedMatch.id),
+          event_type: "red_card",
+          team_id: Number(teamId),
+          player_id: Number(playerId),
+          value: Number(minute),
+          created_by: String(user.id),
+        });
+        if (!redError) addedRedFromSecondYellow = true;
+      }
+    }
+
+    // Igual que en goles: actualizar match_results para que Realtime dispare y el modal se actualice
+    const scoreA = resultForm.score_team_a ?? 0;
+    const scoreB = resultForm.score_team_b ?? 0;
+    await supabase
+      .from("match_results")
+      .upsert({
+        match_id: selectedMatch.id,
+        score_team_a: scoreA,
+        score_team_b: scoreB,
+      }, { onConflict: "match_id" });
+
+    // Actualizar estado local e invalidar para que se vea en vivo en otras vistas
     if (type === "yellow") {
       if (team === "a") {
         setResultForm({
           ...resultForm,
           yellow_cards_team_a: [...resultForm.yellow_cards_team_a, { player_id: playerId, minute }],
+          ...(addedRedFromSecondYellow && {
+            red_cards_team_a: [...resultForm.red_cards_team_a, { player_id: playerId, minute }],
+          }),
         });
       } else {
         setResultForm({
           ...resultForm,
           yellow_cards_team_b: [...resultForm.yellow_cards_team_b, { player_id: playerId, minute }],
+          ...(addedRedFromSecondYellow && {
+            red_cards_team_b: [...resultForm.red_cards_team_b, { player_id: playerId, minute }],
+          }),
         });
       }
     } else {
@@ -550,13 +627,68 @@ export default function ResultadosPage() {
         });
       }
     }
+
+    queryClient.invalidateQueries({ queryKey: ["teamMatches"] });
+    queryClient.invalidateQueries({ queryKey: ["scheduledMatches"] });
+    queryClient.invalidateQueries({ queryKey: ["viewersData"] });
   };
 
-  const handleRemoveCard = (team: "a" | "b", type: "yellow" | "red", index: number) => {
+  const handleRemoveCard = async (team: "a" | "b", type: "yellow" | "red", index: number) => {
     if (selectedMatch?.status === "finished") {
-      // alert eliminada"No se pueden eliminar tarjetas de un partido finalizado");
       return;
     }
+    if (!selectedMatch) return;
+
+    const teamId = team === "a" ? selectedMatch.team_a : selectedMatch.team_b;
+    if (teamId == null) return;
+
+    const eventType = type === "yellow" ? "yellow_card" : "red_card";
+    let card: { player_id: number; minute: number };
+
+    if (type === "yellow") {
+      if (team === "a") {
+        card = resultForm.yellow_cards_team_a[index];
+      } else {
+        card = resultForm.yellow_cards_team_b[index];
+      }
+    } else {
+      if (team === "a") {
+        card = resultForm.red_cards_team_a[index];
+      } else {
+        card = resultForm.red_cards_team_b[index];
+      }
+    }
+
+    if (!card) return;
+
+    // Borrar en BD: el evento en la posición index (mismo orden que en el form: por value/minuto)
+    const { data: events } = await supabase
+      .from("match_events")
+      .select("id")
+      .eq("match_id", selectedMatch.id)
+      .eq("event_type", eventType)
+      .eq("team_id", teamId)
+      .order("value", { ascending: true })
+      .order("id", { ascending: true });
+
+    const eventIds = events || [];
+    const eventToDelete = eventIds[index];
+    if (eventToDelete?.id) {
+      await supabase.from("match_events").delete().eq("id", eventToDelete.id);
+    }
+
+    // Igual que en goles: tocar match_results para que Realtime dispare
+    const scoreA = resultForm.score_team_a ?? 0;
+    const scoreB = resultForm.score_team_b ?? 0;
+    await supabase
+      .from("match_results")
+      .upsert({
+        match_id: selectedMatch.id,
+        score_team_a: scoreA,
+        score_team_b: scoreB,
+      }, { onConflict: "match_id" });
+
+    // Actualizar estado local e invalidar
     if (type === "yellow") {
       if (team === "a") {
         setResultForm({
@@ -582,6 +714,10 @@ export default function ResultadosPage() {
         });
       }
     }
+
+    queryClient.invalidateQueries({ queryKey: ["teamMatches"] });
+    queryClient.invalidateQueries({ queryKey: ["scheduledMatches"] });
+    queryClient.invalidateQueries({ queryKey: ["viewersData"] });
   };
 
   const handleSaveResult = async () => {
