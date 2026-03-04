@@ -120,7 +120,7 @@ export default function BracketsPage() {
   const [listRef] = useAutoAnimate();
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+    <div className="p-4 sm:p-6 lg:p-8 min-h-screen min-w-0 overflow-x-hidden bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Header */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}

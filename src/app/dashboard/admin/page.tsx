@@ -161,7 +161,7 @@ export default function DashboardPage() {
   const getBarHeight = (count: number) => (count / maxCount) * 100;
 
   return (
-    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-6 lg:p-10 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-6 lg:p-10 min-h-screen min-w-0 overflow-x-hidden bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Page Heading */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
