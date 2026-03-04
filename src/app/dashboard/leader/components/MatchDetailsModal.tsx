@@ -303,7 +303,7 @@ export default function MatchDetailsModal({
         onClick={(e) => e.stopPropagation()}
         className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto pointer-events-none"
       >
-        <div className="bg-white dark:bg-neutral-800 rounded-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-2 sm:my-4 mx-2 sm:mx-0 pointer-events-auto border border-gray-200 dark:border-neutral-700 shadow-2xl">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl max-w-3xl w-full min-w-0 max-h-[95vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden my-2 sm:my-4 mx-2 sm:mx-0 pointer-events-auto border border-gray-200 dark:border-neutral-700 shadow-2xl">
           <div className="sticky top-0 bg-white/95 dark:bg-neutral-800/95 backdrop-blur-md border-b border-gray-200 dark:border-neutral-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent pr-2">
               Detalles del Partido

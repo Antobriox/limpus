@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "../../lib/queryClient";
 import { motion } from "framer-motion";
+import { Menu } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -117,8 +118,20 @@ export default function DashboardLayout({
         </div>
 
         {/* Main Content */}
-        <div className="flex flex-col flex-1 overflow-hidden lg:ml-0">
-          <main className="flex-1 overflow-y-auto bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 min-h-0">
+        <div className="flex flex-col flex-1 overflow-hidden lg:ml-0 min-w-0">
+          {/* Barra móvil: botón menú */}
+          <div className="lg:hidden flex-shrink-0 flex items-center gap-2 h-14 px-4 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border-b border-gray-200 dark:border-neutral-700">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300"
+              aria-label="Abrir menú"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <span className="font-semibold text-gray-900 dark:text-white truncate">Menú</span>
+          </div>
+          <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 min-h-0 w-full">
             {children}
           </main>
         </div>

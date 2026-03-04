@@ -69,7 +69,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 font-display bg-gradient-to-br from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900">
+    <div className="min-h-screen min-w-0 overflow-x-hidden grid grid-cols-1 md:grid-cols-2 font-display bg-gradient-to-br from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900">
       {/* LEFT PANEL */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}

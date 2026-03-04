@@ -436,7 +436,7 @@ export default function NuevoEquipoPage() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">
       <button
         type="button"
         onClick={() => router.push("/dashboard/equipos")}
