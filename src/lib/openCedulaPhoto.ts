@@ -45,10 +45,9 @@ export function extractDocumentsStoragePath(storedValue: string): string | null 
 }
 
 /**
- * Abre la foto de cédula en una pestaña nueva.
- * Si el bucket es privado, usa URL firmada (el enlace público guardado suele dar 403).
+ * URL lista para mostrar en un <img> (firma temporal si el bucket es privado).
  */
-export async function openCedulaPhotoInNewTab(storedUrl: string): Promise<void> {
+export async function getCedulaPhotoDisplayUrl(storedUrl: string): Promise<string> {
   const path = extractDocumentsStoragePath(storedUrl);
 
   if (path) {
@@ -57,11 +56,18 @@ export async function openCedulaPhotoInNewTab(storedUrl: string): Promise<void> 
       .createSignedUrl(path, 60 * 60);
 
     if (!error && data?.signedUrl) {
-      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
-      return;
+      return data.signedUrl;
     }
-    console.warn("openCedulaPhoto: createSignedUrl falló, se intenta URL original", error);
+    console.warn("getCedulaPhotoDisplayUrl: createSignedUrl falló, se usa URL guardada", error);
   }
 
-  window.open(storedUrl, "_blank", "noopener,noreferrer");
+  return storedUrl;
+}
+
+/**
+ * Abre la foto de cédula en una pestaña nueva (por si se usa en otro flujo).
+ */
+export async function openCedulaPhotoInNewTab(storedUrl: string): Promise<void> {
+  const url = await getCedulaPhotoDisplayUrl(storedUrl);
+  window.open(url, "_blank", "noopener,noreferrer");
 }

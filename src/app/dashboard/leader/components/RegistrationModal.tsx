@@ -22,7 +22,7 @@ import { useTeamRegistrations, RegistrationForm } from "../hooks/useTeamRegistra
 import { motion, AnimatePresence } from "framer-motion";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { cn } from "../../../../lib/utils";
-import { openCedulaPhotoInNewTab } from "../../../../lib/openCedulaPhoto";
+import CedulaPhotoLightbox from "../../../../components/CedulaPhotoLightbox";
 
 type Player = {
   id?: number;
@@ -52,6 +52,12 @@ export default function RegistrationModal({ teamId, editionId, onClose }: Regist
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState<{ [key: number]: boolean }>({});
+  const [cedulaPreviewUrl, setCedulaPreviewUrl] = useState<string | null>(null);
+
+  const closeRegistrationModal = () => {
+    setCedulaPreviewUrl(null);
+    onClose();
+  };
 
   // Cargar carreras del equipo
   useEffect(() => {
@@ -406,7 +412,7 @@ export default function RegistrationModal({ teamId, editionId, onClose }: Regist
 
       console.log(`Jugadores guardados: ${playersToUpdate.length} actualizados, ${playersToInsert.length} insertados`);
       // alert eliminada"Jugadores guardados exitosamente");
-      onClose();
+      closeRegistrationModal();
     } catch (error: unknown) {
       console.error("Error al guardar jugadores:", error);
       // alert eliminada"Error al guardar jugadores: " + (error instanceof Error ? error.message : "Error desconocido"));
@@ -418,6 +424,7 @@ export default function RegistrationModal({ teamId, editionId, onClose }: Regist
   const [listRef] = useAutoAnimate();
 
   return (
+    <>
     <AnimatePresence>
       {true && (
         <>
@@ -425,7 +432,7 @@ export default function RegistrationModal({ teamId, editionId, onClose }: Regist
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={closeRegistrationModal}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
           />
           <motion.div
@@ -444,7 +451,7 @@ export default function RegistrationModal({ teamId, editionId, onClose }: Regist
             <motion.button
               whileHover={{ scale: 1.1, rotate: 90 }}
               whileTap={{ scale: 0.9 }}
-              onClick={onClose}
+              onClick={closeRegistrationModal}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700 transition flex-shrink-0 cursor-pointer"
             >
               <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400" />
@@ -731,15 +738,10 @@ export default function RegistrationModal({ teamId, editionId, onClose }: Regist
                                   <ImageIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      void openCedulaPhotoInNewTab(player.cedula_photo_url!).catch((e) => {
-                                        console.error(e);
-                                        alert("No se pudo abrir la foto. Si el bucket es privado, revisa las políticas de Storage en Supabase.");
-                                      });
-                                    }}
+                                    onClick={() => setCedulaPreviewUrl(player.cedula_photo_url!)}
                                     className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                                   >
-                                    Ver foto
+                                    Ver cédula
                                   </button>
                                 </div>
                               )}
@@ -762,7 +764,7 @@ export default function RegistrationModal({ teamId, editionId, onClose }: Regist
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={onClose}
+                      onClick={closeRegistrationModal}
                       className="px-4 py-2.5 border-2 border-gray-300 dark:border-neutral-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 transition-all shadow-sm hover:shadow-md font-medium cursor-pointer"
                     >
                       Cancelar
@@ -790,5 +792,11 @@ export default function RegistrationModal({ teamId, editionId, onClose }: Regist
         </>
       )}
     </AnimatePresence>
+    <CedulaPhotoLightbox
+      isOpen={cedulaPreviewUrl !== null}
+      storedUrl={cedulaPreviewUrl}
+      onClose={() => setCedulaPreviewUrl(null)}
+    />
+    </>
   );
 }
