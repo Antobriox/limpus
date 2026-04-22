@@ -27,6 +27,7 @@ type ViewRegistrationsModalProps = {
   formName: string;
   isOpen: boolean;
   onClose: () => void;
+  /** @deprecated Ya no se usa: filtrar por fechas del torneo ocultaba inscripciones hechas antes del inicio del torneo */
   tournamentStart?: string | null;
   tournamentEnd?: string | null;
 };
@@ -57,8 +58,6 @@ export default function ViewRegistrationsModal({
   formName,
   isOpen,
   onClose,
-  tournamentStart,
-  tournamentEnd,
 }: ViewRegistrationsModalProps) {
   const [teamRegistrations, setTeamRegistrations] = useState<TeamRegistration[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
@@ -69,7 +68,10 @@ export default function ViewRegistrationsModal({
   const loadTeamRegistrations = useCallback(async () => {
     setLoading(true);
     try {
-      let query = supabase
+      // Todas las inscripciones del formulario (sin filtrar por fechas del torneo):
+      // start_date/end_date del torneo suelen ser las fechas de competencia; las inscripciones
+      // ocurren antes y quedaban excluidas con gte/lte sobre submitted_at → el admin veía 0 equipos.
+      const { data: registrations, error } = await supabase
         .from("team_registrations")
         .select(`
           id,
@@ -82,11 +84,6 @@ export default function ViewRegistrationsModal({
         `)
         .eq("form_id", formId)
         .order("submitted_at", { ascending: false });
-
-      if (tournamentStart) query = query.gte("submitted_at", tournamentStart);
-      if (tournamentEnd) query = query.lte("submitted_at", tournamentEnd + "T23:59:59.999Z");
-
-      const { data: registrations, error } = await query;
 
       if (error) throw error;
 
@@ -124,7 +121,7 @@ export default function ViewRegistrationsModal({
     } finally {
       setLoading(false);
     }
-  }, [formId, tournamentStart, tournamentEnd]);
+  }, [formId]);
 
   useEffect(() => {
     if (isOpen && formId) {
