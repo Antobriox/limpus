@@ -80,7 +80,7 @@ export default function InscripcionesPage() {
 
       {editionId && tournament && (
         <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/50 p-4 text-center text-sm text-gray-600 dark:text-gray-400">
-          Vista de torneo finalizado: <strong>{tournament.name}</strong>. Las inscripciones mostradas corresponden al período del torneo.
+          Vista de edición: <strong>{tournament.name}</strong>. Se muestran todos los equipos inscritos en cada formulario de esta edición.
         </div>
       )}
 
@@ -221,8 +221,6 @@ export default function InscripcionesPage() {
           formName={selectedForm.name}
           isOpen={!!selectedForm}
           onClose={() => setSelectedForm(null)}
-          tournamentStart={tournament?.start_date || null}
-          tournamentEnd={tournament?.end_date || null}
         />
       )}
     </div>
