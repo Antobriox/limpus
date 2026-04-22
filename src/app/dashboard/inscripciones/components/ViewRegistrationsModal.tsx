@@ -21,6 +21,7 @@ import { X, Users, User, Eye } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { cn } from "../../../../lib/utils";
+import { openCedulaPhotoInNewTab } from "../../../../lib/openCedulaPhoto";
 
 type ViewRegistrationsModalProps = {
   formId: number;
@@ -418,9 +419,17 @@ export default function ViewRegistrationsModal({
                             <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
                               {player.cedula_photo_url && player.cedula_photo_url.trim() !== "" ? (
                                 <motion.button
+                                  type="button"
                                   whileHover={{ scale: 1.1 }}
                                   whileTap={{ scale: 0.9 }}
-                                  onClick={() => window.open(player.cedula_photo_url!, "_blank")}
+                                  onClick={async () => {
+                                    try {
+                                      await openCedulaPhotoInNewTab(player.cedula_photo_url!);
+                                    } catch (e) {
+                                      console.error(e);
+                                      alert("No se pudo abrir la foto de la cédula. Comprueba permisos del bucket en Supabase.");
+                                    }
+                                  }}
                                   className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all cursor-pointer"
                                   title="Ver foto de cédula"
                                 >

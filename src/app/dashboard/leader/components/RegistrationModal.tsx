@@ -22,6 +22,7 @@ import { useTeamRegistrations, RegistrationForm } from "../hooks/useTeamRegistra
 import { motion, AnimatePresence } from "framer-motion";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { cn } from "../../../../lib/utils";
+import { openCedulaPhotoInNewTab } from "../../../../lib/openCedulaPhoto";
 
 type Player = {
   id?: number;
@@ -728,14 +729,18 @@ export default function RegistrationModal({ teamId, editionId, onClose }: Regist
                               {player.cedula_photo_url && (
                                 <div className="flex items-center gap-2">
                                   <ImageIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
-                                  <a
-                                    href={player.cedula_photo_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      void openCedulaPhotoInNewTab(player.cedula_photo_url!).catch((e) => {
+                                        console.error(e);
+                                        alert("No se pudo abrir la foto. Si el bucket es privado, revisa las políticas de Storage en Supabase.");
+                                      });
+                                    }}
                                     className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                                   >
                                     Ver foto
-                                  </a>
+                                  </button>
                                 </div>
                               )}
                             </div>
