@@ -18,6 +18,7 @@ Una plataforma web completa y moderna para administrar torneos deportivos, equip
 [Instalación](#-instalación-y-configuración) • 
 [Scripts](#-scripts-disponibles) • 
 [Roles](#-roles-y-permisos) • 
+[Manual de usuario](#-manual-de-usuario) • 
 [Base de Datos](#-esquema-de-base-de-datos) • 
 [Realtime](#-actualizaciones-en-tiempo-real) • 
 [Despliegue](#-build-y-despliegue)
@@ -337,6 +338,128 @@ limpus/
 - ✅ Explorar deportes y equipos
 - ✅ Ver historial de partidos
 - ✅ Acceso sin necesidad de autenticación
+
+### 🟠 Árbitro
+- ✅ Ver solo los partidos asignados (árbitro o asistente) de la edición activa
+- ✅ Listas separadas: en vivo, próximos y finalizados
+- ✅ Actualización en tiempo real de marcadores y eventos
+
+---
+
+## 📖 Manual de usuario
+
+Guía orientativa para quienes usan **Limpus** en el día a día (no requiere conocimientos técnicos). La pantalla inicial y los menús pueden variar ligeramente según la versión desplegada.
+
+### Acceso al sistema
+
+1. Abre la URL de la aplicación (por ejemplo `https://tu-dominio.com` o la que te indique la organización).
+2. **Iniciar sesión**: menú o botón de acceso → introduce correo y contraseña. Opcionalmente marca **Recordarme** para guardar el correo en este equipo.
+3. **Registro** (si está habilitado): permite crear una cuenta nueva; después de registrarte suele redirigir al inicio de sesión.
+4. Tras el login, el sistema te lleva automáticamente al panel que corresponde a tu **rol** (árbitro, líder, administrador o vista pública).
+
+### Navegación general (administrador)
+
+- En **escritorio** tienes el menú lateral con: Torneos, Usuarios, Equipos, Inscripciones e Historial.
+- En **móvil o pantalla pequeña**, usa el botón **Menú** (icono de tres rayas) arriba para abrir y cerrar el mismo menú.
+- Puedes cambiar entre **tema claro y oscuro** si la aplicación lo ofrece en la barra superior o en la página de login.
+
+---
+
+### Manual del **Administrador**
+
+#### Torneos (panel principal)
+
+- Es el punto de entrada habitual tras iniciar sesión como administrador.
+- Resume la **edición activa** del torneo: estadísticas, equipos recientes, resultados recientes y accesos rápidos.
+- Desde aquí puedes ir a **programar partidos**, **resultados**, **tablas**, **brackets** o **documentos** según las tarjetas o enlaces disponibles.
+
+#### Crear o gestionar una edición / torneo
+
+- **Nuevo torneo** o edición: sigue el flujo del asistente para fechas, disciplinas y configuración.
+- **Historial**: consulta ediciones anteriores; al entrar en una edición pasada, muchas listas se filtran por esa edición (por parámetro en la URL).
+
+#### Usuarios
+
+- Alta, edición y baja de usuarios del sistema.
+- Asignación de **roles** (administrador, líder de equipo, árbitro, viewers, etc.) según lo que permita tu organización.
+- Los usuarios que serán **líderes** o **árbitros** deben existir y tener el rol correcto para ver sus paneles.
+
+#### Equipos
+
+- Crear equipos, asignar **carreras** (facultades) y **líderes** vinculados a la edición actual.
+- Editar un equipo permite ajustar nombre, carreras y líderes acotados al torneo vigente.
+
+#### Inscripciones
+
+- Crea **formularios de inscripción** por disciplina y género (mínimo/máximo de jugadores, fechas límite de edición).
+- **Abrir / cerrar** un formulario controla si los líderes pueden seguir inscribiendo.
+- **Ver** (icono de ojo): abre el listado de **equipos inscritos** en ese formulario y, al elegir un equipo, la tabla de **jugadores** (incluye enlace para ver la **foto de cédula** cuando exista y el almacenamiento lo permita).
+- **Editar** / **Eliminar** formularios según permisos.
+
+#### Programar partidos
+
+- Asigna fecha, hora, cancha, equipos, torneo, género y, si aplica, **árbitro** y **asistente**.
+- Los partidos aparecen en calendarios y vistas del líder y de la página pública según su estado.
+
+#### Resultados (partidos del día)
+
+- Para los partidos programados **hoy**, puedes iniciar el partido, cargar **goles** o puntos, **tarjetas** (amarillas/rojas) y otros eventos según la disciplina.
+- Los **goles** y **tarjetas** se guardan en vivo en la base de datos para que líderes y público los vean sin esperar a finalizar el partido.
+- **Segunda tarjeta amarilla** al mismo jugador: el sistema puede registrar automáticamente la **tarjeta roja** correspondiente.
+- Al **finalizar** el partido se confirma el resultado y el estado pasa a terminado.
+
+#### Tablas y clasificación
+
+- Visualiza posiciones por torneo o disciplina según la configuración del sistema.
+
+#### Brackets (eliminatorias)
+
+- Gestión de llaves cuando el formato lo requiera.
+
+#### Documentos
+
+- Subida de PDF u otros documentos asociados al torneo (según configuración del bucket en Supabase).
+
+---
+
+### Manual del **Líder de equipo**
+
+- Tras iniciar sesión accedes al **panel del líder** (sin el menú completo de administrador).
+- Consulta **datos de tu equipo**, **partidos** (próximos, en curso y jugados) y **estadísticas** resumidas.
+- **Inscripciones**: elige el formulario de la disciplina/género que corresponda a tu equipo.
+  - Si no existe inscripción, créala; luego añade jugadores dentro del mínimo y máximo permitidos.
+  - Completa datos del jugador, carrera, semestre, número, capitán y, si se pide, **foto de cédula** (subida a almacenamiento).
+  - Guarda los cambios para que el administrador los vea en **Inscripciones → Ver**.
+- **Detalle de un partido**: abre goles, tarjetas y demás eventos; la información se actualiza en **tiempo real** mientras el administrador carga el partido.
+
+---
+
+### Manual del **Árbitro**
+
+- Tras iniciar sesión entras a **Partidos a arbitrar**.
+- Ves los partidos en los que figuras como **árbitro** o **asistente** en la edición activa, agrupados por en vivo, próximos y finalizados.
+- Puedes **cerrar sesión** desde la propia pantalla del árbitro.
+
+---
+
+### Manual del **Viewer** (página pública)
+
+- Sin cuenta, en la **página principal** puedes ver deportes, **partidos en vivo**, próximos y recientes.
+- Al elegir un deporte se filtra la información.
+- La **clasificación** pública puede estar en una ruta dedicada (según despliegue), accesible sin login.
+- Los datos se actualizan en tiempo real cuando el administrador publica cambios.
+
+---
+
+### Consejos y resolución rápida
+
+| Situación | Qué hacer |
+|-----------|-----------|
+| No veo el menú de administrador en el móvil | Pulsa **Menú** (arriba a la izquierda) para abrir el lateral. |
+| El administrador no ve equipos en “Inscripciones → Ver” | Comprueba que el formulario sea el correcto y que los líderes hayan **guardado** la inscripción; revisa permisos y datos en Supabase si persiste. |
+| No abre la foto de la cédula | El archivo está en Storage; hace falta políticas que permitan **lectura** (o URLs firmadas) para tu rol. Consulta con quien administra Supabase. |
+| El marcador o las tarjetas no se actualizan solos | Activa **Realtime** en Supabase para las tablas indicadas en la documentación del proyecto (`CONFIGURAR_REALTIME.md` / `ACTIVAR_TIEMPO_REAL.md`). |
+| Olvidé la contraseña | Usa el enlace de recuperación si está configurado en el proyecto; si no existe, contacta al administrador de la plataforma. |
 
 ---
 
