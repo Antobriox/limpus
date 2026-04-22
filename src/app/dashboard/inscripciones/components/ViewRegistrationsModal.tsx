@@ -21,7 +21,7 @@ import { X, Users, User, Eye } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { cn } from "../../../../lib/utils";
-import { openCedulaPhotoInNewTab } from "../../../../lib/openCedulaPhoto";
+import CedulaPhotoLightbox from "../../../../components/CedulaPhotoLightbox";
 
 type ViewRegistrationsModalProps = {
   formId: number;
@@ -65,6 +65,7 @@ export default function ViewRegistrationsModal({
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingPlayers, setLoadingPlayers] = useState(false);
+  const [cedulaPreviewUrl, setCedulaPreviewUrl] = useState<string | null>(null);
 
   const loadTeamRegistrations = useCallback(async () => {
     setLoading(true);
@@ -127,6 +128,9 @@ export default function ViewRegistrationsModal({
   useEffect(() => {
     if (isOpen && formId) {
       loadTeamRegistrations();
+    }
+    if (!isOpen) {
+      setCedulaPreviewUrl(null);
     }
   }, [isOpen, formId, loadTeamRegistrations]);
 
@@ -222,6 +226,7 @@ export default function ViewRegistrationsModal({
   const [listRef] = useAutoAnimate();
 
   return (
+    <>
     <AnimatePresence>
       {isOpen && (
         <>
@@ -422,14 +427,7 @@ export default function ViewRegistrationsModal({
                                   type="button"
                                   whileHover={{ scale: 1.1 }}
                                   whileTap={{ scale: 0.9 }}
-                                  onClick={async () => {
-                                    try {
-                                      await openCedulaPhotoInNewTab(player.cedula_photo_url!);
-                                    } catch (e) {
-                                      console.error(e);
-                                      alert("No se pudo abrir la foto de la cédula. Comprueba permisos del bucket en Supabase.");
-                                    }
-                                  }}
+                                  onClick={() => setCedulaPreviewUrl(player.cedula_photo_url!)}
                                   className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all cursor-pointer"
                                   title="Ver foto de cédula"
                                 >
@@ -455,5 +453,11 @@ export default function ViewRegistrationsModal({
         </>
       )}
     </AnimatePresence>
+    <CedulaPhotoLightbox
+      isOpen={cedulaPreviewUrl !== null}
+      storedUrl={cedulaPreviewUrl}
+      onClose={() => setCedulaPreviewUrl(null)}
+    />
+    </>
   );
 }
